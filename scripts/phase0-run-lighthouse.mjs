@@ -3,8 +3,9 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-const origin = "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
-const outputDirectory = "audits/phase-0/lighthouse-json";
+const origin = (process.env.LIGHTHOUSE_ORIGIN || "https://studywudy-board-solutions.amanbhagat17089.workers.dev").replace(/\/$/, "");
+const outputDirectory = process.env.LIGHTHOUSE_OUTPUT_DIRECTORY || "audits/phase-0/lighthouse-json";
+const chromeFlags = process.env.LIGHTHOUSE_CHROME_FLAGS || "--headless --no-sandbox --disable-gpu";
 const pages = [
   ["homepage", "/"],
   ["board", "/maharashtra-board"],
@@ -46,7 +47,7 @@ for (const [pageName, path] of pages) {
       "--quiet",
       "--output=json",
       `--output-path=${outputPath}`,
-      "--chrome-flags=--headless --no-sandbox --disable-gpu",
+      `--chrome-flags=${chromeFlags}`,
       "--only-categories=performance,accessibility,best-practices,seo",
     ];
     if (formFactor === "desktop") args.push("--preset=desktop");

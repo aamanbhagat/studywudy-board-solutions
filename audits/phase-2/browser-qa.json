@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-08-18",
+  "origin": "http://localhost:8789",
+  "viewports": [
+    { "width": 412, "height": 915, "routes": ["/maharashtra-board", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027"] },
+    { "width": 1350, "height": 900, "routes": ["/"] }
+  ],
+  "assertions": {
+    "lightTheme": true,
+    "darkTheme": true,
+    "themePersistsAcrossNavigation": true,
+    "noHorizontalOverflow": true,
+    "quickFinderMountsAfterAsyncCss": true,
+    "reloadReturnsFreshPhase2Markup": true,
+    "ibmPlexSansActive": true,
+    "numericalKatexMarkupCount": 22,
+    "optimizedBoardImagesHaveDimensions": true,
+    "consoleWarningsOrErrors": 0
+  }
+}

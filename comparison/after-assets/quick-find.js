@@ -61,6 +61,7 @@ function mountQuickFind() {
     finder = document.querySelector("[data-quick-find]");
   }
   if (!finder || finder.dataset.ready === "true") return;
+  finder.classList.toggle("qf-board-context", isBoardPage);
   finder.dataset.ready = "true";
   const pointHeroToFinder = () => {
     const heroLink = [...document.querySelectorAll("a")].find((link) => link.textContent.trim().startsWith("Find my textbook"));
@@ -306,6 +307,11 @@ function mountQuickFind() {
 }
 
 function mountQuickFindAfterHydration(attempt = 0) {
+  if (!document.documentElement.classList.contains("qf-styles-ready") && attempt < 300) {
+    requestAnimationFrame(() => mountQuickFindAfterHydration(attempt + 1));
+    return;
+  }
+  document.documentElement.classList.add("qf-styles-ready");
   if (document.querySelector("next-route-announcer") || attempt >= 300) {
     requestAnimationFrame(() => requestAnimationFrame(mountQuickFind));
     return;

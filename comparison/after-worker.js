@@ -1,6 +1,9 @@
 import baseWorker, { DOQueueHandler } from "../worker.js";
 import { bookMatchesStream, streamsFor, streamLabel, subjectsFor } from "./stream-taxonomy.js";
-import { BOARD_ARTWORK, BOOK_ARTWORK } from "./catalog-artwork-map.js";
+import { BOOK_ARTWORK } from "./catalog-artwork-map.js";
+import { CATALOG_ARTWORK_CSS } from "./catalog-artwork-inline.mjs";
+import { quickFindAsyncAssets } from "./quick-find-critical.mjs";
+import { THEME_CSS } from "./theme-inline.mjs";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -8,10 +11,15 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const QUICK_FIND_ASSETS = '<link rel="stylesheet" href="/quick-find.css" data-studywudy-comparison="after"/><script src="/quick-find.js" defer data-studywudy-comparison="after"></script>';
-const ARTWORK_STYLESHEET = '<link rel="stylesheet" href="/catalog-artwork.css?v=20260818-mobile-7" data-studywudy-catalog-artwork="true"/>';
-const ARTWORK_RUNTIME = '<script src="/catalog-artwork.js?v=20260817-official-3" data-studywudy-catalog-artwork="true"></script>';
-const THEME_ASSETS = '<link rel="stylesheet" href="/theme.css?v=20260818-phase1" data-studywudy-theme="true"/><script src="/theme.js?v=20260818-phase1" data-studywudy-theme="true"></script>';
+const PHASE_2_VERSION = "20260818-phase2";
+// The recovered RSC payload already references this opaque Next font URL. Its
+// asset is replaced with IBM Plex Sans so the preload and CSS stay byte-identical.
+const FONT_PRELOAD = "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2";
+const EDGE_HTML_CACHE = "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000";
+const ARTWORK_STYLESHEET = `<style data-studywudy-catalog-artwork="inline">${CATALOG_ARTWORK_CSS}</style>`;
+const ARTWORK_RUNTIME = `<script src="/catalog-artwork.js?v=${PHASE_2_VERSION}" defer data-studywudy-catalog-artwork="true"></script>`;
+const THEME_BOOTSTRAP = '<script data-studywudy-theme="bootstrap">try{document.documentElement.dataset.theme=localStorage.getItem("studywudy-theme")==="dark"?"dark":"light"}catch{document.documentElement.dataset.theme="light"}</script>';
+const THEME_ASSETS = `${THEME_BOOTSTRAP}<style data-studywudy-theme="inline">${THEME_CSS}</style><script src="/theme.js?v=${PHASE_2_VERSION}" defer data-studywudy-theme="true"></script>`;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
@@ -183,19 +191,61 @@ function withTransformableHeaders(response, cacheControl = null) {
   });
 }
 
-function withTheme(response) {
+function withoutConditionalHtmlValidators(request) {
+  const accept = request.headers.get("accept") || "";
+  if (!(["GET", "HEAD"].includes(request.method) && accept.includes("text/html"))) return request;
+  if (!request.headers.has("if-none-match") && !request.headers.has("if-modified-since")) return request;
+  const headers = new Headers(request.headers);
+  headers.delete("if-none-match");
+  headers.delete("if-modified-since");
+  return new Request(request, { headers });
+}
+
+function withTheme(response, addEdgeCacheFallback = false) {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("text/html")) return response;
-  const rewriter = new HTMLRewriter().on("head", {
-    element(element) {
-      element.append(THEME_ASSETS, { html: true });
-    },
-  });
-  return rewriter.transform(withTransformableHeaders(response));
+  let hasFontPreload = false;
+  const rewriter = new HTMLRewriter()
+    .on('link[rel="preload"][as="font"]', {
+      element(element) {
+        hasFontPreload = true;
+        element.setAttribute("href", FONT_PRELOAD);
+        element.setAttribute("type", "font/woff2");
+        element.setAttribute("crossorigin", "");
+      },
+    })
+    .on('link[href^="/quick-find.css"]', {
+      element(element) {
+        element.replace(quickFindAsyncAssets(`/quick-find.css?v=${PHASE_2_VERSION}`), { html: true });
+      },
+    })
+    .on('script[src^="/quick-find.js"]', {
+      element(element) {
+        element.setAttribute("src", `/quick-find.js?v=${PHASE_2_VERSION}`);
+        element.setAttribute("defer", "");
+      },
+    })
+    .on("head", {
+      element(element) {
+        element.onEndTag((endTag) => {
+          if (!hasFontPreload) {
+            endTag.before(`<link rel="preload" href="${FONT_PRELOAD}" as="font" crossorigin="" type="font/woff2"/>`, { html: true });
+          }
+          endTag.before(THEME_ASSETS, { html: true });
+        });
+      },
+    });
+  const cacheControl = response.headers.get("cache-control") || "";
+  const needsEdgeCache = addEdgeCacheFallback
+    && response.ok
+    && !cacheControl.includes("s-maxage=")
+    && (!cacheControl || /private|no-store|must-revalidate/.test(cacheControl));
+  return rewriter.transform(withTransformableHeaders(response, needsEdgeCache ? EDGE_HTML_CACHE : null));
 }
 
 function bookCoverMarkup(artwork, eager = false) {
-  return `<img class="catalog-real-book-cover" alt="${escapeHtmlAttribute(artwork.alt)}" decoding="async" fetchpriority="${eager ? "high" : "low"}" height="300" loading="${eager ? "eager" : "lazy"}" src="${escapeHtmlAttribute(artwork.src)}" width="216"/>`;
+  const src = artwork.src.replace(/\.jpg$/i, ".webp");
+  return `<img class="catalog-real-book-cover" alt="${escapeHtmlAttribute(artwork.alt)}" decoding="async" fetchpriority="${eager ? "high" : "low"}" height="300" loading="${eager ? "eager" : "lazy"}" src="${escapeHtmlAttribute(src)}" width="216"/>`;
 }
 
 function artworkHeadMarkup(pageConfig = null) {
@@ -203,6 +253,31 @@ function artworkHeadMarkup(pageConfig = null) {
     ? `<script data-studywudy-catalog-artwork="config">window.__STUDYWUDY_ARTWORK_PAGE__=${JSON.stringify(pageConfig).replaceAll("<", "\\u003c")};</script>`
     : "";
   return `${ARTWORK_STYLESHEET}${config}${ARTWORK_RUNTIME}`;
+}
+
+function optimizedBoardLogoPath(slug) {
+  return `/catalog-artwork/boards/logos/${slug}-384.webp`;
+}
+
+function setBoardLogoAttributes(element, slug, size, eager = false) {
+  element.setAttribute("src", optimizedBoardLogoPath(slug));
+  element.removeAttribute("srcset");
+  element.setAttribute("decoding", "async");
+  element.setAttribute("fetchpriority", eager ? "high" : "low");
+  element.setAttribute("height", String(size));
+  element.setAttribute("loading", eager ? "eager" : "lazy");
+  element.setAttribute("width", String(size));
+}
+
+function addBoardArtworkHandlers(rewriter) {
+  BOARD_PAGE_SLUGS.forEach((slug) => {
+    rewriter.on(`.board-card-${slug} .board-artwork img`, {
+      element(element) {
+        setBoardLogoAttributes(element, slug, 192);
+      },
+    });
+  });
+  return rewriter;
 }
 
 function addArtworkHandlers(rewriter, books, options = {}) {
@@ -289,28 +364,7 @@ async function catalogArtworkResponse(request, env, ctx, url) {
     },
   });
 
-  return rewriter.transform(withTransformableHeaders(response, streamId ? "no-store" : null));
-}
-
-function classRoute(pathname) {
-  const match = pathname.match(/^\/([^/]+)\/(class-\d+)\/?$/);
-  if (!match || !BOARD_PAGE_SLUGS.has(match[1])) return null;
-  return { board: match[1], grade: match[2] };
-}
-
-async function finderClassPageResponse(request, env, ctx, url) {
-  if (request.method !== "GET" || !classRoute(url.pathname)) return null;
-  const response = await baseWorker.fetch(request, env, ctx);
-  const contentType = response.headers.get("content-type") || "";
-  if (!response.ok || !contentType.includes("text/html")) return response;
-
-  const html = (await response.text()).replace("</head>", `${QUICK_FIND_ASSETS}</head>`);
-  const headers = new Headers(response.headers);
-  headers.delete("content-length");
-  headers.delete("content-encoding");
-  headers.delete("etag");
-  headers.set("cache-control", "no-store");
-  return new Response(html, { status: response.status, statusText: response.statusText, headers });
+  return rewriter.transform(withTransformableHeaders(response, streamId ? "no-store" : EDGE_HTML_CACHE));
 }
 
 async function boardsPageResponse(request, env, ctx, url) {
@@ -319,12 +373,12 @@ async function boardsPageResponse(request, env, ctx, url) {
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/html")) return response;
 
-  const rewriter = new HTMLRewriter().on("head", {
+  const rewriter = addBoardArtworkHandlers(new HTMLRewriter()).on("head", {
     element(element) {
       element.append(artworkHeadMarkup(), { html: true });
     },
   });
-  return rewriter.transform(withTransformableHeaders(response, "no-store"));
+  return rewriter.transform(withTransformableHeaders(response, EDGE_HTML_CACHE));
 }
 
 async function boardLandingResponse(request, env, url, board) {
@@ -332,16 +386,23 @@ async function boardLandingResponse(request, env, url, board) {
   const response = await env.ASSETS.fetch(new Request(assetUrl, request));
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/html")) return response;
-  const rewriter = new HTMLRewriter().on("head", {
-    element(element) {
-      element.append(artworkHeadMarkup(), { html: true });
-    },
-  });
-  return rewriter.transform(withTransformableHeaders(response, "no-store"));
+  const rewriter = new HTMLRewriter()
+    .on("head", {
+      element(element) {
+        element.append(artworkHeadMarkup(), { html: true });
+      },
+    })
+    .on(".catalog-stat-artwork img", {
+      element(element) {
+        setBoardLogoAttributes(element, board, 180, true);
+      },
+    });
+  return rewriter.transform(withTransformableHeaders(response, EDGE_HTML_CACHE));
 }
 
 const afterWorker = {
   async fetch(request, env, ctx) {
+    request = withoutConditionalHtmlValidators(request);
     const url = new URL(request.url);
     if (url.pathname === "/api/quick-find" && request.method === "GET") {
       return quickFind(request, env);
@@ -354,7 +415,9 @@ const afterWorker = {
     if ((request.method === "GET" || request.method === "HEAD") && BOARD_PAGE_SLUGS.has(boardSlug)) {
       return withTheme(await boardLandingResponse(request, env, url, boardSlug));
     }
-    return withTheme(await baseWorker.fetch(request, env, ctx));
+    const response = await baseWorker.fetch(request, env, ctx);
+    const cachePublicHtml = request.method === "GET" || request.method === "HEAD";
+    return withTheme(response, cachePublicHtml);
   },
 };
 

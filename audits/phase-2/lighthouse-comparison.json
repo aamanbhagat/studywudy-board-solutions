@@ -1,0 +1,660 @@
+{
+  "generatedAt": "2026-08-18",
+  "lighthouseVersion": "13.4.1",
+  "methodology": {
+    "routes": 8,
+    "formFactors": [
+      "mobile",
+      "desktop"
+    ],
+    "reportCount": 16,
+    "baselineTransport": "Cloudflare HTTP/2 or HTTP/3 production baseline",
+    "phase2Transport": "Local HTTP/2 TLS proxy to Wrangler; no deployment"
+  },
+  "summary": {
+    "minimumPerformance": 99,
+    "performanceImproved": 8,
+    "performanceUnchanged": 6,
+    "performanceWithinOnePoint": 2,
+    "minimumPerformanceDelta": -1,
+    "maximumPerformanceDelta": 26,
+    "maximumLcpMs": 2262,
+    "maximumCls": 0.028,
+    "maximumTbtMs": 13
+  },
+  "assertions": {
+    "exactReportCount": true,
+    "phase2UsesHttp2": true,
+    "noRuntimeErrors": true,
+    "allQualityScores100": true,
+    "allCoreMetricsGood": true,
+    "performanceFloor99": true,
+    "noMaterialPerformanceRegression": true
+  },
+  "routes": [
+    {
+      "id": "board-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 80,
+        "phase2Performance": 100,
+        "performanceDelta": 20,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 534,
+          "phase2": 492,
+          "delta": -42
+        },
+        "cls": {
+          "baseline": 0.438,
+          "phase2": 0.005,
+          "delta": -0.433
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 138,
+          "phase2": 4,
+          "delta": -134
+        }
+      }
+    },
+    {
+      "id": "board-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 76,
+        "phase2Performance": 99,
+        "performanceDelta": 23,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 5468,
+          "phase2": 2262,
+          "delta": -3206
+        },
+        "cls": {
+          "baseline": 0.041,
+          "phase2": 0.015,
+          "delta": -0.026
+        },
+        "tbtMs": {
+          "baseline": 65,
+          "phase2": 8,
+          "delta": -57
+        },
+        "ttfbMs": {
+          "baseline": 190,
+          "phase2": 3,
+          "delta": -187
+        }
+      }
+    },
+    {
+      "id": "chapter-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 98,
+        "phase2Performance": 100,
+        "performanceDelta": 2,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 651,
+          "phase2": 511,
+          "delta": -140
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 1078,
+          "phase2": 50,
+          "delta": -1028
+        }
+      }
+    },
+    {
+      "id": "chapter-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 97,
+        "phase2Performance": 99,
+        "performanceDelta": 2,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1564,
+          "phase2": 2112,
+          "delta": 548
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 23,
+          "phase2": 5,
+          "delta": -18
+        },
+        "ttfbMs": {
+          "baseline": 1872,
+          "phase2": 82,
+          "delta": -1790
+        }
+      }
+    },
+    {
+      "id": "class-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 88,
+        "phase2Performance": 100,
+        "performanceDelta": 12,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 476,
+          "phase2": 464,
+          "delta": -12
+        },
+        "cls": {
+          "baseline": 0.245,
+          "phase2": 0.001,
+          "delta": -0.244
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 148,
+          "phase2": 9,
+          "delta": -139
+        }
+      }
+    },
+    {
+      "id": "class-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 73,
+        "phase2Performance": 99,
+        "performanceDelta": 26,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1086,
+          "phase2": 1973,
+          "delta": 887
+        },
+        "cls": {
+          "baseline": 0.997,
+          "phase2": 0.001,
+          "delta": -0.996
+        },
+        "tbtMs": {
+          "baseline": 10,
+          "phase2": 13,
+          "delta": 3
+        },
+        "ttfbMs": {
+          "baseline": 2240,
+          "phase2": 10,
+          "delta": -2230
+        }
+      }
+    },
+    {
+      "id": "homepage-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 90,
+        "phase2Performance": 100,
+        "performanceDelta": 10,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 464,
+          "phase2": 453,
+          "delta": -11
+        },
+        "cls": {
+          "baseline": 0.202,
+          "phase2": 0.001,
+          "delta": -0.201
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 135,
+          "phase2": 3,
+          "delta": -132
+        }
+      }
+    },
+    {
+      "id": "homepage-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 99,
+        "phase2Performance": 99,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1380,
+          "phase2": 1962,
+          "delta": 582
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 65,
+          "phase2": 8,
+          "delta": -57
+        },
+        "ttfbMs": {
+          "baseline": 139,
+          "phase2": 3,
+          "delta": -136
+        }
+      }
+    },
+    {
+      "id": "question-mcq-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 100,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 472,
+          "phase2": 437,
+          "delta": -35
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 171,
+          "phase2": 18,
+          "delta": -153
+        }
+      }
+    },
+    {
+      "id": "question-mcq-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 99,
+        "performanceDelta": -1,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1487,
+          "phase2": 1967,
+          "delta": 480
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 23,
+          "phase2": 5,
+          "delta": -18
+        },
+        "ttfbMs": {
+          "baseline": 175,
+          "phase2": 11,
+          "delta": -164
+        }
+      }
+    },
+    {
+      "id": "question-numerical-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 100,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 442,
+          "phase2": 514,
+          "delta": 72
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 192,
+          "phase2": 11,
+          "delta": -181
+        }
+      }
+    },
+    {
+      "id": "question-numerical-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 98,
+        "phase2Performance": 100,
+        "performanceDelta": 2,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 2275,
+          "phase2": 1812,
+          "delta": -463
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 7,
+          "delta": 7
+        },
+        "ttfbMs": {
+          "baseline": 158,
+          "phase2": 12,
+          "delta": -146
+        }
+      }
+    },
+    {
+      "id": "question-written-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 100,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 494,
+          "phase2": 455,
+          "delta": -39
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.028,
+          "delta": 0.028
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 150,
+          "phase2": 7,
+          "delta": -143
+        }
+      }
+    },
+    {
+      "id": "question-written-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 99,
+        "performanceDelta": -1,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1777,
+          "phase2": 1812,
+          "delta": 35
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.002,
+          "delta": 0.002
+        },
+        "tbtMs": {
+          "baseline": 18,
+          "phase2": 6,
+          "delta": -12
+        },
+        "ttfbMs": {
+          "baseline": 265,
+          "phase2": 9,
+          "delta": -256
+        }
+      }
+    },
+    {
+      "id": "subject-desktop",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 100,
+        "phase2Performance": 100,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 429,
+          "phase2": 428,
+          "delta": -1
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 0,
+          "phase2": 0,
+          "delta": 0
+        },
+        "ttfbMs": {
+          "baseline": 971,
+          "phase2": 29,
+          "delta": -942
+        }
+      }
+    },
+    {
+      "id": "subject-mobile",
+      "baselineOrigin": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+      "phase2Origin": "https://localhost:8790",
+      "protocol": [
+        "h2"
+      ],
+      "runtimeError": null,
+      "scores": {
+        "baselinePerformance": 99,
+        "phase2Performance": 99,
+        "performanceDelta": 0,
+        "accessibility": 100,
+        "bestPractices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "lcpMs": {
+          "baseline": 1356,
+          "phase2": 2113,
+          "delta": 757
+        },
+        "cls": {
+          "baseline": 0,
+          "phase2": 0.001,
+          "delta": 0.001
+        },
+        "tbtMs": {
+          "baseline": 10,
+          "phase2": 3,
+          "delta": -7
+        },
+        "ttfbMs": {
+          "baseline": 1138,
+          "phase2": 32,
+          "delta": -1106
+        }
+      }
+    }
+  ]
+}

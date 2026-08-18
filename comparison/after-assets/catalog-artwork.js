@@ -4,7 +4,7 @@
   const BOARDS = Object.freeze({"maharashtra-board":{"src":"/catalog-artwork/boards/logos/maharashtra-board.png","alt":"Maharashtra State Board official logo"},"cbse":{"src":"/catalog-artwork/boards/logos/cbse.png","alt":"CBSE official logo"},"cisce":{"src":"/catalog-artwork/boards/logos/cisce.webp","alt":"CISCE — ICSE & ISC official logo"},"tamil-nadu-board":{"src":"/catalog-artwork/boards/logos/tamil-nadu-board.png","alt":"Tamil Nadu State Board official logo"}});
   const parts = () => location.pathname.split("/").filter(Boolean);
   const coverPath = (board, grade, slug) => {
-    const path = `/catalog-artwork/books/covers/${board}/${grade}/${slug}.jpg`;
+    const path = `/catalog-artwork/books/covers/${board}/${grade}/${slug}.webp`;
     return board === "maharashtra-board" ? `${path}?v=20260817-official` : path;
   };
   const coverAlt = (value) => `${String(value || "Textbook")
@@ -30,11 +30,15 @@
     image.width = 216;
   }
 
-  function setLogo(image, artwork, size) {
+  function setLogo(image, artwork, size, eager = false) {
     if (!image || !artwork) return;
+    const src = artwork.src.replace(/\.(?:png|webp)$/i, "-384.webp");
     image.alt = artwork.alt;
     image.className = "board-official-logo";
-    if (image.getAttribute("src") !== artwork.src) image.src = artwork.src;
+    image.decoding = "async";
+    image.fetchPriority = eager ? "high" : "low";
+    image.loading = eager ? "eager" : "lazy";
+    if (image.getAttribute("src") !== src) image.src = src;
     image.removeAttribute("srcset");
     image.width = size;
     image.height = size;
@@ -75,7 +79,7 @@
       setLogo(document.querySelector(`.board-card-${slug} .board-artwork img`), artwork, 192);
     }
     if (route.length === 1 && BOARDS[board]) {
-      setLogo(document.querySelector(".catalog-stat-artwork img"), BOARDS[board], 180);
+      setLogo(document.querySelector(".catalog-stat-artwork img"), BOARDS[board], 180, true);
     }
     if (location.pathname.replace(/\/+$/, "") === "/boards") {
       document.querySelectorAll(".board-explorer-compact").forEach((element) => element.remove());

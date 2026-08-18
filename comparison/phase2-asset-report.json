@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-08-18",
+  "fonts": {
+    "family": "IBM Plex Sans",
+    "display": "swap",
+    "preload": "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2",
+    "subsets": [
+      "latin",
+      "greek",
+      "devanagari"
+    ]
+  },
+  "katex": {
+    "serverRendered": true,
+    "fontDisplay": "swap"
+  },
+  "covers": {
+    "count": 602,
+    "sourceBytes": 32518907,
+    "webpBytes": 8592626,
+    "reductionPercent": 73.6,
+    "renderedWidth": 216,
+    "renderedHeight": 300
+  },
+  "boardLogos": [
+    {
+      "slug": "cbse",
+      "sourceBytes": 76236,
+      "webpBytes": 13166,
+      "avifBytes": 7946
+    },
+    {
+      "slug": "cisce",
+      "sourceBytes": 12934,
+      "webpBytes": 14608,
+      "avifBytes": 10120
+    },
+    {
+      "slug": "maharashtra-board",
+      "sourceBytes": 1324187,
+      "webpBytes": 38388,
+      "avifBytes": 19291
+    },
+    {
+      "slug": "tamil-nadu-board",
+      "sourceBytes": 37717,
+      "webpBytes": 7122,
+      "avifBytes": 3554
+    }
+  ]
+}
