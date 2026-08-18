@@ -1,0 +1,18 @@
+{
+  "name": "studywudy-board-solutions-recovered",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.recovered.jsonc",
+    "dev:before": "wrangler dev --config wrangler.recovered.jsonc --port 8787 --local",
+    "dev:after": "wrangler dev --config wrangler.after.jsonc --port 8789 --local --persist-to comparison/after-persistence",
+    "check:production": "wrangler deploy --dry-run --config wrangler.production.jsonc --outdir .wrangler/dry-run-production",
+    "deploy:production": "wrangler deploy --config wrangler.production.jsonc --keep-vars",
+    "check": "wrangler deploy --dry-run --config wrangler.recovered.jsonc --outdir .wrangler/dry-run",
+    "check:after": "wrangler deploy --dry-run --config wrangler.after.jsonc --outdir .wrangler/dry-run-after",
+    "restore:d1": "wrangler d1 execute studywudy-content --local --file cloudflare-backup-2026-08-17/d1/studywudy-content.sql --config wrangler.recovered.jsonc",
+    "restore:r2": "node cloudflare-backup-2026-08-17/r2/restore-to-local-r2.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

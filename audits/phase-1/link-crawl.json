@@ -1,0 +1,58 @@
+{
+  "capturedAt": "2026-08-18T06:14:02.908Z",
+  "origin": "http://127.0.0.1:8789",
+  "sitemap": {
+    "status": 200,
+    "childSitemaps": 61,
+    "failedChildren": [],
+    "totalUrls": 312176
+  },
+  "samples": {
+    "board": {
+      "population": 4,
+      "sampled": 4,
+      "target": 500,
+      "populationBelowTarget": true
+    },
+    "class": {
+      "population": 35,
+      "sampled": 35,
+      "target": 500,
+      "populationBelowTarget": true
+    },
+    "subject": {
+      "population": 428,
+      "sampled": 428,
+      "target": 500,
+      "populationBelowTarget": true
+    },
+    "chapter": {
+      "population": 11610,
+      "sampled": 500,
+      "target": 500,
+      "populationBelowTarget": false
+    },
+    "question": {
+      "population": 299449,
+      "sampled": 500,
+      "target": 500,
+      "populationBelowTarget": false
+    }
+  },
+  "sampledSourcePages": 1467,
+  "sampledSourceLinks": 55164,
+  "validationMethod": "Every unique internal content target is matched exactly against the current indexable sitemap; every non-sitemap target plus a deterministic 500-target transport sample is also requested over HTTP.",
+  "uniqueInternalTargetsValidated": 20309,
+  "sitemapResolvedTargets": 20249,
+  "nonSitemapTargets": 60,
+  "httpTargetsChecked": 559,
+  "relatedLinksChecked": 5000,
+  "pageField": {
+    "nullRowsHidden": 500,
+    "populatedRows": 0,
+    "emptyPlaceholders": 0
+  },
+  "sourceFailures": [],
+  "brokenLinks": [],
+  "invalidRelatedLinks": []
+}

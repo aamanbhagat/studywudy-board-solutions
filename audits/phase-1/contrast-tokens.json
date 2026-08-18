@@ -1,0 +1,35 @@
+{
+  "standard": "WCAG 2.2 AA",
+  "pairs": [
+    {
+      "use": "locked indigo button",
+      "foreground": "#ffffff",
+      "background": "#0757d8",
+      "ratio": 6.24,
+      "result": "pass"
+    },
+    {
+      "use": "locked gold badge/token",
+      "foreground": "#101316",
+      "background": "#ffd51f",
+      "ratio": 13.13,
+      "result": "pass"
+    },
+    {
+      "use": "dark-mode indigo text",
+      "foreground": "#78a9ff",
+      "background": "#111b2b",
+      "ratio": 7.34,
+      "result": "pass"
+    },
+    {
+      "use": "dark-mode focus/gold",
+      "foreground": "#ffd51f",
+      "background": "#111b2b",
+      "ratio": 12.17,
+      "result": "pass"
+    }
+  ],
+  "renderedVerifiedBadgeCount": 0,
+  "badgeNote": "No verified-badge component is rendered in the recovered application, so the locked gold/ink pair was verified at token level. Do not add a verified claim without provenance data."
+}

@@ -1,0 +1,2942 @@
+{
+  "capturedAt": "2026-08-18T06:12:07.993Z",
+  "origin": "http://127.0.0.1:8789",
+  "axeEnabled": true,
+  "runs": [
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "homepage",
+      "path": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Textbook answers, made clear | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Gateway of India beside an open science textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cbse.png",
+          "alt": "An open textbook with an atom and geometry tools",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/cisce.webp",
+          "alt": "A library arch, fountain pen and open textbook",
+          "width": "192",
+          "height": "192"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/tamil-nadu-board.png",
+          "alt": "A Tamil Nadu temple tower with a science textbook",
+          "width": "192",
+          "height": "192"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "board",
+      "path": "/maharashtra-board",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra Board Solutions & Balbharati Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/boards/logos/maharashtra-board.png",
+          "alt": "Maharashtra State Board official logo",
+          "width": "180",
+          "height": "180"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "class",
+      "path": "/maharashtra-board/class-12",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Solutions & Textbook Answers | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/accountancy.webp",
+          "alt": "Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/biology.webp",
+          "alt": "Biology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/book-keeping-and-accountancy.webp",
+          "alt": "Book-Keeping and Accountancy subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/chemistry.webp",
+          "alt": "Chemistry subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/commerce.webp",
+          "alt": "Commerce subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/economics.webp",
+          "alt": "Economics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/english.webp",
+          "alt": "English subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/geography.webp",
+          "alt": "Geography subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/hindi.webp",
+          "alt": "Hindi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/history.webp",
+          "alt": "History subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology.webp",
+          "alt": "Information Technology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/information-technology-commerce.webp",
+          "alt": "Information Technology (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/marathi.webp",
+          "alt": "Marathi subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics.webp",
+          "alt": "Mathematics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/mathematics-commerce.webp",
+          "alt": "Mathematics and Statistics (Commerce) subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/physics.webp",
+          "alt": "Physics subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/political-science.webp",
+          "alt": "Political Science subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/psychology.webp",
+          "alt": "Psychology subject illustration",
+          "width": "128",
+          "height": "128"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/cards-128x128/sociology.webp",
+          "alt": "Sociology subject illustration",
+          "width": "128",
+          "height": "128"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "subject",
+      "path": "/maharashtra-board/class-12/physics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Maharashtra State Board Class 12 Physics Solutions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/subjects/heroes-96x96/physics.webp",
+          "alt": "",
+          "width": "96",
+          "height": "96"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/balbharati-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Balbharati Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        },
+        {
+          "src": "http://127.0.0.1:8789/catalog-artwork/books/covers/maharashtra-board/class-12/maharashtra-state-board-hsc-question-bank-physics-standard-12.jpg?v=20260817-official",
+          "alt": "Maharashtra State Board HSC Question Bank Physics Standard 12 textbook cover",
+          "width": "216",
+          "height": "300"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "chapter",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Rotational Dynamics Solutions | Balbharati Physics Standard 12 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=pIc3LGY2nvXViUO1",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-mcq",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=pIc3LGY2nvXViUO1",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q1: When seen from below, the blades… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260803T023319Z-3e6e638d0f/diagrams/assets/q-msb-balbharati-physics-standard-12-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise, with angular velocity vector pointing downward and angular acceleration vector pointing upward, illustrating the right-hand rule.",
+          "width": "960",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        },
+        {
+          "src": "http://127.0.0.1:8789/boardly-media/20260718T034557Z-85ce1d5b74/diagrams/assets/q-1-001.png.webp",
+          "alt": "Diagram showing a ceiling fan viewed from below rotating anticlockwise with omega arrow pointing downward and alpha arrow pointing upward, illustrating the right-hand rule for angular vectors.",
+          "width": "900",
+          "height": "520"
+        }
+      ],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 8,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=ttAm3lPKywgs06NO",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=j8E9Um7QR9OoOYS8",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-numerical",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=j8E9Um7QR9OoOYS8",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q27: Somehow, an ant is stuck to the… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=JVEEvpylxPu4EnSI",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "question-written",
+      "path": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=i5Aidv6n3aAvUauJ",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics?_rsc=JVEEvpylxPu4EnSI",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Q8: Do we need a banked road for a… — Ch1 | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/search?q=Coulomb%E2%80%99s%20law&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=diagram&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=numerical&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=electric%20field&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=electric%20field&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=Coulomb%E2%80%99s%20law&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=diagram&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=numerical&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/search?q=Coulomb%E2%80%99s%20law&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=diagram&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=numerical&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=electric%20field&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/search?q=numerical&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=Coulomb%E2%80%99s%20law&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=diagram&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:8789/search?q=electric%20field&_rsc=6grVij_EUBxTWnLP",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/search?q=Coulomb%E2%80%99s%20law&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [
+        {
+          "url": "http://127.0.0.1:8789/search?q=electric%20field&_rsc=MnWTrh3l-09yAlSG",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "light",
+      "themeToggle": {
+        "label": "Switch to dark mode",
+        "pressed": "false",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    },
+    {
+      "template": "search",
+      "path": "/search?q=electrostatics",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "status": 200,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": [],
+      "ignoredAbortedPrefetches": [],
+      "errorResponses": [],
+      "title": "Search textbook questions | StudyWudy",
+      "hydrationText": [],
+      "horizontalOverflow": 0,
+      "images": [],
+      "missingAltImages": [],
+      "unnamedInteractives": [],
+      "tabRoles": 0,
+      "mcqButtons": 0,
+      "activeTheme": "dark",
+      "themeToggle": {
+        "label": "Switch to light mode",
+        "pressed": "true",
+        "width": 44,
+        "height": 44
+      },
+      "axeViolations": []
+    }
+  ]
+}

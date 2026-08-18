@@ -1,0 +1,8 @@
+/catalog-artwork/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/catalog-artwork.css
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/catalog-artwork.js
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400

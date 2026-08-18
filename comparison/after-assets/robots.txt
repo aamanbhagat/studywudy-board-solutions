@@ -1,0 +1,6 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+
+Host: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+Sitemap: https://studywudy-board-solutions.amanbhagat17089.workers.dev/sitemap.xml

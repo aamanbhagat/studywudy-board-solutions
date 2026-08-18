@@ -1,0 +1,435 @@
+{
+  "capturedAt": "2026-08-18T06:10:24.734Z",
+  "origin": "http://127.0.0.1:8789",
+  "path": "/cbse/class-11/chemistry/ncert-chemistry-and-2-part-1-class-11/structure-of-atom/questions/q-cbse-ncert-chemistry-and-2-part-1-class-11-2-028",
+  "status": 200,
+  "scientificNotationFinding": "false positive: the shared rich-content renderer already emits KaTeX superscript structures in full answers and related previews; missing KaTeX font assets were the adjacent real defect and are restored",
+  "fullScientific": [
+    {
+      "label": "10⁻³¹",
+      "hasSuperscriptStructure": true,
+      "text": "10−31"
+    },
+    {
+      "label": "10⁻²⁵",
+      "hasSuperscriptStructure": true,
+      "text": "10−25"
+    },
+    {
+      "label": "m = 9.1 × 10⁻³¹",
+      "hasSuperscriptStructure": true,
+      "text": "m=9.1×10−31"
+    },
+    {
+      "label": "KE = 3.0 × 10⁻²⁵",
+      "hasSuperscriptStructure": true,
+      "text": "KE=3.0×10−25"
+    },
+    {
+      "label": "h = 6.626 × 10⁻³⁴",
+      "hasSuperscriptStructure": true,
+      "text": "h=6.626×10−34"
+    },
+    {
+      "label": "KE = p²/(2m)",
+      "hasSuperscriptStructure": true,
+      "text": "KE=p2/(2m)"
+    },
+    {
+      "label": "p = √(2 × 9.1 × 10⁻³¹ × 3.0 × 10⁻²⁵) = √(54.6 × 10⁻⁵⁶)",
+      "hasSuperscriptStructure": true,
+      "text": "p=2×9.1×10−31×3.0×10−25​=54.6×10−56​"
+    },
+    {
+      "label": "√(10⁻⁵⁶) = 10⁻²⁸",
+      "hasSuperscriptStructure": true,
+      "text": "10−56​=10−28"
+    },
+    {
+      "label": "p = √(54.6 × 10⁻⁵⁶) = 7.389 × 10⁻²⁸ kg m s⁻¹",
+      "hasSuperscriptStructure": true,
+      "text": "p=54.6×10−56​=7.389×10−28 kg m s−1"
+    },
+    {
+      "label": "λ = (6.626 × 10⁻³⁴)/(7.389 × 10⁻²⁸)",
+      "hasSuperscriptStructure": true,
+      "text": "λ=(6.626×10−34)/(7.389×10−28)"
+    },
+    {
+      "label": "10⁻³⁴⁺²⁸ = 10⁻⁶",
+      "hasSuperscriptStructure": true,
+      "text": "10−34+28=10−6"
+    },
+    {
+      "label": "λ = (6.626 × 10⁻³⁴)/(7.389 × 10⁻²⁸) = 8.967 × 10⁻⁷ m",
+      "hasSuperscriptStructure": true,
+      "text": "λ=7.389×10−286.626×10−34​=8.967×10−7 m"
+    },
+    {
+      "label": "λ ≈ 8.97 × 10⁻⁷",
+      "hasSuperscriptStructure": true,
+      "text": "λ≈8.97×10−7"
+    }
+  ],
+  "relatedScientific": [
+    {
+      "label": "10¹⁵",
+      "hasSuperscriptStructure": true,
+      "text": "1015"
+    },
+    {
+      "label": "10⁶",
+      "hasSuperscriptStructure": true,
+      "text": "106"
+    },
+    {
+      "label": "ms⁻¹",
+      "hasSuperscriptStructure": true,
+      "text": "ms−1"
+    },
+    {
+      "label": "10⁻¹⁸",
+      "hasSuperscriptStructure": true,
+      "text": "10−18"
+    },
+    {
+      "label": "10⁻¹⁸",
+      "hasSuperscriptStructure": true,
+      "text": "10−18"
+    },
+    {
+      "label": "atom⁻¹",
+      "hasSuperscriptStructure": true,
+      "text": "atom−1"
+    },
+    {
+      "label": "10⁻¹⁸",
+      "hasSuperscriptStructure": true,
+      "text": "10−18"
+    },
+    {
+      "label": "n²",
+      "hasSuperscriptStructure": true,
+      "text": "n2"
+    },
+    {
+      "label": "10⁷",
+      "hasSuperscriptStructure": true,
+      "text": "107"
+    },
+    {
+      "label": "ms⁻¹",
+      "hasSuperscriptStructure": true,
+      "text": "ms−1"
+    },
+    {
+      "label": "He^+_(g) -> He²⁺_(g) + e^-",
+      "hasSuperscriptStructure": true,
+      "text": "HeX+X(g)​​​HeX2+X(g)​​+eX−"
+    },
+    {
+      "label": "10⁻¹⁸",
+      "hasSuperscriptStructure": true,
+      "text": "10−18"
+    },
+    {
+      "label": "atom⁻¹",
+      "hasSuperscriptStructure": true,
+      "text": "atom−1"
+    },
+    {
+      "label": "3s¹",
+      "hasSuperscriptStructure": true,
+      "text": "3s1"
+    }
+  ],
+  "fontResponses": [
+    {
+      "url": "http://127.0.0.1:8789/_next/static/media/KaTeX_Main-Regular.1ryvsdzh2w1_e.woff2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8789/_next/static/media/KaTeX_Math-Italic.32405s1aq8vas.woff2",
+      "status": 200
+    }
+  ],
+  "runtimeErrors": [],
+  "dom": {
+    "documentTitle": "Q28: The mass of an electron is 9.1 ×… — Ch2 | StudyWudy",
+    "fullBodyMath": [
+      {
+        "label": "10⁻³¹",
+        "hasSuperscriptStructure": true,
+        "text": "10−31"
+      },
+      {
+        "label": "10⁻²⁵",
+        "hasSuperscriptStructure": true,
+        "text": "10−25"
+      },
+      {
+        "label": "m = 9.1 × 10⁻³¹",
+        "hasSuperscriptStructure": true,
+        "text": "m=9.1×10−31"
+      },
+      {
+        "label": "KE = 3.0 × 10⁻²⁵",
+        "hasSuperscriptStructure": true,
+        "text": "KE=3.0×10−25"
+      },
+      {
+        "label": "h = 6.626 × 10⁻³⁴",
+        "hasSuperscriptStructure": true,
+        "text": "h=6.626×10−34"
+      },
+      {
+        "label": "KE = p²/(2m)",
+        "hasSuperscriptStructure": true,
+        "text": "KE=p2/(2m)"
+      },
+      {
+        "label": "p = √(2m · KE)",
+        "hasSuperscriptStructure": false,
+        "text": "p=2m⋅KE​"
+      },
+      {
+        "label": "p = √(2m · KE)",
+        "hasSuperscriptStructure": false,
+        "text": "p=2m⋅KE​"
+      },
+      {
+        "label": "p = √(2 × 9.1 × 10⁻³¹ × 3.0 × 10⁻²⁵) = √(54.6 × 10⁻⁵⁶)",
+        "hasSuperscriptStructure": true,
+        "text": "p=2×9.1×10−31×3.0×10−25​=54.6×10−56​"
+      },
+      {
+        "label": "√(54.6) ≈ 7.389",
+        "hasSuperscriptStructure": false,
+        "text": "54.6​≈7.389"
+      },
+      {
+        "label": "√(10⁻⁵⁶) = 10⁻²⁸",
+        "hasSuperscriptStructure": true,
+        "text": "10−56​=10−28"
+      },
+      {
+        "label": "p = √(54.6 × 10⁻⁵⁶) = 7.389 × 10⁻²⁸ kg m s⁻¹",
+        "hasSuperscriptStructure": true,
+        "text": "p=54.6×10−56​=7.389×10−28 kg m s−1"
+      },
+      {
+        "label": "λ = h/p",
+        "hasSuperscriptStructure": false,
+        "text": "λ=h/p"
+      },
+      {
+        "label": "h",
+        "hasSuperscriptStructure": false,
+        "text": "h"
+      },
+      {
+        "label": "p",
+        "hasSuperscriptStructure": false,
+        "text": "p"
+      },
+      {
+        "label": "λ = (h)/(p)",
+        "hasSuperscriptStructure": false,
+        "text": "λ=ph​"
+      },
+      {
+        "label": "λ = (6.626 × 10⁻³⁴)/(7.389 × 10⁻²⁸)",
+        "hasSuperscriptStructure": true,
+        "text": "λ=(6.626×10−34)/(7.389×10−28)"
+      },
+      {
+        "label": "10⁻³⁴⁺²⁸ = 10⁻⁶",
+        "hasSuperscriptStructure": true,
+        "text": "10−34+28=10−6"
+      },
+      {
+        "label": "6.626/7.389 ≈ 0.8967",
+        "hasSuperscriptStructure": false,
+        "text": "6.626/7.389≈0.8967"
+      },
+      {
+        "label": "λ = (6.626 × 10⁻³⁴)/(7.389 × 10⁻²⁸) = 8.967 × 10⁻⁷ m",
+        "hasSuperscriptStructure": true,
+        "text": "λ=7.389×10−286.626×10−34​=8.967×10−7 m"
+      },
+      {
+        "label": "λ ≈ 8.97 × 10⁻⁷",
+        "hasSuperscriptStructure": true,
+        "text": "λ≈8.97×10−7"
+      },
+      {
+        "label": "897",
+        "hasSuperscriptStructure": false,
+        "text": "897"
+      }
+    ],
+    "relatedMath": [
+      {
+        "label": "10¹⁵",
+        "hasSuperscriptStructure": true,
+        "text": "1015"
+      },
+      {
+        "label": "10⁶",
+        "hasSuperscriptStructure": true,
+        "text": "106"
+      },
+      {
+        "label": "ms⁻¹",
+        "hasSuperscriptStructure": true,
+        "text": "ms−1"
+      },
+      {
+        "label": "10⁻¹⁸",
+        "hasSuperscriptStructure": true,
+        "text": "10−18"
+      },
+      {
+        "label": "10⁻¹⁸",
+        "hasSuperscriptStructure": true,
+        "text": "10−18"
+      },
+      {
+        "label": "atom⁻¹",
+        "hasSuperscriptStructure": true,
+        "text": "atom−1"
+      },
+      {
+        "label": "E_n",
+        "hasSuperscriptStructure": true,
+        "text": "En​"
+      },
+      {
+        "label": "10⁻¹⁸",
+        "hasSuperscriptStructure": true,
+        "text": "10−18"
+      },
+      {
+        "label": "n²",
+        "hasSuperscriptStructure": true,
+        "text": "n2"
+      },
+      {
+        "label": "10⁷",
+        "hasSuperscriptStructure": true,
+        "text": "107"
+      },
+      {
+        "label": "ms⁻¹",
+        "hasSuperscriptStructure": true,
+        "text": "ms−1"
+      },
+      {
+        "label": "He^+_(g) -> He²⁺_(g) + e^-",
+        "hasSuperscriptStructure": true,
+        "text": "HeX+X(g)​​​HeX2+X(g)​​+eX−"
+      },
+      {
+        "label": "10⁻¹⁸",
+        "hasSuperscriptStructure": true,
+        "text": "10−18"
+      },
+      {
+        "label": "atom⁻¹",
+        "hasSuperscriptStructure": true,
+        "text": "atom−1"
+      },
+      {
+        "label": "3s¹",
+        "hasSuperscriptStructure": true,
+        "text": "3s1"
+      }
+    ],
+    "breadcrumb": [
+      {
+        "text": "Home",
+        "href": "/"
+      },
+      {
+        "text": "CBSE",
+        "href": "/cbse"
+      },
+      {
+        "text": "Class 11",
+        "href": "/cbse/class-11"
+      },
+      {
+        "text": "Chemistry",
+        "href": "/cbse/class-11/chemistry"
+      },
+      {
+        "text": "NCERT Chemistry and 2 Part 1 Class 11",
+        "href": "/cbse/class-11/chemistry/ncert-chemistry-and-2-part-1-class-11"
+      },
+      {
+        "text": "Structure of Atom",
+        "href": "/cbse/class-11/chemistry/ncert-chemistry-and-2-part-1-class-11/structure-of-atom"
+      },
+      {
+        "text": "Question 28",
+        "href": null
+      }
+    ],
+    "breadcrumbSchema": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "CBSE",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Class 11",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-11"
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "name": "Chemistry",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-11/chemistry"
+      },
+      {
+        "@type": "ListItem",
+        "position": 5,
+        "name": "NCERT Chemistry and 2 Part 1 Class 11",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-11/chemistry/ncert-chemistry-and-2-part-1-class-11"
+      },
+      {
+        "@type": "ListItem",
+        "position": 6,
+        "name": "Structure of Atom",
+        "item": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-11/chemistry/ncert-chemistry-and-2-part-1-class-11/structure-of-atom"
+      },
+      {
+        "@type": "ListItem",
+        "position": 7,
+        "name": "Question 28"
+      }
+    ],
+    "pageRows": 0,
+    "emptyPagePlaceholder": false,
+    "liveTabRoles": 0
+  },
+  "expectedBreadcrumb": [
+    "Home",
+    "CBSE",
+    "Class 11",
+    "Chemistry",
+    "NCERT Chemistry and 2 Part 1 Class 11",
+    "Structure of Atom",
+    "Question 28"
+  ],
+  "failures": []
+}
