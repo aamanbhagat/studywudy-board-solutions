@@ -1,0 +1,35 @@
+{
+  "auditedAt": "2026-08-18T04:53:46.826Z",
+  "sitemapUrl": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/sitemap.xml",
+  "childSitemapCount": 61,
+  "totalUrls": 312176,
+  "uniqueUrls": 312176,
+  "duplicateUrls": 0,
+  "counts": {
+    "question": 299449,
+    "chapter": 11610,
+    "subject": 428,
+    "class": 35,
+    "board": 4,
+    "book": 606,
+    "stream": 19,
+    "program": 23,
+    "homepage": 1,
+    "other": 1
+  },
+  "examples": {
+    "homepage": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/",
+    "other": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/boards",
+    "board": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse",
+    "class": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-1",
+    "subject": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-1/english",
+    "book": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-1/english/ncert-english-marigold-class-1",
+    "chapter": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-1/english/ncert-english-marigold-class-1/a-happy-child",
+    "stream": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/maharashtra-board/class-11/streams/science",
+    "program": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/maharashtra-board/class-11/streams/science/hsc-science-general",
+    "question": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/cbse/class-1/english/ncert-english-marigold-class-1/a-happy-child/questions/q-cbse-ncert-english-marigold-class-1-1-001"
+  },
+  "otherUrls": [
+    "https://studywudy-board-solutions.amanbhagat17089.workers.dev/boards"
+  ]
+}
