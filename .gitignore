@@ -1,0 +1,24 @@
+node_modules/
+.wrangler/
+.lighthouseci/
+comparison/after-persistence/
+.dev.vars
+.dev.vars.*
+*.log
+
+# Local recovery inputs and downloaded production state. These are retained on
+# the workstation, but they are not source inputs for a release deployment.
+cloudflare-backup-*/
+public-snapshot/
+
+# Generated audit evidence. Keep the human-readable implementation notes in
+# Git; regenerate machine reports in CI or on the audit workstation.
+audits/independent-verification/
+audits/phase-3/*.json
+audits/phase-4/*.json
+audits/phase-5/*.json
+audits/phase-6/*.json
+audits/phase-6/*.ndjson
+audits/phase-6/lighthouse/
+
+.DS_Store

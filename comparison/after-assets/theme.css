@@ -1,0 +1,367 @@
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0b1220;
+  --paper-deep: #131e30;
+  --white: #111b2b;
+  --ink: #f4f7fb;
+  --ink-soft: #cbd5e3;
+  --ink-faint: #aebdd0;
+  --line: #91a1b6;
+  --line-dark: #bdc9d8;
+  --coral: #ff8a76;
+  --coral-soft: #48241f;
+  --mint: #67d9ab;
+  --mint-soft: #14392f;
+  --violet: #78a9ff;
+  --violet-soft: #172f55;
+  --gold: #ffd51f;
+  --gold-soft: #443b12;
+  --navy: #060b14;
+  --navy-raised: #174f9f;
+  --rule: #82b5e51f;
+  --shadow: 7px 8px 0 #000;
+  --hard-shadow-small: 4px 5px 0 #000;
+}
+
+.theme-toggle {
+  border: 3px solid var(--ink);
+  background: var(--gold);
+  box-shadow: 3px 3px 0 var(--ink);
+  color: #101316;
+  border-radius: 4px;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  display: grid;
+}
+
+.theme-toggle:hover {
+  box-shadow: 1px 1px 0 var(--ink);
+  transform: translate(2px, 2px);
+}
+
+.search-form input:focus,
+.search-form input:focus-visible {
+  outline-color: #0757d8 !important;
+  outline-style: solid !important;
+  outline-width: 4px !important;
+  outline-offset: 4px !important;
+}
+
+html[data-theme="dark"] .search-form input:focus,
+html[data-theme="dark"] .search-form input:focus-visible {
+  outline-color: #ffd51f !important;
+}
+
+html[data-theme="dark"] body {
+  background-color: var(--paper);
+  background-image: linear-gradient(90deg, transparent 0 58px, #ff806c2e 58px 60px, transparent 60px), repeating-linear-gradient(to bottom, transparent 0 35px, var(--rule) 35px 36px);
+}
+
+html[data-theme="dark"] .site-header,
+html[data-theme="dark"] .breadcrumb-bar {
+  background: #0b1220f7;
+}
+
+html[data-theme="dark"] :where(
+  .route-state-card,
+  .question-card,
+  .question-meta,
+  .solution-card,
+  .chapter-rail,
+  .study-context,
+  .related-question-link,
+  .search-form,
+  .search-result,
+  .catalog-hero,
+  .catalog-card,
+  .catalog-stat-artwork,
+  .grade-grid a,
+  .subject-card,
+  .subject-card-meta > span,
+  .subject-card-arrow,
+  .book-card,
+  .book-metrics span,
+  .chapter-list a,
+  .chapter-list a > span,
+  .seo-copy li,
+  .seo-article-grid section,
+  .seo-trust-note,
+  .seo-faq details,
+  .course-finder,
+  .course-finder select,
+  .course-finder-directory,
+  .qf-layout,
+  .qf-card,
+  .qf-option,
+  .qf-search,
+  .empty-state
+) {
+  background-color: var(--white) !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] :where(
+  .format-card,
+  .format-card header,
+  .format-card footer,
+  .seo-article-grid section,
+  .seo-class-links a,
+  .related-question-preview,
+  .related-questions-heading,
+  .RelatedQuestions-module__53fXdq__footerLink,
+  .study-pulse,
+  .study-tip,
+  .concept-card,
+  .choice-list li,
+  .question-pagination a,
+  .answer-context,
+  .answer-context a
+) {
+  background: var(--white) !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .format-card :where(h3, p, small, footer span),
+html[data-theme="dark"] .seo-article-grid section :where(h3, p) {
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .format-card header > small {
+  background: #26364d !important;
+  color: #f4f7fb !important;
+}
+
+html[data-theme="dark"] .seo-article-grid section a {
+  color: #78a9ff !important;
+}
+
+html[data-theme="dark"] .seo-article-grid section > span,
+html[data-theme="dark"] .section-mini-heading > div > span,
+html[data-theme="dark"] .course-finder-field > span,
+html[data-theme="dark"] .course-finder-reveal > span {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] :where(.course-finder-field > span > b, .course-finder-reveal > span > b) {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .course-finder-field:first-child > span > b,
+html[data-theme="dark"] .qf-option label > span > b {
+  background: #ffd51f !important;
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] :where(.related-question-copy, .related-questions-heading h2, .related-questions-heading p, .RelatedQuestions-module__53fXdq__footerLink) {
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] .related-questions-heading :where(small, div > div > small) {
+  color: #ff8a76 !important;
+}
+
+html[data-theme="dark"] :where(.question-number > span, .question-pagination a > span) {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .question-number > small {
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .question-rail b[aria-current="page"] {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .question-chapter-rail b[aria-current="page"] {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .choice-list li.correct {
+  background: #14392f !important;
+  color: #f4f7fb !important;
+}
+
+html[data-theme="dark"] .search-result b {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .search-result-list a > b {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .study-tip > p {
+  color: #f4f7fb !important;
+}
+
+html[data-theme="dark"] :where(.site-footer .footer-cta, .footer-cta) {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] :where([aria-label="StudyWudy benefits"] > [role="listitem"]) {
+  background: #443b12 !important;
+  color: #f4f7fb !important;
+}
+
+html[data-theme="dark"] :where(.site-footer .shell > strong, .trust-strip .shell > strong) {
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] .catalog-stat-card :where(small, .catalog-stat-meta) {
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] .catalog-hero :where(h1 em),
+html[data-theme="dark"] .book-hero :where(h1 em) {
+  color: #78a9ff !important;
+}
+
+html[data-theme="dark"] .demo-card-header {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .demo-card-header :where(strong, span) {
+  color: #fff !important;
+}
+
+html[data-theme="dark"] :where(.demo-card-header > b, .demo-question > span, .demo-step:nth-child(2) > span) {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .demo-step:nth-child(1) > span,
+html[data-theme="dark"] .demo-tabs span[data-tab="1"] {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .demo-tabs span[data-tab="2"] {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [data-tab="1"] {
+  background: #0757d8 !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [data-tab="2"] {
+  background: #9b2c1a !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] [data-tab="3"] {
+  background: #ffd51f !important;
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] :where(.demo-tabs span[data-tab="3"], .demo-tabs .active) {
+  background: #ffd51f !important;
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] .final-cta {
+  background: #ffd51f !important;
+}
+
+html[data-theme="dark"] .final-cta h2 {
+  color: #101316 !important;
+}
+
+html[data-theme="dark"] :where(.choice-list li, .answer-callout, .step-card, .concept-card, .comparison-table td, .comparison-table th) {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] :where(.eyebrow, .question-kicker, .question-type, .text-link, .book-info > b, .chapter-list b) {
+  color: var(--coral);
+}
+
+html[data-theme="dark"] :where(.primary-button, .subject-card-action, .section-mini-heading > div > span) {
+  background: #9b2c1a;
+  color: #fff;
+}
+
+html[data-theme="dark"] :where(
+  .chapter-number-block,
+  .question-number,
+  .question-nav a,
+  .search-form button[type="submit"],
+  .demo-tabs span[data-tab="1"]
+) {
+  background: #0757d8;
+  color: #fff;
+}
+
+html[data-theme="dark"] .question-rail b[aria-current="page"] {
+  background: #9b2c1a;
+  color: #fff;
+}
+
+html[data-theme="dark"] :where(.catalog-stat-card > small, .catalog-stat-card .catalog-stat-meta, .qf-option label > span > b) {
+  color: #101316;
+}
+
+html[data-theme="dark"] .choice-correct-label {
+  color: #8ce8c0;
+}
+
+html[data-theme="dark"] .light-button {
+  background: #111b2b;
+  color: #f4f7fb;
+}
+
+html[data-theme="dark"] :where(.catalog-hero h1 em, .book-hero h1 em) {
+  color: #78a9ff;
+}
+
+html[data-theme="dark"] :where(.small-button, .related-band, .solution-label, .brand-mark) {
+  background-color: #0757d8;
+  color: #fff;
+}
+
+html[data-theme="dark"] :where(.subject-color, .catalog-icon, .subject-symbol, .question-type) {
+  --subject-on-accent: #101316;
+}
+
+html[data-theme="dark"] :where(input, select) {
+  caret-color: var(--ink);
+}
+
+html[data-theme="dark"] :where(input::placeholder) {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+html[data-theme="dark"] .katex .mord,
+html[data-theme="dark"] .katex .mbin,
+html[data-theme="dark"] .katex .mrel,
+html[data-theme="dark"] .katex .mopen,
+html[data-theme="dark"] .katex .mclose,
+html[data-theme="dark"] .katex .mpunct {
+  color: currentColor;
+}
+
+@media (max-width: 780px) {
+  .site-header .theme-toggle {
+    display: grid;
+  }
+}
+
+@media print {
+  .theme-toggle {
+    display: none !important;
+  }
+}

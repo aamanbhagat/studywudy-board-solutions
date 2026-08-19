@@ -1,0 +1,51 @@
+{
+  "declaredQuestionTypes": [
+    "one_word",
+    "one_sentence",
+    "brief",
+    "detailed",
+    "define",
+    "give_reason",
+    "name_list",
+    "mcq_single",
+    "mcq_multi",
+    "assertion_reason",
+    "true_false",
+    "fill_blank",
+    "match_column",
+    "distinguish",
+    "passage",
+    "numerical",
+    "diagram"
+  ],
+  "declaredTypeCount": 17,
+  "persistedQuestionCounts": {
+    "brief": 179029,
+    "mcq_single": 52418,
+    "detailed": 26951,
+    "numerical": 23160,
+    "one_sentence": 12518,
+    "give_reason": 3158,
+    "define": 2058,
+    "mcq_multi": 166
+  },
+  "persistedTypeCount": 8,
+  "declaredTypesWithNoPersistedPages": [
+    "one_word",
+    "name_list",
+    "assertion_reason",
+    "true_false",
+    "fill_blank",
+    "match_column",
+    "distinguish",
+    "passage",
+    "diagram"
+  ],
+  "tabbedSolutionScope": {
+    "declaredTypes": 0,
+    "persistedTypes": 0,
+    "decision": "The live question renderer is a static, type-tailored solution view for every format. Numericals and written answers do not have tabs either. The homepage Step-by-step / Quick answer / Concept labels are an illustrative marketing demo, now explicitly non-interactive and removed from the tab order."
+  },
+  "mcqInteractionScope": "Published MCQ solution pages present read-only options and the correct answer; they are not quiz controls and expose no option buttons.",
+  "phase4Classification": "No format may be assumed rich because of tabs: tabs are absent by implementation across all 17 declared formats. The nine declared formats with zero persisted rows are unverified, not thin-by-design. The eight persisted formats require content-depth assessment independent of the homepage demo."
+}

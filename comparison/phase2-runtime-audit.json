@@ -1,0 +1,769 @@
+{
+  "generatedAt": "2026-08-18T07:38:51.793Z",
+  "origin": "http://localhost:8789",
+  "routes": [
+    {
+      "name": "homepage",
+      "route": "/",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": null,
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 4,
+        "explicitDimensions": 4,
+        "lazy": 4,
+        "eager": 0,
+        "modernSources": 4,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 12,
+        "bytes": 546514,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/0v641ghr3gjpr.js",
+            "bytes": 7611
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/quick-find.js?v=20260818-phase2",
+            "bytes": 14599
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": false,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "board",
+      "route": "/maharashtra-board",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": null,
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 1,
+        "explicitDimensions": 1,
+        "lazy": 0,
+        "eager": 1,
+        "modernSources": 1,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 13,
+        "bytes": 577776,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/course-finder-select-v3.js",
+            "bytes": 33838
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/quick-find.js?v=20260818-phase2",
+            "bytes": 14599
+          },
+          {
+            "src": "/catalog-artwork.js?v=20260818-phase2",
+            "bytes": 5035
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": false,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "class",
+      "route": "/maharashtra-board/class-12",
+      "status": 200,
+      "cacheControl": "s-maxage=31536000",
+      "nextCache": "HIT",
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 19,
+        "explicitDimensions": 19,
+        "lazy": 19,
+        "eager": 0,
+        "modernSources": 19,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 556873,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/0lrswp9eqebdh.js",
+            "bytes": 32569
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": false,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "subject",
+      "route": "/maharashtra-board/class-12/physics",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": null,
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 3,
+        "explicitDimensions": 3,
+        "lazy": 1,
+        "eager": 2,
+        "modernSources": 3,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 529339,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/catalog-artwork.js?v=20260818-phase2",
+            "bytes": 5035
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": false,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "chapter",
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": null,
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 0,
+        "explicitDimensions": 0,
+        "lazy": 0,
+        "eager": 0,
+        "modernSources": 0,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 533290,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/0j63knxr9ep_s.js",
+            "bytes": 8986
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": true,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "question-mcq",
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": "STALE",
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 4,
+        "explicitDimensions": 4,
+        "lazy": 4,
+        "eager": 0,
+        "modernSources": 4,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 533715,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/10exit6i51xrs.js",
+            "bytes": 9411
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": true,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "question-numerical",
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-027",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": "STALE",
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 0,
+        "explicitDimensions": 0,
+        "lazy": 0,
+        "eager": 0,
+        "modernSources": 0,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 533715,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/10exit6i51xrs.js",
+            "bytes": 9411
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": true,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    },
+    {
+      "name": "question-written",
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008",
+      "status": 200,
+      "cacheControl": "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000",
+      "nextCache": "STALE",
+      "fontPreloads": [
+        "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2"
+      ],
+      "images": {
+        "count": 0,
+        "explicitDimensions": 0,
+        "lazy": 0,
+        "eager": 0,
+        "modernSources": 0,
+        "missingDimensions": []
+      },
+      "scripts": {
+        "count": 11,
+        "bytes": 533715,
+        "sources": [
+          {
+            "src": "/_next/static/chunks/1_0v6exngdege.js",
+            "bytes": 44839
+          },
+          {
+            "src": "/_next/static/chunks/0k0ckosl7rqcg.js",
+            "bytes": 159161
+          },
+          {
+            "src": "/_next/static/chunks/1fifhudy-lbe4.js",
+            "bytes": 232565
+          },
+          {
+            "src": "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+            "bytes": 10580
+          },
+          {
+            "src": "/_next/static/chunks/3rdqn8rx95pw7.js",
+            "bytes": 9091
+          },
+          {
+            "src": "/_next/static/chunks/2fg1w5y7bfuj4.js",
+            "bytes": 54646
+          },
+          {
+            "src": "/_next/static/chunks/10exit6i51xrs.js",
+            "bytes": 9411
+          },
+          {
+            "src": "/_next/static/chunks/0p-vz0o6ld7i4.js",
+            "bytes": 954
+          },
+          {
+            "src": "/_next/static/chunks/3o7ovtgdj0hzy.js",
+            "bytes": 583
+          },
+          {
+            "src": "/theme.js?v=20260818-phase2",
+            "bytes": 2266
+          },
+          {
+            "src": "/_next/static/chunks/34togvle85293.js",
+            "bytes": 9619
+          }
+        ],
+        "blocking": [],
+        "legacyNomodule": [
+          "/_next/static/chunks/0cz1d0mv5g_q7.js"
+        ]
+      },
+      "katexSsr": {
+        "katexMarkup": true,
+        "mathMl": false
+      },
+      "rocketLoaderMatches": 0
+    }
+  ],
+  "assertions": {
+    "allRoutesOk": true,
+    "allImagesHaveDimensions": true,
+    "allExternalScriptsNonBlocking": true,
+    "singleIbmPlexPreload": true,
+    "ibmPlexCss": true,
+    "katexSsrOnNumerical": true,
+    "noClientKatexRenderer": true,
+    "katexFontSwap": true,
+    "rocketLoaderAbsent": true,
+    "immutableStaticAssets": true,
+    "conditionalHtmlReturnsFreshPhase2Markup": true,
+    "routeSplittingPresent": true,
+    "searchServerRenderedWithoutDedicatedChunk": true
+  },
+  "clientKatexRenderers": [],
+  "cacheHeaders": [
+    {
+      "path": "/_next/static/media/ibm-plex-sans-latin-v23.woff2",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "/_next/static/chunks/1j8ahw0e9ui5v.css",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "/theme.js?v=20260818-phase2",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "/catalog-artwork/boards/logos/maharashtra-board-384.webp",
+      "status": 200,
+      "cacheControl": "public, max-age=31536000, immutable"
+    }
+  ],
+  "conditionalHtml": {
+    "status": 200,
+    "etag": null,
+    "phase2Markup": true
+  },
+  "jsRouteSplit": {
+    "sharedScriptSources": [
+      "/_next/static/chunks/0k0ckosl7rqcg.js",
+      "/_next/static/chunks/0p-vz0o6ld7i4.js",
+      "/_next/static/chunks/1_0v6exngdege.js",
+      "/_next/static/chunks/1fifhudy-lbe4.js",
+      "/_next/static/chunks/2fg1w5y7bfuj4.js",
+      "/_next/static/chunks/34togvle85293.js",
+      "/_next/static/chunks/3o7ovtgdj0hzy.js",
+      "/_next/static/chunks/3rdqn8rx95pw7.js",
+      "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+      "/theme.js?v=20260818-phase2"
+    ],
+    "routes": [
+      {
+        "name": "homepage",
+        "bytes": 546514,
+        "routeScopedSources": [
+          "/_next/static/chunks/0v641ghr3gjpr.js",
+          "/quick-find.js?v=20260818-phase2"
+        ]
+      },
+      {
+        "name": "board",
+        "bytes": 577776,
+        "routeScopedSources": [
+          "/_next/static/chunks/course-finder-select-v3.js",
+          "/quick-find.js?v=20260818-phase2",
+          "/catalog-artwork.js?v=20260818-phase2"
+        ]
+      },
+      {
+        "name": "class",
+        "bytes": 556873,
+        "routeScopedSources": [
+          "/_next/static/chunks/0lrswp9eqebdh.js"
+        ]
+      },
+      {
+        "name": "subject",
+        "bytes": 529339,
+        "routeScopedSources": [
+          "/catalog-artwork.js?v=20260818-phase2"
+        ]
+      },
+      {
+        "name": "chapter",
+        "bytes": 533290,
+        "routeScopedSources": [
+          "/_next/static/chunks/0j63knxr9ep_s.js"
+        ]
+      },
+      {
+        "name": "question-mcq",
+        "bytes": 533715,
+        "routeScopedSources": [
+          "/_next/static/chunks/10exit6i51xrs.js"
+        ]
+      },
+      {
+        "name": "question-numerical",
+        "bytes": 533715,
+        "routeScopedSources": [
+          "/_next/static/chunks/10exit6i51xrs.js"
+        ]
+      },
+      {
+        "name": "question-written",
+        "bytes": 533715,
+        "routeScopedSources": [
+          "/_next/static/chunks/10exit6i51xrs.js"
+        ]
+      }
+    ],
+    "search": {
+      "status": 200,
+      "serverGetForm": true,
+      "scriptSources": [
+        "/_next/static/chunks/1_0v6exngdege.js",
+        "/_next/static/chunks/0k0ckosl7rqcg.js",
+        "/_next/static/chunks/1fifhudy-lbe4.js",
+        "/_next/static/chunks/turbopack-10a2_ibgtzvxx.js",
+        "/_next/static/chunks/3rdqn8rx95pw7.js",
+        "/_next/static/chunks/2fg1w5y7bfuj4.js",
+        "/_next/static/chunks/0p-vz0o6ld7i4.js",
+        "/_next/static/chunks/3o7ovtgdj0hzy.js",
+        "/theme.js?v=20260818-phase2",
+        "/_next/static/chunks/34togvle85293.js"
+      ],
+      "dedicatedScriptSources": []
+    }
+  }
+}
