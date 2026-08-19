@@ -5,12 +5,35 @@
   "compatibility_date": "2026-08-02",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "vars": {
-    "NEXT_INC_CACHE_R2_PREFIX": "incremental-cache-v15"
+    "NEXT_INC_CACHE_R2_PREFIX": "incremental-cache-v20",
+    "PHASE6_CRAWL_ORIGIN": "https://studywudy-board-solutions.amanbhagat17089.workers.dev",
+    "PHASE6_CRAWL_SITEMAP": "https://studywudy-board-solutions.amanbhagat17089.workers.dev/sitemap.xml"
   },
   "assets": {
     "directory": "./comparison/after-assets",
     "binding": "ASSETS",
-    "run_worker_first": false
+    "run_worker_first": [
+      "/",
+      "/boards",
+      "/search*",
+      "/maharashtra-board*",
+      "/cbse*",
+      "/cisce*",
+      "/tamil-nadu-board*",
+      "/robots.txt",
+      "/ads.txt",
+      "/sitemap.xml",
+      "/sitemaps/*",
+      "/about",
+      "/about/*",
+      "/privacy",
+      "/terms",
+      "/contact",
+      "/api/monitoring/*"
+    ]
+  },
+  "triggers": {
+    "crons": ["17 2 * * *"]
   },
   "exports": {
     "DOQueueHandler": {
@@ -25,6 +48,20 @@
       "database_id": "33c51af4-a780-41c9-8294-738365dca1de"
     }
   ],
+  "queues": {
+    "producers": [
+      { "binding": "CRAWL_QUEUE", "queue": "studywudy-weekly-crawl" }
+    ],
+    "consumers": [
+      {
+        "queue": "studywudy-weekly-crawl",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10,
+        "max_retries": 3,
+        "max_concurrency": 1
+      }
+    ]
+  },
   "r2_buckets": [
     { "binding": "MEDIA", "bucket_name": "studywudy-media" },
     { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "studywudy-media" }

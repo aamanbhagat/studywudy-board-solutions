@@ -4,11 +4,12 @@ export const QUICK_FIND_CRITICAL_CSS = `.course-finder,
 .catalog-section:has(> .grade-grid) > .grade-grid,
 .explorer-wrap { display: none !important; }
 .catalog-section:has(> .grade-grid) { margin-top: calc(56rem + 6px + 2 * clamp(3.25rem, 7vw, 6rem)); }
-.hero:not(:has(+ .qf-section)) ~ .section[aria-labelledby="boards-heading"] { margin-top: calc(32rem + 6px + 2 * clamp(3.25rem, 7vw, 6rem)); }
+.catalog-section:has(> .course-finder) { margin-top: calc(32rem + 6px + 2 * clamp(3.25rem, 7vw, 6rem)); }
+.hero + .explorer-wrap + .section[aria-labelledby="boards-heading"] { margin-top: 0 !important; }
 html:not(.qf-styles-ready) .qf-section { visibility: hidden; }
 @media (max-width: 760px) {
   .catalog-section:has(> .grade-grid) { margin-top: calc(62.5rem + 6px); }
-  .hero:not(:has(+ .qf-section)) ~ .section[aria-labelledby="boards-heading"] { margin-top: calc(38.5rem + 6px); }
+  .catalog-section:has(> .course-finder) { margin-top: calc(37.75rem + 6px); }
 }`;
 
 export function quickFindAsyncAssets(href) {

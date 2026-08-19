@@ -167,7 +167,7 @@ const report = {
   generatedAt: "2026-08-18",
   fonts: {
     family: "IBM Plex Sans",
-    display: "swap",
+    display: "optional",
     preload: recoveredPreloadUrl,
     subsets: ["latin", "greek", "devanagari"],
   },

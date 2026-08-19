@@ -19,6 +19,12 @@
 /quick-find.js
   Cache-Control: public, max-age=31536000, immutable
 
+/navigation-feedback.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/navigation-feedback.js
+  Cache-Control: public, max-age=31536000, immutable
+
 /theme.css
   Cache-Control: public, max-age=31536000, immutable
 

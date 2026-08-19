@@ -31,10 +31,13 @@ WITH candidates AS (
   WHERE b.subject_slug IN (
     'physics', 'chemistry', 'mathematics', 'science', 'biology', 'history',
     'geography', 'english', 'economics', 'political-science', 'marathi',
-    'tamil', 'hindi', 'commerce'
+    'tamil', 'hindi', 'commerce', 'information-technology', 'psychology'
   )
 )
-SELECT * FROM candidates WHERE subject_rank = 1 ORDER BY subject_slug;
+SELECT * FROM candidates
+WHERE subject_rank = 1
+   OR question_id = 'q-msb-balbharati-physics-standard-12-8-001'
+ORDER BY subject_slug, question_id;
 `;
 
 const records = JSON.parse(execFileSync("sqlite3", ["-json", database, sql], { encoding: "utf8" }) || "[]");

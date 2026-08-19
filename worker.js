@@ -18,6 +18,12 @@ import libDefault6 from "node:util";
 import libDefault7 from "node:timers";
 import libDefault8 from "node:timers/promises";
 import libDefault9 from "node:fs";
+import { PHASE4_GATE_MANIFEST } from "./phase4-publish-manifest.mjs";
+import {
+  cleanupPhase5ContactRequests,
+  enhancePhase5Response,
+  handlePhase5Request
+} from "./phase5-compliance.mjs";
 import libDefault10 from "os";
 import libDefault11 from "node:async_hooks";
 import libDefault12 from "url";
@@ -47211,7 +47217,7 @@ ${e12}`), A3;
         var h = a.i(6417), i = a.i(94474);
         let j = { metadataBase: new URL(i.siteUrl), title: { default: `${i.siteName} \u2014 Textbook answers, made clear`, template: `%s | ${i.siteName}` }, description: i.siteDescription, applicationName: i.siteName, creator: i.siteName, publisher: i.siteName, category: "education", manifest: "/manifest.webmanifest", referrer: "origin-when-cross-origin", icons: { icon: [{ url: "/icon-192.png", type: "image/png", sizes: "192x192" }, { url: "/icon-512.png", type: "image/png", sizes: "512x512" }], apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }] }, appleWebApp: { capable: true, statusBarStyle: "default", title: i.siteName }, verification: { ...process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}, ...process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {} }, formatDetection: { telephone: false } };
         a.s(["default", 0, function({ children: a2 }) {
-          return (0, b.jsx)("html", { "data-scroll-behavior": "smooth", lang: "en-IN", children: (0, b.jsxs)("body", { className: `${d.variable} antialiased`, children: [(0, b.jsx)(h.JsonLd, { data: { "@context": "https://schema.org", "@graph": [{ "@type": "EducationalOrganization", "@id": `${(0, i.absoluteUrl)("/")}#organization`, name: i.siteName, url: (0, i.absoluteUrl)("/"), description: i.siteDescription, logo: { "@type": "ImageObject", url: (0, i.absoluteUrl)("/icon-512.png"), width: 512, height: 512 } }, { "@type": "WebSite", "@id": `${(0, i.absoluteUrl)("/")}#website`, name: i.siteName, url: (0, i.absoluteUrl)("/"), description: i.siteDescription, inLanguage: "en-IN", publisher: { "@id": `${(0, i.absoluteUrl)("/")}#organization` } }] } }), (0, b.jsx)("a", { className: "skip-link", href: "#main-content", children: "Skip to content" }), (0, b.jsx)(g, {}), a2, (0, b.jsx)(f, {})] }) });
+          return (0, b.jsx)("html", { "data-scroll-behavior": "smooth", lang: "en-IN", children: (0, b.jsxs)("body", { className: `${d.variable} antialiased`, children: [(0, b.jsx)(h.JsonLd, { data: { "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${(0, i.absoluteUrl)("/")}#organization`, name: i.siteName, url: (0, i.absoluteUrl)("/"), description: i.siteDescription, logo: { "@type": "ImageObject", url: (0, i.absoluteUrl)("/icon-512.png"), width: 512, height: 512 } }, { "@type": "WebSite", "@id": `${(0, i.absoluteUrl)("/")}#website`, name: i.siteName, url: (0, i.absoluteUrl)("/"), description: i.siteDescription, inLanguage: "en-IN", publisher: { "@id": `${(0, i.absoluteUrl)("/")}#organization` }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: (0, i.absoluteUrl)("/search?q={search_term_string}") }, "query-input": "required name=search_term_string" } }] } }), (0, b.jsx)("a", { className: "skip-link", href: "#main-content", children: "Skip to content" }), (0, b.jsx)(g, {}), a2, (0, b.jsx)(f, {})] }) });
         }, "metadata", 0, j, "viewport", 0, { width: "device-width", initialScale: 1, themeColor: "#0757d8" }], 33290);
       }, 70864, (a) => {
         a.n(a.i(33290));
@@ -53237,13 +53243,26 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         }
         __name(o, "o");
         __name2(o, "o");
+        function chapterBookContext(a2, b2 = 36) {
+          let c2 = String(a2 || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          if (c2.length <= b2) return c2;
+          let d2 = b2 - 1, e2 = Math.ceil(0.55 * d2);
+          return `${c2.slice(0, e2).trimEnd()}…${c2.slice(-(d2 - e2)).trimStart()}`;
+        }
+        __name(chapterBookContext, "chapterBookContext");
+        __name2(chapterBookContext, "chapterBookContext");
+        function routeLabel(a2) {
+          return a2.replaceAll("-", " ").replace(/\b\w/g, (b2) => b2.toUpperCase());
+        }
+        __name(routeLabel, "routeLabel");
+        __name2(routeLabel, "routeLabel");
         async function p({ params: a2, searchParams: b2 }) {
           let c2 = await a2, d2 = await m(c2.board, c2.grade, c2.subject, c2.book, c2.chapter);
           if (!d2) return {};
           let e2 = n((await b2).page), f2 = Math.max(1, Math.ceil(d2.questions.length / 40));
           if (!e2 || e2 > f2) return {};
-          let g2 = d2.questions.filter(k.hasQuestionSolution).length, h2 = (0, j.catalogChapterPath)(d2.book, d2.slug), i2 = e2 > 1 ? ` \u2014 Page ${e2} of ${f2}` : "";
-          return (0, l.pageMetadata)({ title: `${d2.title} Solutions${i2} | ${d2.book.title}`, description: `${d2.title} solutions for ${d2.book.title}: study ${g2.toLocaleString("en-IN")} worked answers in textbook order${e2 > 1 ? `, page ${e2} of ${f2}` : ""}.`, pathname: o(h2, e2) });
+          let g2 = d2.questions.filter(k.hasQuestionSolution).length, h2 = (0, j.catalogChapterPath)(d2.book, d2.slug), i2 = chapterBookContext(d2.book.title), pageTitle = e2 > 1 ? ` \xB7 Page ${e2}/${f2}` : "", titlePrefix = `Ch ${d2.number}: `, titleSuffix = ` — ${i2}${pageTitle}`, titleRoom = Math.max(10, 72 - titlePrefix.length - titleSuffix.length), boardName = { cbse: "CBSE", cisce: "CISCE", "maharashtra-board": "Maharashtra Board", "tamil-nadu-board": "Tamil Nadu Board" }[d2.book.boardSlug] ?? routeLabel(d2.book.boardSlug), gradeNumber = (0, k.gradeNumber)(d2.book.gradeSlug) ?? routeLabel(d2.book.gradeSlug), subjectName = routeLabel(d2.book.subjectSlug), pageDescription = e2 > 1 ? `, page ${e2} of ${f2}` : "";
+          return (0, l.pageMetadata)({ title: `${titlePrefix}${(0, l.seoText)(d2.title, titleRoom)}${titleSuffix}`, description: `${boardName} Class ${gradeNumber} ${subjectName} \u2014 ${d2.book.title}, Chapter ${d2.number}${pageDescription}: ${d2.title}. ${g2.toLocaleString("en-IN")} worked answers in textbook order.`, pathname: o(h2, e2) });
         }
         __name(p, "p");
         __name2(p, "p");
@@ -53258,8 +53277,8 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
               return d3 >= B && d3 < C;
             });
             return d2.length ? [{ ...a3, questions: d2 }] : [];
-          }), E = D.flatMap((a3) => a3.questions), F = [.../* @__PURE__ */ new Set([...r.keyConcepts, ...r.questions.flatMap((a3) => a3.conceptTags)])].slice(0, 10).map((a3) => a3.replaceAll("-", " ")), G = r.exercises.length === 1 ? "exercise" : "exercises", H = r.questions.filter(k.hasQuestionSolution).length, I = Math.max(0, r.questions.length - H), J = (0, k.catalogContentLanguage)(p2.board, p2.subject, E.map((a3) => `${(0, k.contentToReadableText)(a3.prompt)} ${(0, k.questionAnswerText)(a3)}`).join(" "));
-          return (0, b.jsxs)("main", { id: "main-content", lang: J, tabIndex: -1, children: [(0, b.jsx)(f.Breadcrumbs, { items: [{ label: "Home", href: "/" }, { label: s.shortName, href: `/${p2.board}` }, { label: `Class ${t}`, href: `/${p2.board}/${p2.grade}` }, { label: u.name, href: `/${p2.board}/${p2.grade}/${p2.subject}` }, { label: r.book.title, href: v }, { label: r.title }] }), (0, b.jsx)(g.JsonLd, { data: { "@context": "https://schema.org", "@type": "LearningResource", "@id": `${(0, l.absoluteUrl)(o(w, y))}#learning-resource`, url: (0, l.absoluteUrl)(o(w, y)), name: `Chapter ${r.number}: ${r.title}${y > 1 ? ` \u2014 Page ${y}` : ""}`, description: r.summary, inLanguage: J, isAccessibleForFree: true, learningResourceType: "Textbook exercise", educationalLevel: `Class ${t}`, about: u.name, teaches: F, educationalAlignment: [{ "@type": "AlignmentObject", alignmentType: "educationalLevel", educationalFramework: s.name, targetName: `Class ${t}` }, { "@type": "AlignmentObject", alignmentType: "educationalSubject", educationalFramework: s.name, targetName: u.name }] } }), (0, b.jsx)("section", { className: "chapter-header", children: (0, b.jsxs)("div", { className: "shell chapter-header-inner", children: [(0, b.jsxs)("div", { className: "chapter-number-block", children: [(0, b.jsx)("span", { children: "Chapter" }), (0, b.jsx)("b", { children: String(r.number).padStart(2, "0") })] }), (0, b.jsxs)("div", { className: "chapter-header-copy", children: [(0, b.jsxs)("p", { className: "eyebrow", children: [r.book.title, " \xB7 Class ", t] }), (0, b.jsx)("h1", { children: r.title }), (0, b.jsx)("p", { className: "chapter-summary", children: r.summary }), (0, b.jsxs)("div", { className: "chapter-meta", children: [r.bookPages?.length ? (0, b.jsxs)("span", { children: ["Pages ", r.bookPages.join("\u2013")] }) : null, (0, b.jsxs)("span", { children: [H.toLocaleString("en-IN"), " solved ", H === 1 ? "question" : "questions"] }), I ? (0, b.jsxs)("span", { children: [I.toLocaleString("en-IN"), " under review"] }) : null, (0, b.jsxs)("span", { children: [r.exercises.length, " ", G] })] })] }), (0, b.jsx)(h.PageTabs, {})] }) }), (0, b.jsxs)("div", { className: "shell study-layout", children: [(0, b.jsxs)("aside", { "aria-label": "Questions on this page", className: "chapter-rail", children: [(0, b.jsxs)("div", { className: "rail-title", children: [(0, b.jsx)("span", { children: "On this page" }), (0, b.jsxs)("b", { children: [E.length.toLocaleString("en-IN"), " ", E.length === 1 ? "question" : "questions"] })] }), (0, b.jsx)("nav", { "aria-label": "Questions on this page", children: E.map((a3) => (0, b.jsxs)("a", { href: `#${a3.id}`, children: [(0, b.jsx)("span", { children: a3.displayLabel }), (0, b.jsx)("small", { children: a3.type.replaceAll("_", " ") })] }, a3.id)) }), (0, b.jsx)(c.default, { href: v, children: "\u2190 All chapters" })] }), (0, b.jsxs)("article", { className: "question-register", id: "question-register", children: [(0, b.jsxs)("div", { className: "register-heading", children: [(0, b.jsxs)("div", { children: [(0, b.jsxs)("p", { className: "eyebrow", children: [r.exercises.length, " exercises"] }), (0, b.jsx)("h2", { children: "Textbook questions & answers" })] }), (0, b.jsxs)("span", { children: ["Questions ", (B + 1).toLocaleString("en-IN"), "\u2013", C.toLocaleString("en-IN"), " of ", z.toLocaleString("en-IN")] })] }), (0, b.jsx)("div", { "aria-label": "Supported question patterns", className: "format-key", role: "list", tabIndex: 0, children: k.formatGroups.map((a3) => (0, b.jsxs)("span", { role: "listitem", children: [(0, b.jsx)("b", { children: a3.code }), a3.label] }, a3.code)) }), D.map((a3) => (0, b.jsxs)("section", { className: "exercise-register", children: [r.exercises.length > 1 ? (0, b.jsx)("div", { className: `register-heading exercise-heading ${a3.questions.length === 1 ? "exercise-heading-single" : ""}`, children: (0, b.jsxs)("div", { children: [(0, b.jsx)("p", { className: "eyebrow", children: a3.displayLabel }), a3.questions.length > 1 ? (0, b.jsxs)("h2", { children: [a3.questions.length, " questions"] }) : null] }) }) : null, (0, b.jsx)("div", { className: "question-list", children: a3.questions.map((a4) => (0, b.jsx)(i.QuestionCard, { href: (0, j.catalogQuestionPath)(r.book, r.slug, a4.id), question: a4 }, a4.id)) })] }, a3.id)), A > 1 ? (0, b.jsxs)("nav", { "aria-label": "Chapter question pages", className: "chapter-pagination", children: [y > 1 ? (0, b.jsx)(c.default, { href: `${o(w, y - 1)}#question-register`, rel: "prev", children: "\u2190 Previous" }) : (0, b.jsx)("span", { "aria-hidden": "true" }), (0, b.jsxs)("span", { "aria-live": "polite", children: ["Page ", (0, b.jsx)("b", { children: y }), " of ", A] }), y < A ? (0, b.jsx)(c.default, { href: `${o(w, y + 1)}#question-register`, rel: "next", children: "Next \u2192" }) : (0, b.jsx)("span", { "aria-hidden": "true" })] }) : null] }), (0, b.jsxs)("aside", { "aria-label": "Chapter study context", className: "study-aside", children: [(0, b.jsxs)("div", { className: "study-pulse", children: [(0, b.jsx)("span", { children: "Chapter pulse" }), (0, b.jsx)("strong", { children: r.questionCount }), (0, b.jsx)("small", { children: "answers available" }), (0, b.jsx)("div", { children: (0, b.jsx)("i", {}) })] }), F.length ? (0, b.jsxs)("div", { className: "concept-card", children: [(0, b.jsx)("span", { children: "Key concepts" }), F.slice(0, 6).map((a3) => (0, b.jsxs)("a", { href: "#question-register", children: [a3, (0, b.jsx)("i", { children: "\u2197" })] }, a3))] }) : null, (0, b.jsxs)("div", { className: "study-tip", children: [(0, b.jsx)("span", { children: "\u2726" }), (0, b.jsxs)("p", { children: [(0, b.jsx)("b", { children: "Study tip" }), "Try each question before opening the answer. Retrieval makes the idea stick."] })] })] })] })] });
+          }), E = D.flatMap((a3) => a3.questions), F = [.../* @__PURE__ */ new Set([...r.keyConcepts, ...r.questions.flatMap((a3) => a3.conceptTags)])].slice(0, 10).map((a3) => a3.replaceAll("-", " ")), G = r.exercises.length === 1 ? "exercise" : "exercises", H = r.questions.filter(k.hasQuestionSolution).length, I = Math.max(0, r.questions.length - H), J = (0, k.catalogContentLanguage)(p2.board, p2.subject, E.map((a3) => `${(0, k.contentToReadableText)(a3.prompt)} ${(0, k.questionAnswerText)(a3)}`).join(" ")), K = await (0, j.listCatalogChapters)(r.book);
+          return (0, b.jsxs)("main", { id: "main-content", lang: J, tabIndex: -1, children: [(0, b.jsx)(f.Breadcrumbs, { items: [{ label: "Home", href: "/" }, { label: s.shortName, href: `/${p2.board}` }, { label: `Class ${t}`, href: `/${p2.board}/${p2.grade}` }, { label: u.name, href: `/${p2.board}/${p2.grade}/${p2.subject}` }, { label: r.book.title, href: v }, { label: r.title }] }), (0, b.jsx)(g.JsonLd, { data: { "@context": "https://schema.org", "@type": "LearningResource", "@id": `${(0, l.absoluteUrl)(o(w, y))}#learning-resource`, url: (0, l.absoluteUrl)(o(w, y)), name: `Chapter ${r.number}: ${r.title}${y > 1 ? ` \u2014 Page ${y}` : ""}`, description: r.summary, inLanguage: J, isAccessibleForFree: true, learningResourceType: "Textbook exercise", educationalLevel: `Class ${t}`, about: u.name, teaches: F, educationalAlignment: [{ "@type": "AlignmentObject", alignmentType: "educationalLevel", educationalFramework: s.name, targetName: `Class ${t}` }, { "@type": "AlignmentObject", alignmentType: "educationalSubject", educationalFramework: s.name, targetName: u.name }] } }), (0, b.jsx)("section", { className: "chapter-header", children: (0, b.jsxs)("div", { className: "shell chapter-header-inner", children: [(0, b.jsxs)("div", { className: "chapter-number-block", children: [(0, b.jsx)("span", { children: "Chapter" }), (0, b.jsx)("b", { children: String(r.number).padStart(2, "0") })] }), (0, b.jsxs)("div", { className: "chapter-header-copy", children: [(0, b.jsxs)("p", { className: "eyebrow", children: [r.book.title, " \xB7 Class ", t] }), (0, b.jsx)("h1", { children: r.title }), (0, b.jsx)("p", { className: "chapter-summary", children: r.summary }), (0, b.jsxs)("div", { className: "chapter-meta", children: [r.bookPages?.length ? (0, b.jsxs)("span", { children: ["Pages ", r.bookPages.join("\u2013")] }) : null, (0, b.jsxs)("span", { children: [H.toLocaleString("en-IN"), " solved ", H === 1 ? "question" : "questions"] }), I ? (0, b.jsxs)("span", { children: [I.toLocaleString("en-IN"), " under review"] }) : null, (0, b.jsxs)("span", { children: [r.exercises.length, " ", G] })] })] }), (0, b.jsx)(h.PageTabs, {})] }) }), (0, b.jsx)("details", { className: "shell course-finder-directory", children: [(0, b.jsxs)("summary", { children: ["Browse all ", K.length, " chapters in this textbook"] }), (0, b.jsx)("ol", { className: "chapter-list", children: K.map((a3) => (0, b.jsx)("li", { children: (0, b.jsxs)(c.default, { "aria-current": a3.slug === r.slug ? "page" : void 0, href: (0, j.catalogChapterPath)(r.book, a3.slug), prefetch: false, children: [(0, b.jsx)("span", { children: String(a3.number).padStart(2, "0") }), (0, b.jsx)("div", { children: (0, b.jsx)("h2", { children: a3.title }) }), (0, b.jsx)("b", { children: a3.slug === r.slug ? "Current chapter" : "Open chapter \u2192" })] }) }, a3.slug)) })] }), (0, b.jsxs)("div", { className: "shell study-layout", children: [(0, b.jsxs)("aside", { "aria-label": "Questions on this page", className: "chapter-rail", children: [(0, b.jsxs)("div", { className: "rail-title", children: [(0, b.jsx)("span", { children: "On this page" }), (0, b.jsxs)("b", { children: [E.length.toLocaleString("en-IN"), " ", E.length === 1 ? "question" : "questions"] })] }), (0, b.jsx)("nav", { "aria-label": "Questions on this page", children: E.map((a3) => (0, b.jsxs)("a", { href: `#${a3.id}`, children: [(0, b.jsx)("span", { children: a3.displayLabel }), (0, b.jsx)("small", { children: a3.type.replaceAll("_", " ") })] }, a3.id)) }), (0, b.jsx)(c.default, { href: v, children: "\u2190 All chapters" })] }), (0, b.jsxs)("article", { className: "question-register", id: "question-register", children: [(0, b.jsxs)("div", { className: "register-heading", children: [(0, b.jsxs)("div", { children: [(0, b.jsxs)("p", { className: "eyebrow", children: [r.exercises.length, " exercises"] }), (0, b.jsx)("h2", { children: "Textbook questions & answers" })] }), (0, b.jsxs)("span", { children: ["Questions ", (B + 1).toLocaleString("en-IN"), "\u2013", C.toLocaleString("en-IN"), " of ", z.toLocaleString("en-IN")] })] }), (0, b.jsx)("div", { "aria-label": "Supported question patterns", className: "format-key", role: "list", tabIndex: 0, children: k.formatGroups.map((a3) => (0, b.jsxs)("span", { role: "listitem", children: [(0, b.jsx)("b", { children: a3.code }), a3.label] }, a3.code)) }), D.map((a3) => (0, b.jsxs)("section", { className: "exercise-register", children: [r.exercises.length > 1 ? (0, b.jsx)("div", { className: `register-heading exercise-heading ${a3.questions.length === 1 ? "exercise-heading-single" : ""}`, children: (0, b.jsxs)("div", { children: [(0, b.jsx)("p", { className: "eyebrow", children: a3.displayLabel }), a3.questions.length > 1 ? (0, b.jsxs)("h2", { children: [a3.questions.length, " questions"] }) : null] }) }) : null, (0, b.jsx)("div", { className: "question-list", children: a3.questions.map((a4) => (0, b.jsx)(i.QuestionCard, { href: (0, j.catalogQuestionPath)(r.book, r.slug, a4.id), question: a4 }, a4.id)) })] }, a3.id)), A > 1 ? (0, b.jsxs)("nav", { "aria-label": "Chapter question pages", className: "chapter-pagination", children: [y > 1 ? (0, b.jsx)(c.default, { href: `${o(w, y - 1)}#question-register`, rel: "prev", children: "\u2190 Previous" }) : (0, b.jsx)("span", { "aria-hidden": "true" }), (0, b.jsxs)("span", { "aria-live": "polite", children: ["Page ", (0, b.jsx)("b", { children: y }), " of ", A] }), y < A ? (0, b.jsx)(c.default, { href: `${o(w, y + 1)}#question-register`, rel: "next", children: "Next \u2192" }) : (0, b.jsx)("span", { "aria-hidden": "true" })] }) : null] }), (0, b.jsxs)("aside", { "aria-label": "Chapter study context", className: "study-aside", children: [(0, b.jsxs)("div", { className: "study-pulse", children: [(0, b.jsx)("span", { children: "Chapter pulse" }), (0, b.jsx)("strong", { children: r.questionCount }), (0, b.jsx)("small", { children: "answers available" }), (0, b.jsx)("div", { children: (0, b.jsx)("i", {}) })] }), F.length ? (0, b.jsxs)("div", { className: "concept-card", children: [(0, b.jsx)("span", { children: "Key concepts" }), F.slice(0, 6).map((a3) => (0, b.jsxs)("a", { href: "#question-register", children: [a3, (0, b.jsx)("i", { children: "\u2197" })] }, a3))] }) : null, (0, b.jsxs)("div", { className: "study-tip", children: [(0, b.jsx)("span", { children: "\u2726" }), (0, b.jsxs)("p", { children: [(0, b.jsx)("b", { children: "Study tip" }), "Try each question before opening the answer. Retrieval makes the idea stick."] })] })] })] })] });
         }
         __name(q, "q");
         __name2(q, "q");
@@ -58488,7 +58507,11 @@ ${b11.text}`, d10 += 1;
           if (d2 < 0) return null;
           let e2 = c2[d2], f2 = c2.slice(0, d2).reverse().find((a3) => E(b2.book.id, b2.slug, a3.id)), g2 = c2.slice(d2 + 1).find((a3) => E(b2.book.id, b2.slug, a3.id));
           if (a2.includeRelated === false) return { chapter: b2, question: e2, previous: f2, next: g2, related: [] };
-          let h2 = b2.book.featured ? null : await aa(b2.book.id), i2 = new Set(e2.conceptTags.map((a3) => a3.trim().toLowerCase()).filter(Boolean)), j2 = [], k2 = /* @__PURE__ */ new Set(), l2 = /* @__PURE__ */ __name2((a3, c3, d3) => {
+          // The current chapter is already loaded and provides enough nearby
+          // candidates for the related-question module. Re-scanning every
+          // question in a large textbook here repeatedly exceeds the Workers
+          // Free CPU budget on cold leaf renders.
+          let h2 = null, i2 = new Set(e2.conceptTags.map((a3) => a3.trim().toLowerCase()).filter(Boolean)), j2 = [], k2 = /* @__PURE__ */ new Set(), l2 = /* @__PURE__ */ __name2((a3, c3, d3) => {
             let f3 = a3 && typeof a3 == "object" ? String(a3.id ?? "question") : "question", g3 = `${c3}:${f3}`;
             if (f3 === e2.id || k2.has(g3) || !E(b2.book.id, c3, f3)) return;
             k2.add(g3);
@@ -60148,12 +60171,19 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         }
         __name(t, "t");
         __name2(t, "t");
+        function questionReferenceToken(a2) {
+          let b2 = 2166136261, c2 = 2246822507;
+          for (let d2 = 0; d2 < a2.length; d2 += 1) b2 = Math.imul(b2 ^ a2.charCodeAt(d2), 16777619), c2 = Math.imul(c2 ^ a2.charCodeAt(d2), 3266489909);
+          return `${(b2 >>> 0).toString(36)}${(c2 >>> 0).toString(36)}`;
+        }
+        __name(questionReferenceToken, "questionReferenceToken");
+        __name2(questionReferenceToken, "questionReferenceToken");
         async function u({ params: a2 }) {
           var b2, c2, d2, e2, f2, g2, h2, i2;
           let j2, n2, p2, r2, s2, v2, w, x, y, z = await a2, A = await q(z.board, z.grade, z.subject, z.book, z.chapter, z.question);
           if (!A) return {};
           let B = (0, l.contentToReadableText)(A.question.prompt), C = A.question.promptMedia?.[0], D = (0, l.hasQuestionSolution)(A.question) && (0, m.isCatalogQuestionIndexable)(A.chapter.book.id, A.chapter.slug, A.question.id);
-          return (0, o.pageMetadata)({ title: (b2 = A.question.displayLabel, c2 = A.chapter.number, j2 = (0, o.seoText)(b2, 6), n2 = `Q${j2}: `, r2 = ` \u2014 Ch${c2}`, s2 = Math.max(8, 46 - n2.length - r2.length), `${n2}${(0, o.seoText)(B || `Question ${j2}`, s2)}${r2}`), description: (f2 = A.question.displayLabel, g2 = A.chapter.number, h2 = A.chapter.title, i2 = A.chapter.book.title, v2 = (0, o.seoText)(f2, 6), w = `Question ${v2} from Chapter ${g2}, ${t(h2, 24)}, in ${t(i2, 40)}: `, x = D ? "Complete textbook-order answer." : "This answer is not currently indexed.", y = Math.max(12, 160 - w.length - x.length - 1), (0, o.seoText)(`${w}${(0, o.seoText)(B || "Textbook question", y)} ${x}`, 160)), pathname: (0, k.catalogQuestionPath)(A.chapter.book, A.chapter.slug, A.question.id), noIndex: !D, useDefaultImage: !C, ...C ? { image: { url: (0, l.questionMediaCandidates)(C)[0], width: C.width, height: C.height, alt: C.alt } } : {} });
+          return (0, o.pageMetadata)({ title: (b2 = A.question.displayLabel, c2 = A.chapter.number, j2 = (0, o.seoText)(b2, 6), n2 = `Q${j2}: `, p2 = ` \xB7 ${questionReferenceToken(A.question.id)}`, r2 = ` \u2014 Ch${c2}`, s2 = Math.max(8, 54 - n2.length - r2.length - p2.length), `${n2}${(0, o.seoText)(B || `Question ${j2}`, s2)}${r2}${p2}`), description: (f2 = A.question.displayLabel, g2 = A.chapter.number, h2 = A.chapter.title, i2 = A.chapter.book.title, v2 = (0, o.seoText)(f2, 6), w = `Question ${v2} from Chapter ${g2}, ${t(h2, 24)}, in ${t(i2, 40)}: `, x = D ? "Complete textbook-order answer." : "This answer is not currently indexed.", y = Math.max(12, 160 - w.length - x.length - 1), (0, o.seoText)(`${w}${(0, o.seoText)(B || "Textbook question", y)} ${x}`, 160)), pathname: (0, k.catalogQuestionPath)(A.chapter.book, A.chapter.slug, A.question.id), noIndex: !D, useDefaultImage: !C, ...C ? { image: { url: (0, l.questionMediaCandidates)(C)[0], width: C.width, height: C.height, alt: C.alt } } : {} });
         }
         __name(u, "u");
         __name2(u, "u");
@@ -60167,8 +60197,8 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
               return !(!b3 || g2.has(b3)) && (g2.add(b3), true);
             }).join(" "), i2 = d2.map(s).find(Boolean), j2 = h2 || i2;
             return j2 ? c2 || f2 ? `${j2} \u2014 Question ${b2}` : j2 : `Question ${b2}`;
-          })(A.prompt, A.displayLabel, !!A.promptMedia?.length), G = (0, k.catalogQuestionPath)(z.book, z.slug, A.id), H = (0, k.catalogChapterPath)(z.book, z.slug), I = (e2 = (0, n.mathTextToPlainText)(F)) ? e2.length : F.replace(/<br\s*\/?\s*>/gi, " ").replace(/\\[A-Za-z]+/g, " ").replace(/[${}]/g, "").replace(/\s+/g, " ").trim().length, J = (0, l.hasQuestionSolution)(A) && (0, m.isCatalogQuestionIndexable)(z.book.id, z.slug, A.id) ? (0, l.educationFlashcardAnswerText)(A) : null, K = (0, l.catalogContentLanguage)(t2.board, t2.subject, `${E} ${(0, l.questionAnswerText)(A)}`), L = A.type === "numerical" || t2.subject.startsWith("mathematics") || t2.subject === "statistics" ? "step" : "point";
-          return (0, b.jsxs)("main", { id: "main-content", lang: K, tabIndex: -1, children: [(0, b.jsx)(f.Breadcrumbs, { items: [{ label: "Home", href: "/" }, { label: w.shortName, href: `/${t2.board}` }, { label: `Class ${x}`, href: `/${t2.board}/${t2.grade}` }, { label: y.name, href: `/${t2.board}/${t2.grade}/${t2.subject}` }, { label: z.book.title, href: `/${t2.board}/${t2.grade}/${t2.subject}/${t2.book}` }, { label: z.title, href: H }, { label: `Question ${A.displayLabel}` }] }), J ? (0, b.jsx)(i.JsonLd, { data: { "@context": "https://schema.org", "@type": "Quiz", "@id": `${(0, o.absoluteUrl)(G)}#quiz`, url: (0, o.absoluteUrl)(G), name: `${E} \u2014 Solution`, inLanguage: K, isAccessibleForFree: true, educationalLevel: `Class ${x}`, about: { "@type": "Thing", name: y.name }, educationalAlignment: [{ "@type": "AlignmentObject", alignmentType: "educationalLevel", educationalFramework: w.name, targetName: `Class ${x}` }, { "@type": "AlignmentObject", alignmentType: "educationalSubject", educationalFramework: w.name, targetName: y.name }], hasPart: { "@type": "Question", "@id": `${(0, o.absoluteUrl)(G)}#question`, eduQuestionType: "Flashcard", text: E, acceptedAnswer: { "@type": "Answer", text: J } } } }) : null, (0, b.jsxs)("section", { className: "answer-page-hero shell", children: [(0, b.jsxs)("div", { children: [(0, b.jsxs)("p", { className: "eyebrow", children: [w.name, " \xB7 Class ", x, " ", y.name] }), (0, b.jsx)("h1", { className: I > 180 ? "question-title-ultra-long" : I > 135 ? "question-title-extra-long" : I > 95 ? "question-title-long" : I > 60 ? "question-title-medium" : "question-title-short", children: (0, b.jsx)(g.InlineContentRenderer, { content: F }) })] }), (0, b.jsxs)("p", { className: "answer-page-chapter", children: [(0, b.jsxs)("span", { children: ["Chapter ", String(z.number).padStart(2, "0")] }), z.title] })] }), (0, b.jsxs)("div", { className: "shell answer-page-layout", children: [(0, b.jsxs)("aside", { "aria-label": "Chapter question navigation", className: "question-chapter-rail", children: [(0, b.jsxs)("span", { children: ["Chapter ", String(z.number).padStart(2, "0")] }), (0, b.jsx)("strong", { children: z.title }), (0, b.jsxs)("nav", { "aria-label": "Nearby questions", children: [B ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, B.id), children: ["\u2190 Question ", B.displayLabel] }) : null, (0, b.jsxs)("b", { "aria-current": "page", children: ["Question ", A.displayLabel] }), C ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, C.id), children: ["Question ", C.displayLabel, " \u2192"] }) : null] }), (0, b.jsx)(c.default, { href: H, children: "\u2190 All chapter questions" })] }), (0, b.jsxs)("div", { className: "answer-page-main", children: [(0, b.jsx)(j.QuestionCard, { question: A, sequenceLabel: L, showSolution: true }), (0, b.jsxs)("nav", { "aria-label": "Question navigation", className: "question-pagination", children: [B ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, B.id), children: [(0, b.jsx)("small", { children: "Previous" }), (0, b.jsxs)("span", { children: ["\u2190 Question ", B.displayLabel] })] }) : (0, b.jsx)("span", {}), C ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, C.id), children: [(0, b.jsx)("small", { children: "Next" }), (0, b.jsxs)("span", { children: ["Question ", C.displayLabel, " \u2192"] })] }) : null] }), (0, b.jsxs)("section", { className: "related-questions", children: [(0, b.jsxs)("header", { className: "related-questions-heading", children: [(0, b.jsxs)("div", { children: [(0, b.jsx)("span", { children: "+" }), (0, b.jsxs)("div", { children: [(0, b.jsx)("small", { children: "Keep learning" }), (0, b.jsx)("h2", { children: "Related questions" })] })] }), (0, b.jsxs)("p", { children: [D.length, " questions from this subject."] })] }), (0, b.jsx)("div", { className: "related-question-grid", children: D.map(({ question: a3, chapterSlug: d2, chapterTitle: e3 }) => (0, b.jsxs)(c.default, { className: "related-question-link", href: (0, k.catalogQuestionPath)(z.book, d2, a3.id), prefetch: false, children: [(0, b.jsxs)("span", { className: "related-question-number", children: ["Q ", a3.displayLabel] }), a3.promptMedia?.length ? (0, b.jsx)(h.RelatedQuestionMedia, { label: `Question ${a3.displayLabel}`, media: a3.promptMedia }) : null, (0, b.jsxs)("div", { className: "related-question-preview", children: [(0, b.jsx)("small", { children: e3 }), (0, b.jsx)(g.ContentRenderer, { content: a3.prompt, className: "related-question-copy", tableFocusable: false })] }), (0, b.jsxs)("b", { "aria-hidden": "true", children: [(0, b.jsx)("span", { children: "Open" }), "\u2192"] })] }, `${d2}:${a3.id}`)) }), (0, b.jsxs)("footer", { className: p.default.footer, children: [(0, b.jsx)("span", { children: "Ready for another round?" }), (0, b.jsxs)(c.default, { className: p.default.footerLink, href: H, children: ["View all chapter questions ", (0, b.jsx)("b", { children: "\u2192" })] })] })] })] }), (0, b.jsxs)("aside", { "aria-label": "Study context", className: "answer-context", children: [(0, b.jsx)("span", { children: "Study context" }), (0, b.jsxs)("dl", { children: [(0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Board" }), (0, b.jsx)("dd", { children: w.shortName })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Class" }), (0, b.jsx)("dd", { children: x })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Subject" }), (0, b.jsx)("dd", { children: y.name })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Chapter" }), (0, b.jsxs)("dd", { children: [String(z.number).padStart(2, "0"), " \xB7 ", z.title] })] }), A.bookPage != null && String(A.bookPage).trim() ? (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Page" }), (0, b.jsx)("dd", { children: A.bookPage })] }) : null] }), (0, b.jsx)(c.default, { href: H, children: "View full chapter \u2192" })] })] })] });
+          })(A.prompt, A.displayLabel, !!A.promptMedia?.length), G = (0, k.catalogQuestionPath)(z.book, z.slug, A.id), H = (0, k.catalogChapterPath)(z.book, z.slug), I = (e2 = (0, n.mathTextToPlainText)(F)) ? e2.length : F.replace(/<br\s*\/?\s*>/gi, " ").replace(/\\[A-Za-z]+/g, " ").replace(/[${}]/g, "").replace(/\s+/g, " ").trim().length, J = (0, l.hasQuestionSolution)(A) && (0, m.isCatalogQuestionIndexable)(z.book.id, z.slug, A.id) ? (0, l.questionAnswerText)(A).trim() : null, K = (0, l.catalogContentLanguage)(t2.board, t2.subject, `${E} ${(0, l.questionAnswerText)(A)}`), L = A.type === "numerical" || t2.subject.startsWith("mathematics") || t2.subject === "statistics" ? "step" : "point";
+          return (0, b.jsxs)("main", { id: "main-content", lang: K, tabIndex: -1, children: [(0, b.jsx)(f.Breadcrumbs, { items: [{ label: "Home", href: "/" }, { label: w.shortName, href: `/${t2.board}` }, { label: `Class ${x}`, href: `/${t2.board}/${t2.grade}` }, { label: y.name, href: `/${t2.board}/${t2.grade}/${t2.subject}` }, { label: z.book.title, href: `/${t2.board}/${t2.grade}/${t2.subject}/${t2.book}` }, { label: z.title, href: H }, { label: `Question ${A.displayLabel}` }] }), J ? (0, b.jsx)(i.JsonLd, { data: { "@context": "https://schema.org", "@type": "WebPage", "@id": `${(0, o.absoluteUrl)(G)}#webpage`, url: (0, o.absoluteUrl)(G), name: `${F} \u2014 Solution`, inLanguage: K, isAccessibleForFree: true, mainEntity: { "@type": "Question", "@id": `${(0, o.absoluteUrl)(G)}#question`, name: F, text: E || F, eduQuestionType: A.type.replaceAll("_", " "), educationalLevel: `Class ${x}`, about: { "@type": "Thing", name: y.name }, educationalAlignment: [{ "@type": "AlignmentObject", alignmentType: "educationalLevel", educationalFramework: w.name, targetName: `Class ${x}` }, { "@type": "AlignmentObject", alignmentType: "educationalSubject", educationalFramework: w.name, targetName: y.name }], acceptedAnswer: { "@type": "Answer", text: J } } } }) : null, (0, b.jsxs)("section", { className: "answer-page-hero shell", children: [(0, b.jsxs)("div", { children: [(0, b.jsxs)("p", { className: "eyebrow", children: [w.name, " \xB7 Class ", x, " ", y.name] }), (0, b.jsx)("h1", { className: I > 180 ? "question-title-ultra-long" : I > 135 ? "question-title-extra-long" : I > 95 ? "question-title-long" : I > 60 ? "question-title-medium" : "question-title-short", children: (0, b.jsx)(g.InlineContentRenderer, { content: F }) })] }), (0, b.jsxs)("p", { className: "answer-page-chapter", children: [(0, b.jsxs)("span", { children: ["Chapter ", String(z.number).padStart(2, "0")] }), z.title] })] }), (0, b.jsxs)("div", { className: "shell answer-page-layout", children: [(0, b.jsxs)("aside", { "aria-label": "Chapter question navigation", className: "question-chapter-rail", children: [(0, b.jsxs)("span", { children: ["Chapter ", String(z.number).padStart(2, "0")] }), (0, b.jsx)("strong", { children: z.title }), (0, b.jsxs)("nav", { "aria-label": "Nearby questions", children: [B ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, B.id), children: ["\u2190 Question ", B.displayLabel] }) : null, (0, b.jsxs)("b", { "aria-current": "page", children: ["Question ", A.displayLabel] }), C ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, C.id), children: ["Question ", C.displayLabel, " \u2192"] }) : null] }), (0, b.jsx)(c.default, { href: H, children: "\u2190 All chapter questions" })] }), (0, b.jsxs)("div", { className: "answer-page-main", children: [(0, b.jsx)(j.QuestionCard, { question: A, sequenceLabel: L, showSolution: true }), (0, b.jsxs)("nav", { "aria-label": "Question navigation", className: "question-pagination", children: [B ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, B.id), children: [(0, b.jsx)("small", { children: "Previous" }), (0, b.jsxs)("span", { children: ["\u2190 Question ", B.displayLabel] })] }) : (0, b.jsx)("span", {}), C ? (0, b.jsxs)(c.default, { href: (0, k.catalogQuestionPath)(z.book, z.slug, C.id), children: [(0, b.jsx)("small", { children: "Next" }), (0, b.jsxs)("span", { children: ["Question ", C.displayLabel, " \u2192"] })] }) : null] }), (0, b.jsxs)("section", { className: "related-questions", children: [(0, b.jsxs)("header", { className: "related-questions-heading", children: [(0, b.jsxs)("div", { children: [(0, b.jsx)("span", { children: "+" }), (0, b.jsxs)("div", { children: [(0, b.jsx)("small", { children: "Keep learning" }), (0, b.jsx)("h2", { children: "Related questions" })] })] }), (0, b.jsxs)("p", { children: [D.length, " questions from this subject."] })] }), (0, b.jsx)("div", { className: "related-question-grid", children: D.map(({ question: a3, chapterSlug: d2, chapterTitle: e3 }) => (0, b.jsxs)(c.default, { className: "related-question-link", href: (0, k.catalogQuestionPath)(z.book, d2, a3.id), prefetch: false, children: [(0, b.jsxs)("span", { className: "related-question-number", children: ["Q ", a3.displayLabel] }), a3.promptMedia?.length ? (0, b.jsx)(h.RelatedQuestionMedia, { label: `Question ${a3.displayLabel}`, media: a3.promptMedia }) : null, (0, b.jsxs)("div", { className: "related-question-preview", children: [(0, b.jsx)("small", { children: e3 }), (0, b.jsx)(g.ContentRenderer, { content: a3.prompt, className: "related-question-copy", tableFocusable: false })] }), (0, b.jsxs)("b", { "aria-hidden": "true", children: [(0, b.jsx)("span", { children: "Open" }), "\u2192"] })] }, `${d2}:${a3.id}`)) }), (0, b.jsxs)("footer", { className: p.default.footer, children: [(0, b.jsx)("span", { children: "Ready for another round?" }), (0, b.jsxs)(c.default, { className: p.default.footerLink, href: H, children: ["View all chapter questions ", (0, b.jsx)("b", { children: "\u2192" })] })] })] })] }), (0, b.jsxs)("aside", { "aria-label": "Study context", className: "answer-context", children: [(0, b.jsx)("span", { children: "Study context" }), (0, b.jsxs)("dl", { children: [(0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Board" }), (0, b.jsx)("dd", { children: w.shortName })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Class" }), (0, b.jsx)("dd", { children: x })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Subject" }), (0, b.jsx)("dd", { children: y.name })] }), (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Chapter" }), (0, b.jsxs)("dd", { children: [String(z.number).padStart(2, "0"), " \xB7 ", z.title] })] }), A.bookPage != null && String(A.bookPage).trim() ? (0, b.jsxs)("div", { children: [(0, b.jsx)("dt", { children: "Page" }), (0, b.jsx)("dd", { children: A.bookPage })] }) : null] }), (0, b.jsx)(c.default, { href: H, children: "View full chapter \u2192" })] })] })] });
         }
         __name(v, "v");
         __name2(v, "v");
@@ -63231,7 +63261,7 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
           let b2 = await a2, c2 = await m(b2);
           if (!c2 || !c2.books.length) return {};
           let d2 = `/${c2.board.slug}/${b2.grade}/streams/${c2.studyStream.slug}/${c2.studyCourse.slug}/${c2.subject.slug}`, e2 = c2.books.reduce((a3, b3) => a3 + b3.chapterCount, 0);
-          return (0, k.pageMetadata)({ title: `Class ${c2.grade} ${c2.board.shortName} ${c2.studyCourse.name} ${c2.subject.name} Solutions`, description: `Study ${c2.board.name} Class ${c2.grade} ${c2.studyStream.name} ${c2.subject.name} with ${c2.books.length} relevant textbooks and ${e2} textbook-order chapters.`, pathname: d2 });
+          return (0, k.pageMetadata)({ title: `Class ${c2.grade} ${c2.subject.name} — ${c2.studyCourse.name}, ${c2.board.shortName} Solutions`, description: `${c2.board.shortName} Class ${c2.grade} ${c2.subject.name} in ${c2.studyCourse.name}: ${c2.books.length} relevant textbooks and ${e2} textbook-order chapters.`, pathname: d2 });
         }
         __name(n, "n");
         __name2(n, "n");
@@ -63668,7 +63698,8 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         var d = a.i(73727), e = a.i(50222), f = a.i(78964), g = a.i(6417), h = a.i(80426), i = a.i(76573), j = a.i(21050), k = a.i(94474), l = a.i(5608), m = a.i(66590);
         async function n({ params: a2 }) {
           let b2 = await a2, c2 = await (0, h.getCatalogBoard)(b2.board), d2 = (0, i.gradeNumber)(b2.grade), e2 = await (0, h.listCatalogSubjects)(b2.board, b2.grade), f2 = (0, j.getStudyStream)(b2.board, b2.grade, b2.stream, e2), g2 = (0, j.getStudyCourse)(b2.board, b2.grade, b2.stream, b2.course, e2);
-          return c2 && d2 && c2.classes.includes(d2) && f2 && g2 ? (0, k.pageMetadata)({ title: `Class ${d2} ${c2.shortName} ${g2.name} Textbooks & Solutions`, description: `Browse ${g2.name} Class ${d2} subjects and ${c2.name} textbook solutions, organised by book, chapter and exact question.`, pathname: `/${c2.slug}/${b2.grade}/streams/${f2.slug}/${g2.slug}` }) : {};
+          let l2 = c2 && d2 && f2 && g2 ? `/${c2.slug}/${b2.grade}/streams/${f2.slug}/${g2.slug}` : "";
+          return c2 && d2 && c2.classes.includes(d2) && f2 && g2 ? (0, k.pageMetadata)({ title: `Class ${d2} ${g2.name} — ${c2.shortName} Textbooks`, description: `${c2.shortName} Class ${d2} ${g2.name}: browse subjects, textbooks, chapters and exact solved questions.`, pathname: l2 }) : {};
         }
         __name(n, "n");
         __name2(n, "n");
@@ -76734,7 +76765,7 @@ ${t2}`));
       module.exports = [50708, (a) => {
         "use strict";
         var b = a.i(7997), c = a.i(95936), d = a.i(54043), e = a.i(72110), f = a.i(6417), g = a.i(23838), h = a.i(76573), i = a.i(80426), j = a.i(94474);
-        let k = (0, j.pageMetadata)({ title: "Textbook answers, made clear | StudyWudy", description: "Choose your board, class and subject, then study free textbook solutions in the exact order of your book.", pathname: "/" }), l = [{ label: "Primary", range: "Class 1\u20135", href: "/cbse/class-5" }, { label: "Middle school", range: "Class 6\u20138", href: "/cbse/class-8" }, { label: "Secondary", range: "Class 9\u201310", href: "/maharashtra-board/class-10" }, { label: "Senior secondary", range: "Class 11\u201312", href: "/maharashtra-board/class-12" }], m = `${(0, h.chapterPath)()}/questions/q-msb-balbharati-physics-standard-12-8-001`, n = { A: "Clear, structured explanations for written responses.", B: "MCQs, assertions and option-based questions.", C: "Verify a statement and understand the reason.", D: "Complete the exact idea, term or textbook line.", E: "Connect related concepts in the correct order.", F: "Compare definitions, properties and applications.", G: "Read a passage, infer meaning and answer clearly.", H: "Formula-first calculations with every step shown.", I: "Learn through field lines, figures and labelled visuals." };
+        let k = (0, j.pageMetadata)({ title: "Textbook answers, made clear", description: "Choose your board, class and subject, then study free textbook solutions in the exact order of your book.", pathname: "/" }), l = h.boards.flatMap((a2) => a2.classes.map((b2) => ({ label: a2.shortName, range: `Class ${b2}`, href: `/${a2.slug}/class-${b2}` }))), m = `${(0, h.chapterPath)()}/questions/q-msb-balbharati-physics-standard-12-8-001`, n = { A: "Clear, structured explanations for written responses.", B: "MCQs, assertions and option-based questions.", C: "Verify a statement and understand the reason.", D: "Complete the exact idea, term or textbook line.", E: "Connect related concepts in the correct order.", F: "Compare definitions, properties and applications.", G: "Read a passage, infer meaning and answer clearly.", H: "Formula-first calculations with every step shown.", I: "Learn through field lines, figures and labelled visuals." };
         function o({ code: a2 }) {
           let c2 = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round", strokeLinejoin: "round" };
           return a2 === "A" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("path", { d: "M4 20h4l11-11-4-4L4 16v4Z" }), (0, b.jsx)("path", { d: "m13.5 6.5 4 4" })] }) : a2 === "B" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }), (0, b.jsx)("path", { d: "m7 9 1.5 1.5L11 8" }), (0, b.jsx)("path", { d: "M14 9h3" }), (0, b.jsx)("path", { d: "m7 15 1.5 1.5L11 14" }), (0, b.jsx)("path", { d: "M14 15h3" })] }) : a2 === "C" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("circle", { cx: "7", cy: "12", r: "4" }), (0, b.jsx)("path", { d: "m5.5 12 1 1 2-2" }), (0, b.jsx)("circle", { cx: "17", cy: "12", r: "4" }), (0, b.jsx)("path", { d: "m15.5 10.5 3 3m0-3-3 3" })] }) : a2 === "D" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("path", { d: "M4 7h5M15 7h5M9 5v4M15 5v4" }), (0, b.jsx)("path", { d: "M4 17h16" }), (0, b.jsx)("path", { d: "M8 13h8" })] }) : a2 === "E" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("path", { d: "M8.5 8.5 6 11a3 3 0 0 0 4 4l2.5-2.5" }), (0, b.jsx)("path", { d: "m15.5 15.5 2.5-2.5a3 3 0 0 0-4-4l-2.5 2.5" }), (0, b.jsx)("path", { d: "m9 15 6-6" })] }) : a2 === "F" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("path", { d: "M12 4v16M5 7h14" }), (0, b.jsx)("path", { d: "m5 7-3 6h6L5 7Z" }), (0, b.jsx)("path", { d: "m19 7-3 6h6l-3-6Z" }), (0, b.jsx)("path", { d: "M8 20h8" })] }) : a2 === "G" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("path", { d: "M3 5.5A3.5 3.5 0 0 1 6.5 4H11v16H6.5A3.5 3.5 0 0 0 3 21.5v-16Z" }), (0, b.jsx)("path", { d: "M21 5.5A3.5 3.5 0 0 0 17.5 4H13v16h4.5a3.5 3.5 0 0 1 3.5 1.5v-16Z" })] }) : a2 === "H" ? (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("rect", { x: "4", y: "2.5", width: "16", height: "19", rx: "2" }), (0, b.jsx)("path", { d: "M7 6h10v3H7z" }), (0, b.jsx)("path", { d: "M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01" })] }) : (0, b.jsxs)("svg", { ...c2, children: [(0, b.jsx)("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }), (0, b.jsx)("circle", { cx: "8.5", cy: "9", r: "1.5" }), (0, b.jsx)("path", { d: "m5 17 4.5-4.5 3 3 2-2L19 17" })] });
@@ -77010,7 +77041,7 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         e.i(52474);
         var g = e.i(220), w = e.i(89171), f = e.i(12949);
         function m() {
-          return { rules: [{ userAgent: "*", allow: "/", disallow: ["/api/"] }], sitemap: `${f.siteUrl}/sitemap.xml`, host: f.siteUrl };
+          return { rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/admin/", "/preview/", "/search?", "/*?*preview=", "/*?*draft="] }], sitemap: `${f.siteUrl}/sitemap.xml`, host: f.siteUrl };
         }
         __name(m, "m");
         __name2(m, "m");
@@ -99279,6 +99310,596 @@ var worker_default = {
     });
   }
 };
+var PHASE3_CONTENT_PUBLISHED_AT = "2026-08-15T03:30:10Z";
+var PHASE3_CONTENT_PUBLISHED_EPOCH = Math.floor(Date.parse(PHASE3_CONTENT_PUBLISHED_AT) / 1e3);
+// Keep dynamic sitemap shards comfortably below both Google's hard limits and
+// the Worker/D1 execution envelope. Ten-thousand-row key ranges avoid large
+// query, XML, and gzip bursts when crawlers request several shards together.
+var PHASE3_SITEMAP_BLOCK_SIZE = 10e3;
+var PHASE4_POLICY_VERSION = "phase4-v2-all-valid-indexable";
+var PHASE4_METHODOLOGY_PATH = "/about/methodology";
+var PHASE4_METHODOLOGY_UPDATED_AT = "2026-08-18T10:30:00Z";
+var PHASE4_METHODOLOGY_UPDATED_EPOCH = Math.floor(Date.parse(PHASE4_METHODOLOGY_UPDATED_AT) / 1e3);
+var PHASE5_POLICY_UPDATED_EPOCH = Math.floor(Date.parse("2026-08-18T00:00:00+05:30") / 1e3);
+var PHASE4_GATE_STATE_CACHE = null;
+var PHASE3_NOINDEX_QUESTION_KEYS = /* @__PURE__ */ new Set([
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-001",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-002",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-005",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-011",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-012",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-015",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-016",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-017",
+  "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-2-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-2-class-4-3-018"
+]);
+// Stream, course, and stream-subject landing pages are real indexable routes
+// from the recovered prerender manifest. Keep them in the hierarchy sitemap;
+// leaf textbook/chapter/question URLs use the board/class/subject hierarchy.
+var PHASE3_STREAM_PATHS = [
+  "/maharashtra-board/class-11/streams/science",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology",
+  "/maharashtra-board/class-11/streams/commerce",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics",
+  "/maharashtra-board/class-11/streams/arts",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general",
+  "/maharashtra-board/class-12/streams/science",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology",
+  "/maharashtra-board/class-12/streams/commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics",
+  "/maharashtra-board/class-12/streams/arts",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general",
+  "/cbse/class-11/streams/science",
+  "/cbse/class-11/streams/science/cbse-science",
+  "/cbse/class-11/streams/commerce",
+  "/cbse/class-11/streams/commerce/cbse-commerce",
+  "/cbse/class-11/streams/humanities",
+  "/cbse/class-11/streams/humanities/cbse-humanities",
+  "/cbse/class-12/streams/science",
+  "/cbse/class-12/streams/science/cbse-science",
+  "/cbse/class-12/streams/commerce",
+  "/cbse/class-12/streams/commerce/cbse-commerce",
+  "/cbse/class-12/streams/humanities",
+  "/cbse/class-12/streams/humanities/cbse-humanities",
+  "/cisce/class-12/streams/science",
+  "/cisce/class-12/streams/science/isc-science",
+  "/cisce/class-12/streams/commerce",
+  "/cisce/class-12/streams/commerce/isc-commerce",
+  "/cisce/class-12/streams/humanities",
+  "/cisce/class-12/streams/humanities/isc-humanities",
+  "/tamil-nadu-board/class-11/streams/science",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science",
+  "/tamil-nadu-board/class-11/streams/commerce",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce",
+  "/tamil-nadu-board/class-12/streams/science",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science",
+  "/tamil-nadu-board/class-12/streams/commerce",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/physics",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/chemistry",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/biology",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/mathematics",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/geography",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/information-technology",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/english",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/hindi",
+  "/maharashtra-board/class-11/streams/science/hsc-science-general/marathi",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/physics",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/chemistry",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/biology",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/mathematics",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/information-technology",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/english",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/hindi",
+  "/maharashtra-board/class-11/streams/science/hsc-science-information-technology/marathi",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/accountancy",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/commerce",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/economics",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/information-technology",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/english",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/hindi",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-general/marathi",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/accountancy",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/commerce",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/economics",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/mathematics",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/english",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/hindi",
+  "/maharashtra-board/class-11/streams/commerce/hsc-commerce-mathematics/marathi",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/history",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/geography",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/political-science",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/psychology",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/sociology",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/economics",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/mathematics",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/information-technology",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/english",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/hindi",
+  "/maharashtra-board/class-11/streams/arts/hsc-arts-general/marathi",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/physics",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/chemistry",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/biology",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/mathematics",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/geography",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/information-technology",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/english",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/hindi",
+  "/maharashtra-board/class-12/streams/science/hsc-science-general/marathi",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/physics",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/chemistry",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/biology",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/mathematics",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/information-technology",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/english",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/hindi",
+  "/maharashtra-board/class-12/streams/science/hsc-science-information-technology/marathi",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/accountancy",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/book-keeping-and-accountancy",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/economics",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/information-technology-commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/information-technology",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/english",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/hindi",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-general/marathi",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/accountancy",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/book-keeping-and-accountancy",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/economics",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/mathematics-commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/mathematics",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/information-technology-commerce",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/english",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/hindi",
+  "/maharashtra-board/class-12/streams/commerce/hsc-commerce-mathematics/marathi",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/history",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/geography",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/political-science",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/psychology",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/sociology",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/economics",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/mathematics",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/information-technology",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/english",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/hindi",
+  "/maharashtra-board/class-12/streams/arts/hsc-arts-general/marathi",
+  "/cbse/class-11/streams/science/cbse-science/physics",
+  "/cbse/class-11/streams/science/cbse-science/chemistry",
+  "/cbse/class-11/streams/science/cbse-science/mathematics",
+  "/cbse/class-11/streams/science/cbse-science/biology",
+  "/cbse/class-11/streams/science/cbse-science/computer-science",
+  "/cbse/class-11/streams/science/cbse-science/english",
+  "/cbse/class-11/streams/science/cbse-science/hindi",
+  "/cbse/class-11/streams/commerce/cbse-commerce/accountancy",
+  "/cbse/class-11/streams/commerce/cbse-commerce/business-studies",
+  "/cbse/class-11/streams/commerce/cbse-commerce/economics",
+  "/cbse/class-11/streams/commerce/cbse-commerce/mathematics",
+  "/cbse/class-11/streams/commerce/cbse-commerce/statistics",
+  "/cbse/class-11/streams/commerce/cbse-commerce/english",
+  "/cbse/class-11/streams/commerce/cbse-commerce/hindi",
+  "/cbse/class-11/streams/humanities/cbse-humanities/history",
+  "/cbse/class-11/streams/humanities/cbse-humanities/political-science",
+  "/cbse/class-11/streams/humanities/cbse-humanities/geography",
+  "/cbse/class-11/streams/humanities/cbse-humanities/psychology",
+  "/cbse/class-11/streams/humanities/cbse-humanities/sociology",
+  "/cbse/class-11/streams/humanities/cbse-humanities/economics",
+  "/cbse/class-11/streams/humanities/cbse-humanities/english",
+  "/cbse/class-11/streams/humanities/cbse-humanities/hindi",
+  "/cbse/class-11/streams/humanities/cbse-humanities/sanskrit",
+  "/cbse/class-12/streams/science/cbse-science/physics",
+  "/cbse/class-12/streams/science/cbse-science/chemistry",
+  "/cbse/class-12/streams/science/cbse-science/mathematics",
+  "/cbse/class-12/streams/science/cbse-science/biology",
+  "/cbse/class-12/streams/science/cbse-science/computer-science",
+  "/cbse/class-12/streams/science/cbse-science/english",
+  "/cbse/class-12/streams/science/cbse-science/hindi",
+  "/cbse/class-12/streams/commerce/cbse-commerce/accountancy",
+  "/cbse/class-12/streams/commerce/cbse-commerce/business-studies",
+  "/cbse/class-12/streams/commerce/cbse-commerce/economics",
+  "/cbse/class-12/streams/commerce/cbse-commerce/mathematics",
+  "/cbse/class-12/streams/commerce/cbse-commerce/entrepreneurship",
+  "/cbse/class-12/streams/commerce/cbse-commerce/english",
+  "/cbse/class-12/streams/commerce/cbse-commerce/hindi",
+  "/cbse/class-12/streams/humanities/cbse-humanities/history",
+  "/cbse/class-12/streams/humanities/cbse-humanities/political-science",
+  "/cbse/class-12/streams/humanities/cbse-humanities/geography",
+  "/cbse/class-12/streams/humanities/cbse-humanities/psychology",
+  "/cbse/class-12/streams/humanities/cbse-humanities/sociology",
+  "/cbse/class-12/streams/humanities/cbse-humanities/economics",
+  "/cbse/class-12/streams/humanities/cbse-humanities/english",
+  "/cbse/class-12/streams/humanities/cbse-humanities/hindi",
+  "/cbse/class-12/streams/humanities/cbse-humanities/sanskrit",
+  "/cisce/class-12/streams/science/isc-science/physics",
+  "/cisce/class-12/streams/commerce/isc-commerce/commerce",
+  "/cisce/class-12/streams/commerce/isc-commerce/business-studies",
+  "/cisce/class-12/streams/commerce/isc-commerce/economics",
+  "/cisce/class-12/streams/humanities/isc-humanities/history",
+  "/cisce/class-12/streams/humanities/isc-humanities/political-science",
+  "/cisce/class-12/streams/humanities/isc-humanities/geography",
+  "/cisce/class-12/streams/humanities/isc-humanities/psychology",
+  "/cisce/class-12/streams/humanities/isc-humanities/sociology",
+  "/cisce/class-12/streams/humanities/isc-humanities/physical-education",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/physics",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/chemistry",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/biology",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/mathematics",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/computer-science",
+  "/tamil-nadu-board/class-11/streams/science/tn-hse-science/english",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/accountancy",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/commerce",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/economics",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/computer-science",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/mathematics",
+  "/tamil-nadu-board/class-11/streams/commerce/tn-hse-commerce/english",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/physics",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/chemistry",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/biology",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/mathematics",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/computer-science",
+  "/tamil-nadu-board/class-12/streams/science/tn-hse-science/english",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/accountancy",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/commerce",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/economics",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/computer-science",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/mathematics",
+  "/tamil-nadu-board/class-12/streams/commerce/tn-hse-commerce/english"
+];
+function phase3XmlEscape(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+}
+__name(phase3XmlEscape, "phase3XmlEscape");
+__name2(phase3XmlEscape, "phase3XmlEscape");
+function phase3Epoch(value) {
+  let epoch = Number(value ?? 0);
+  if (!Number.isFinite(epoch) || epoch <= 0) return PHASE3_CONTENT_PUBLISHED_EPOCH;
+  return epoch > 1e12 ? Math.floor(epoch / 1e3) : Math.floor(epoch);
+}
+__name(phase3Epoch, "phase3Epoch");
+__name2(phase3Epoch, "phase3Epoch");
+function phase3Lastmod(...values) {
+  return new Date(1e3 * Math.max(PHASE3_CONTENT_PUBLISHED_EPOCH, ...values.map(phase3Epoch))).toISOString().replace(/\.000Z$/, "Z");
+}
+__name(phase3Lastmod, "phase3Lastmod");
+__name2(phase3Lastmod, "phase3Lastmod");
+function phase3SitemapHeaders(contentType = "application/xml; charset=utf-8") {
+  return {
+    "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    "Cloudflare-CDN-Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+    "Content-Type": contentType,
+    "X-Content-Type-Options": "nosniff"
+  };
+}
+__name(phase3SitemapHeaders, "phase3SitemapHeaders");
+__name2(phase3SitemapHeaders, "phase3SitemapHeaders");
+function phase3UrlEntry(siteUrl, pathname, lastmod) {
+  return `  <url><loc>${phase3XmlEscape(new URL(pathname, siteUrl).toString())}</loc><lastmod>${lastmod}</lastmod></url>`;
+}
+__name(phase3UrlEntry, "phase3UrlEntry");
+__name2(phase3UrlEntry, "phase3UrlEntry");
+function phase3GzipXmlResponse(xml, requestMethod) {
+  if (requestMethod === "HEAD") return new Response(null, { headers: phase3SitemapHeaders("application/gzip") });
+  let compressed = new Blob([xml]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Response(compressed, { headers: phase3SitemapHeaders("application/gzip") });
+}
+__name(phase3GzipXmlResponse, "phase3GzipXmlResponse");
+__name2(phase3GzipXmlResponse, "phase3GzipXmlResponse");
+async function phase3StaticSitemapResponse(request, environment, pathname, contentType) {
+  if (!environment.ASSETS) return null;
+  let assetRequest = new Request(new URL(pathname, request.url), {
+    method: request.method === "HEAD" ? "HEAD" : "GET"
+  });
+  let asset = await environment.ASSETS.fetch(assetRequest);
+  if (!asset.ok) return null;
+  let headers = new Headers(asset.headers);
+  for (let [name, value] of Object.entries(phase3SitemapHeaders(contentType))) headers.set(name, value);
+  return new Response(request.method === "HEAD" ? null : asset.body, {
+    status: asset.status,
+    statusText: asset.statusText,
+    headers
+  });
+}
+__name(phase3StaticSitemapResponse, "phase3StaticSitemapResponse");
+__name2(phase3StaticSitemapResponse, "phase3StaticSitemapResponse");
+async function phase3SitemapIndex(request, environment) {
+  if (!environment.DB) return new Response("Catalog database unavailable", { status: 503 });
+  let siteUrl = `${new URL(request.url).origin}/`;
+  let gateState = await phase4GateState(environment), rowCount = gateState.ready ? gateState.indexableCount : 0;
+  let blockRows = [];
+  if (rowCount) {
+    let result = await environment.DB.prepare(`SELECT MIN(q.row_id) AS cursor,
+      MAX(COALESCE(q.updated_at, 0)) AS question_updated_at,
+      MAX(COALESCE(c.updated_at, 0)) AS chapter_updated_at,
+      MAX(COALESCE(b.updated_at, 0)) AS book_updated_at
+      FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
+      JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
+      GROUP BY CAST((q.row_id - 1) / ? AS INTEGER) ORDER BY cursor`).bind(PHASE3_SITEMAP_BLOCK_SIZE).all();
+    blockRows = (result.results ?? []).map((row) => ({
+      cursor: Number(row.cursor),
+      updated_at: Math.max(phase3Epoch(row.question_updated_at), phase3Epoch(row.chapter_updated_at), phase3Epoch(row.book_updated_at))
+    }));
+  }
+  let hierarchyTimestamp = await environment.DB.prepare("SELECT MAX(updated_at) AS updated_at FROM (SELECT updated_at FROM catalog_books UNION ALL SELECT updated_at FROM catalog_chapters UNION ALL SELECT updated_at FROM catalog_questions)").first();
+  let children = [{ pathname: "/sitemaps/hierarchy.xml.gz", lastmod: phase3Lastmod(hierarchyTimestamp?.updated_at) }, ...blockRows.map((row) => ({ pathname: `/sitemaps/questions-${Number(row.cursor)}.xml.gz`, lastmod: phase3Lastmod(row.updated_at) }))];
+  if (rowCount && blockRows.length !== Math.ceil(rowCount / PHASE3_SITEMAP_BLOCK_SIZE)) return new Response("Invalid question sitemap bounds", { status: 500 });
+  let body = children.map((child) => `  <sitemap><loc>${phase3XmlEscape(new URL(child.pathname, siteUrl).toString())}</loc><lastmod>${child.lastmod}</lastmod></sitemap>`).join("\n");
+  let headers = phase3SitemapHeaders();
+  headers["X-StudyWudy-Publish-Gate"] = gateState.ready ? `${PHASE4_POLICY_VERSION}; indexable=${rowCount}` : `${PHASE4_POLICY_VERSION}; catalog-unavailable`;
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</sitemapindex>\n`, { headers });
+}
+__name(phase3SitemapIndex, "phase3SitemapIndex");
+__name2(phase3SitemapIndex, "phase3SitemapIndex");
+async function phase3HierarchySitemap(request, environment) {
+  if (!environment.DB) return new Response("Catalog database unavailable", { status: 503 });
+  let siteUrl = `${new URL(request.url).origin}/`;
+  let result = await environment.DB.prepare("SELECT b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug, b.updated_at AS book_updated_at, c.slug AS chapter_slug, c.updated_at AS chapter_updated_at, c.question_count, MAX(q.updated_at) AS question_updated_at FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id LEFT JOIN catalog_questions q ON q.book_id = c.book_id AND q.chapter_slug = c.slug GROUP BY c.id ORDER BY b.board_slug, b.grade_slug, b.subject_slug, b.slug, c.position").all();
+  let timestamps = /* @__PURE__ */ new Map([["/", PHASE3_CONTENT_PUBLISHED_EPOCH], ["/boards", PHASE3_CONTENT_PUBLISHED_EPOCH], [PHASE4_METHODOLOGY_PATH, PHASE4_METHODOLOGY_UPDATED_EPOCH], ["/privacy", PHASE5_POLICY_UPDATED_EPOCH], ["/terms", PHASE5_POLICY_UPDATED_EPOCH], ["/contact", PHASE5_POLICY_UPDATED_EPOCH]]);
+  let record = /* @__PURE__ */ __name2((pathname, ...values) => {
+    let timestamp = Math.max(PHASE3_CONTENT_PUBLISHED_EPOCH, ...values.map(phase3Epoch));
+    timestamps.set(pathname, Math.max(timestamps.get(pathname) ?? 0, timestamp));
+  }, "record");
+  for (let pathname of PHASE3_STREAM_PATHS) record(pathname, PHASE3_CONTENT_PUBLISHED_EPOCH);
+  for (let row of result.results ?? []) {
+    let board = `/${row.board_slug}`, grade = `${board}/${row.grade_slug}`, subject = `${grade}/${row.subject_slug}`, book = `${subject}/${row.book_slug}`, chapter = `${book}/${row.chapter_slug}`;
+    let descendantsUpdated = Math.max(phase3Epoch(row.book_updated_at), phase3Epoch(row.chapter_updated_at), phase3Epoch(row.question_updated_at));
+    record(board, descendantsUpdated), record(grade, descendantsUpdated), record(subject, descendantsUpdated), record(book, descendantsUpdated), record(chapter, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
+    let pageCount = Math.max(1, Math.ceil(Number(row.question_count) / 40));
+    for (let page = 2; page <= pageCount; page += 1) record(`${chapter}?page=${page}`, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
+  }
+  let entries = [...timestamps].map(([pathname, timestamp]) => phase3UrlEntry(siteUrl, pathname, phase3Lastmod(timestamp))).join("\n");
+  return phase3GzipXmlResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`, request.method);
+}
+__name(phase3HierarchySitemap, "phase3HierarchySitemap");
+__name2(phase3HierarchySitemap, "phase3HierarchySitemap");
+async function phase3QuestionSitemap(request, environment, cursor) {
+  if (!environment.DB) return new Response("Catalog database unavailable", { status: 503 });
+  if (!Number.isSafeInteger(cursor) || cursor < 1) return new Response("Not found", { status: 404 });
+  let gateState = await phase4GateState(environment);
+  if (!gateState.ready) return new Response("Not found", { status: 404 });
+  if ((cursor - 1) % PHASE3_SITEMAP_BLOCK_SIZE !== 0) return new Response("Not found", { status: 404 });
+  let result = await environment.DB.prepare(`SELECT q.row_id, q.chapter_slug, q.question_id,
+    q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
+    b.slug AS book_slug, b.updated_at AS book_updated_at, c.updated_at AS chapter_updated_at
+    FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
+    JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
+    WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`)
+    .bind(cursor, cursor + PHASE3_SITEMAP_BLOCK_SIZE).all();
+  let rows = result.results ?? [];
+  if (!rows.length || Number(rows[0].row_id) !== cursor) return new Response("Not found", { status: 404 });
+  let siteUrl = `${new URL(request.url).origin}/`;
+  let entries = rows.map((row) => {
+    let pathname = `/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`;
+    return phase3UrlEntry(siteUrl, pathname, phase3Lastmod(row.question_updated_at, row.chapter_updated_at, row.book_updated_at));
+  }).join("\n");
+  return phase3GzipXmlResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`, request.method);
+}
+__name(phase3QuestionSitemap, "phase3QuestionSitemap");
+__name2(phase3QuestionSitemap, "phase3QuestionSitemap");
+function phase3RobotsResponse(request) {
+  let siteUrl = new URL(request.url).origin;
+  let body = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /preview/\nDisallow: /search?\nDisallow: /*?*preview=\nDisallow: /*?*draft=\nSitemap: ${siteUrl}/sitemap.xml\nHost: ${siteUrl}\n`;
+  return new Response(request.method === "HEAD" ? null : body, { headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400", "Content-Type": "text/plain; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
+}
+__name(phase3RobotsResponse, "phase3RobotsResponse");
+__name2(phase3RobotsResponse, "phase3RobotsResponse");
+function phase3HtmlEscape(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+__name(phase3HtmlEscape, "phase3HtmlEscape");
+__name2(phase3HtmlEscape, "phase3HtmlEscape");
+async function phase4GateState(environment) {
+  if (!environment.DB) return { ready: false, reason: "database-unavailable", gatePassedCount: 0 };
+  if (PHASE4_GATE_STATE_CACHE && PHASE4_GATE_STATE_CACHE.expiresAt > Date.now()) return PHASE4_GATE_STATE_CACHE.value;
+  let value;
+  try {
+    let row = await environment.DB.prepare("SELECT (SELECT COUNT(*) FROM catalog_questions) AS catalog_count, (SELECT MAX(updated_at) FROM (SELECT updated_at FROM catalog_books UNION ALL SELECT updated_at FROM catalog_chapters UNION ALL SELECT updated_at FROM catalog_questions)) AS catalog_max_updated_at").first();
+    let manifestReady = PHASE4_GATE_MANIFEST.policyVersion === PHASE4_POLICY_VERSION
+      && Number(PHASE4_GATE_MANIFEST.indexableCount) === Number(PHASE4_GATE_MANIFEST.corpusCount)
+      && Number(PHASE4_GATE_MANIFEST.gatePassedCount) === Number(PHASE4_GATE_MANIFEST.corpusCount);
+    let databaseMatches = Number(row?.catalog_count ?? 0) === Number(PHASE4_GATE_MANIFEST.corpusCount) && phase3Epoch(row?.catalog_max_updated_at) === phase3Epoch(PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt);
+    let ready = manifestReady && databaseMatches;
+    value = {
+      ready,
+      reason: ready ? null : "manifest-missing-incomplete-or-stale",
+      policyVersion: PHASE4_GATE_MANIFEST.policyVersion,
+      depthFloor: Number(PHASE4_GATE_MANIFEST.depthFloor),
+      similarityThreshold: Number(PHASE4_GATE_MANIFEST.similarityThreshold),
+      similarityMetric: PHASE4_GATE_MANIFEST.similarityMetric,
+      evaluatedAt: Number(PHASE4_GATE_MANIFEST.reviewedAt),
+      corpusCount: Number(PHASE4_GATE_MANIFEST.corpusCount),
+      depthPassedCount: Number(PHASE4_GATE_MANIFEST.depthPassedCount),
+      similarityPassedCount: Number(PHASE4_GATE_MANIFEST.similarityPassedCount),
+      qualityPassedCount: Number(PHASE4_GATE_MANIFEST.qualityPassedCount),
+      indexableCount: ready ? Number(PHASE4_GATE_MANIFEST.indexableCount) : 0,
+      gatePassedCount: ready ? Number(PHASE4_GATE_MANIFEST.gatePassedCount) : 0
+    };
+  } catch {
+    value = { ready: false, reason: "catalog-state-unavailable", gatePassedCount: 0 };
+  }
+  PHASE4_GATE_STATE_CACHE = { expiresAt: Date.now() + 6e4, value };
+  return value;
+}
+__name(phase4GateState, "phase4GateState");
+__name2(phase4GateState, "phase4GateState");
+function phase4CanonicalOrigin(requestUrl) {
+  let url = new URL(requestUrl);
+  return /^(?:localhost|127\.0\.0\.1)$/.test(url.hostname) ? "https://studywudy-board-solutions.amanbhagat17089.workers.dev" : url.origin;
+}
+__name(phase4CanonicalOrigin, "phase4CanonicalOrigin");
+__name2(phase4CanonicalOrigin, "phase4CanonicalOrigin");
+function phase4ReviewDate(epoch) {
+  if (!Number.isFinite(Number(epoch)) || Number(epoch) <= 0) return "Not yet reviewed";
+  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date(Number(epoch) * 1e3));
+}
+__name(phase4ReviewDate, "phase4ReviewDate");
+__name2(phase4ReviewDate, "phase4ReviewDate");
+async function phase4QuestionGate(environment, route, pathname) {
+  if (!environment.DB) return { ready: false, passed: false, reason: "database-unavailable", reviewedAt: 0 };
+  let state = await phase4GateState(environment);
+  let detail = null, catalogLastmod = 0;
+  let catalogFound = false;
+  try {
+    let catalog = await environment.DB.prepare("SELECT q.updated_at AS question_updated_at, c.updated_at AS chapter_updated_at, b.updated_at AS book_updated_at FROM catalog_books b JOIN catalog_chapters c ON c.book_id = b.id AND c.slug = ? JOIN catalog_questions q ON q.book_id = b.id AND q.chapter_slug = c.slug AND q.question_id = ? WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ? LIMIT 1").bind(route.chapterSlug, route.questionId, route.boardSlug, route.gradeSlug, route.subjectSlug, route.bookSlug).first();
+    catalogFound = !!catalog;
+    catalogLastmod = Math.max(phase3Epoch(catalog?.question_updated_at), phase3Epoch(catalog?.chapter_updated_at), phase3Epoch(catalog?.book_updated_at));
+  } catch {
+    return { ready: false, passed: false, reason: "catalog-query-failed", reviewedAt: 0 };
+  }
+  try {
+    detail = await environment.DB.prepare("SELECT g.question_type, g.rendered_unique_words, g.genuine_unique_words, g.depth_pass, g.max_similarity, g.similarity_pass, g.policy_exclusion, g.gate_passed, g.disposition, g.remediation, g.reviewed_at, g.policy_version FROM catalog_books b JOIN content_publish_gate g ON g.book_id = b.id AND g.chapter_slug = ? AND g.question_id = ? WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ? LIMIT 1").bind(route.chapterSlug, route.questionId, route.boardSlug, route.gradeSlug, route.subjectSlug, route.bookSlug).first();
+  } catch {
+  }
+  let passed = state.ready && catalogFound;
+  let qualityPassed = !!detail && Number(detail.depth_pass) === 1 && Number(detail.similarity_pass) === 1 && Number(detail.policy_exclusion) !== 1;
+  return {
+    ready: state.ready,
+    passed,
+    qualityPassed,
+    reason: passed ? "published" : state.ready ? "catalog-route-missing" : state.reason,
+    reviewedAt: Number(detail?.reviewed_at ?? PHASE4_GATE_MANIFEST.reviewedAt),
+    questionType: detail?.question_type ?? null,
+    renderedUniqueWords: Number(detail?.rendered_unique_words ?? 0),
+    genuineUniqueWords: Number(detail?.genuine_unique_words ?? 0),
+    depthPass: detail ? Number(detail.depth_pass) === 1 : false,
+    similarity: Number(detail?.max_similarity ?? 0),
+    similarityPass: detail ? Number(detail.similarity_pass) === 1 : false,
+    remediation: passed ? "standalone_indexable" : "invalid_catalog_route",
+    catalogLastmod
+  }
+}
+__name(phase4QuestionGate, "phase4QuestionGate");
+__name2(phase4QuestionGate, "phase4QuestionGate");
+async function phase4ChapterReviewedAt(environment, route) {
+  if (!environment.DB) return 0;
+  let state = await phase4GateState(environment);
+  if (!state.ready) return 0;
+  try {
+    let row = await environment.DB.prepare("SELECT MAX(g.reviewed_at) AS reviewed_at FROM catalog_books b JOIN content_publish_gate g ON g.book_id = b.id AND g.chapter_slug = ? WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ?").bind(route.chapterSlug, route.boardSlug, route.gradeSlug, route.subjectSlug, route.bookSlug).first();
+    return Number(row?.reviewed_at ?? PHASE4_GATE_MANIFEST.reviewedAt);
+  } catch {
+    return Number(PHASE4_GATE_MANIFEST.reviewedAt);
+  }
+}
+__name(phase4ChapterReviewedAt, "phase4ChapterReviewedAt");
+__name2(phase4ChapterReviewedAt, "phase4ChapterReviewedAt");
+async function phase4MethodologyResponse(request, environment) {
+  let canonicalOrigin = phase4CanonicalOrigin(request.url), canonical = `${canonicalOrigin}${PHASE4_METHODOLOGY_PATH}`, gate = await phase4GateState(environment);
+  let reviewDate = phase4ReviewDate(gate.evaluatedAt || PHASE4_METHODOLOGY_UPDATED_EPOCH);
+  let coverage = gate.ready ? `<p class="metric"><strong>${gate.indexableCount.toLocaleString("en-IN")}</strong> valid standalone question pages are technically indexable and sitemap-listed. <strong>${gate.qualityPassedCount.toLocaleString("en-IN")}</strong> currently clear the separate depth and similarity checks; the remainder stay visible to search while editorial expansion is prioritised.</p>` : `<p class="metric"><strong>Catalog verification is unavailable.</strong> Question routes are not added to generated sitemaps until the database and build manifest agree.</p>`;
+  let schema = JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "AboutPage", "@id": `${canonical}#webpage`, url: canonical, name: "How StudyWudy reviews textbook solutions", description: "StudyWudy's transparent methodology for source mapping, answer-depth checks, similarity screening and staged search publishing.", dateModified: PHASE4_METHODOLOGY_UPDATED_AT, isPartOf: { "@id": `${canonicalOrigin}/#website` } }, { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: `${canonicalOrigin}/` }, { "@type": "ListItem", position: 2, name: "Solution review methodology", item: canonical }] }] }).replace(/</g, "\\u003c");
+  let body = `<!doctype html><html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How StudyWudy Reviews Textbook Solutions</title><meta name="description" content="See how StudyWudy verifies textbook routes, search metadata, answer depth and cross-page similarity for standalone solution pages."><meta name="robots" content="index, follow"><link rel="canonical" href="${phase3HtmlEscape(canonical)}"><script type="application/ld+json">${schema}</script><style>:root{color-scheme:light;font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#101316;background:#f5f0e6}*{box-sizing:border-box}body{margin:0}a{color:#0e4da9}header,main,footer{width:min(920px,calc(100% - 32px));margin:auto}header{padding:28px 0 8px}nav{font-size:14px}main{padding:34px 0 72px}h1{font-size:clamp(2.2rem,7vw,4.8rem);line-height:.96;letter-spacing:-.055em;max-width:800px;margin:28px 0 22px}h2{margin-top:42px;font-size:1.55rem}p,li{font-size:1.04rem;line-height:1.72}.lede{font-size:1.25rem;max-width:760px}.metric{padding:20px 22px;border:2px solid #101316;border-radius:14px;background:#fff}.metric strong{color:#0e4da9}.method{display:grid;grid-template-columns:42px 1fr;gap:12px;margin:20px 0}.method span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#1463d7;color:#fff;font-weight:800}.method h3{margin:3px 0 6px}.method p{margin:0}.note{border-left:5px solid #d99917;padding:4px 0 4px 18px}footer{border-top:1px solid #bdb5a7;padding:24px 0 42px;font-size:14px}@media(max-width:600px){h1{letter-spacing:-.04em}.method{grid-template-columns:34px 1fr}.method span{width:30px;height:30px}}</style></head><body><header><nav aria-label="Breadcrumb"><a href="/">StudyWudy</a> / Solution review methodology</nav></header><main><p>Trust &amp; publishing policy</p><h1>What “verified” means on StudyWudy</h1><p class="lede">A valid standalone solution has a verified catalog route, crawlable metadata, a self-canonical URL and sitemap coverage. Depth and similarity remain separate editorial-quality signals, not hidden indexing switches.</p>${coverage}<h2>How a solution is checked</h2><div class="method"><span>1</span><div><h3>Textbook-route integrity</h3><p>The question stays attached to its board, class, subject, textbook, chapter, exercise and original display label. Missing or mismatched catalog records are not published as valid routes.</p></div></div><div class="method"><span>2</span><div><h3>Search metadata</h3><p>Every valid question receives index/follow treatment, a self-referencing canonical, unique collision-checked title and description, breadcrumb data and Question/Answer content-understanding markup.</p></div></div><div class="method"><span>3</span><div><h3>Answer-body depth</h3><p>Navigation, breadcrumbs, the question prompt, answer choices and page boilerplate do not count. The editorial target remains at least <strong>150 unique explanatory words</strong> not already present in the prompt or choices.</p></div></div><div class="method"><span>4</span><div><h3>Pairwise originality</h3><p>Depth-passing answers are compared using exact Jaccard similarity over normalized five-word answer shingles. A score of <strong>0.85 or higher</strong> is retained as an editorial expansion signal without removing the valid page from search.</p></div></div><h2>What the review does not promise</h2><p class="note">Technical eligibility and sitemap inclusion do not guarantee that a search engine will index or rank a page. Search systems independently assess usefulness, originality, authority and query relevance.</p><h2>Review signal</h2><p>The current corpus checks were last evaluated on <strong>${phase3HtmlEscape(reviewDate)}</strong>. Solution and chapter pages show their latest publishing review and link back to this policy.</p><p><a href="/boards">Browse textbooks and chapters →</a></p></main><footer><a href="/">StudyWudy home</a> · <a href="${PHASE4_METHODOLOGY_PATH}">Review methodology</a></footer></body></html>`;
+  return new Response(request.method === "HEAD" ? null : body, { headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400", "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
+}
+__name(phase4MethodologyResponse, "phase4MethodologyResponse");
+__name2(phase4MethodologyResponse, "phase4MethodologyResponse");
+function phase4RouteMatch(pathname) {
+  let question = /^\/([^/]+)\/(class-\d+)\/([^/]+)\/([^/]+)\/([^/]+)\/questions\/([^/]+)$/.exec(pathname);
+  if (question) return { kind: "question", boardSlug: question[1], gradeSlug: question[2], subjectSlug: question[3], bookSlug: question[4], chapterSlug: question[5], questionId: question[6] };
+  let chapter = /^\/([^/]+)\/(class-\d+)\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(pathname);
+  return chapter ? { kind: "chapter", boardSlug: chapter[1], gradeSlug: chapter[2], subjectSlug: chapter[3], bookSlug: chapter[4], chapterSlug: chapter[5] } : null;
+}
+__name(phase4RouteMatch, "phase4RouteMatch");
+__name2(phase4RouteMatch, "phase4RouteMatch");
+async function phase4EnhanceHtml(request, response, environment) {
+  if (response.status >= 400 || !response.headers.get("content-type")?.toLowerCase().startsWith("text/html")) return response;
+  let url = new URL(request.url), route = phase4RouteMatch(url.pathname), questionGate = route?.kind === "question" ? await phase4QuestionGate(environment, route, url.pathname) : null;
+  let chapterReviewedAt = route?.kind === "chapter" ? await phase4ChapterReviewedAt(environment, route) : 0;
+  if (questionGate && !questionGate.passed) {
+    let headers = new Headers(response.headers);
+    headers.set("X-Robots-Tag", "noindex, follow");
+    headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_POLICY_VERSION}; ${questionGate.reason}`);
+    headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
+    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+    response = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  } else if (questionGate?.passed) {
+    let headers = new Headers(response.headers);
+    headers.set("X-Robots-Tag", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+    headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_POLICY_VERSION}; indexable`);
+    headers.delete("Cloudflare-CDN-Cache-Control");
+    response = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  if (request.method !== "GET" || typeof globalThis.HTMLRewriter !== "function") return response;
+  let gateDate = phase4ReviewDate(questionGate?.reviewedAt), chapterDate = phase4ReviewDate(chapterReviewedAt);
+  let trustBlock = questionGate ? `<section class="shell phase4-review-signal" aria-label="Solution publishing review"><a class="phase4-review-badge ${questionGate.qualityPassed ? "is-passed" : "is-queued"}" href="${PHASE4_METHODOLOGY_PATH}">${questionGate.qualityPassed ? "✓ Clears editorial quality checks" : "Editorial expansion recommended"}</a><small>Last publishing review: ${phase3HtmlEscape(gateDate)}</small>${questionGate.qualityPassed ? `<span>${questionGate.genuineUniqueWords.toLocaleString("en-IN")} genuine unique words · similarity ${questionGate.similarity.toFixed(3)}</span>` : `<span>This valid standalone solution is indexable; depth and originality remain editorial improvement signals.</span>`}</section>` : "";
+  let globalFooter = `<footer class="phase4-methodology-footer"><div class="shell"><span>How we review solutions</span><a href="${PHASE4_METHODOLOGY_PATH}">Verification &amp; publishing methodology →</a></div></footer>`;
+  let styles = `<style id="phase4-trust-styles">.phase4-review-signal{display:grid;gap:.45rem;margin-top:1rem;padding:1rem;border:1px solid #b8b0a1;border-radius:12px;background:#fff}.phase4-review-badge{width:max-content;max-width:100%;padding:.38rem .62rem;border-radius:999px;font-weight:800;text-decoration:none}.phase4-review-badge.is-passed{background:#dff5e8;color:#155d37}.phase4-review-badge.is-queued{background:#fff1cc;color:#734f00}.phase4-review-signal small,.phase4-review-signal span{line-height:1.45}.phase4-methodology-footer{border-top:1px solid #c9c1b3;background:#f5f0e6}.phase4-methodology-footer .shell{display:flex;justify-content:space-between;gap:1rem;padding-top:1.15rem;padding-bottom:1.15rem}.phase4-methodology-footer a{font-weight:750}.phase4-chapter-review{font-size:.88rem}@media(max-width:620px){.phase4-methodology-footer .shell{align-items:flex-start;flex-direction:column}}</style>`;
+  let rewriter = new globalThis.HTMLRewriter();
+  rewriter.on("head", { element(element) {
+    element.append(styles, { html: true });
+  } });
+  if (questionGate && !questionGate.passed) {
+    rewriter.on('meta[name="robots"]', { element(element) {
+      element.setAttribute("content", "noindex, follow");
+    } });
+    rewriter.on('meta[name="googlebot"]', { element(element) {
+      element.setAttribute("content", "noindex, follow");
+    } });
+  } else if (questionGate?.passed) {
+    let directive = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+    rewriter.on('meta[name="robots"]', { element(element) {
+      element.setAttribute("content", directive);
+    } });
+    rewriter.on('meta[name="googlebot"]', { element(element) {
+      element.setAttribute("content", directive);
+    } });
+  }
+  if (chapterReviewedAt) rewriter.on(".chapter-meta", { element(element) {
+    element.append(`<span class="phase4-chapter-review">Last publishing review: ${phase3HtmlEscape(chapterDate)} · <a href="${PHASE4_METHODOLOGY_PATH}">methodology</a></span>`, { html: true });
+  } });
+  return rewriter.on("body", { element(element) {
+    element.append(`${trustBlock}${globalFooter}`, { html: true });
+  } }).transform(response);
+}
+__name(phase4EnhanceHtml, "phase4EnhanceHtml");
+__name2(phase4EnhanceHtml, "phase4EnhanceHtml");
+async function phase3EnhanceHtml(request, response, environment) {
+  if (request.method !== "GET" || response.status >= 400 || !response.headers.get("content-type")?.toLowerCase().startsWith("text/html") || typeof globalThis.HTMLRewriter !== "function") return response;
+  let url = new URL(request.url), injection = "", isHomepage = url.pathname === "/";
+  let canonicalOrigin = /^(?:localhost|127\.0\.0\.1)$/.test(url.hostname) ? "https://studywudy-board-solutions.amanbhagat17089.workers.dev" : url.origin;
+  let homepageGraph = JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "Organization", "@id": `${canonicalOrigin}/#organization`, name: "StudyWudy", url: `${canonicalOrigin}/`, description: "Free board-wise textbook solutions, chapter answers and exam practice for students across India.", logo: { "@type": "ImageObject", url: `${canonicalOrigin}/icon-512.png`, width: 512, height: 512 } }, { "@type": "WebSite", "@id": `${canonicalOrigin}/#website`, name: "StudyWudy", url: `${canonicalOrigin}/`, description: "Free board-wise textbook solutions, chapter answers and exam practice for students across India.", inLanguage: "en-IN", publisher: { "@id": `${canonicalOrigin}/#organization` }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${canonicalOrigin}/search?q={search_term_string}` }, "query-input": "required name=search_term_string" } }] }).replace(/</g, "\\u003c");
+  if (isHomepage) {
+    let classDirectory = "";
+    if (environment.DB) {
+      let gradeRows = await environment.DB.prepare("SELECT b.slug AS board_slug, b.short_name, g.slug AS grade_slug, g.class_number FROM catalog_grades g JOIN catalog_boards b ON b.slug = g.board_slug ORDER BY b.slug, g.class_number").all();
+      classDirectory = `<section class="shell catalog-section" aria-labelledby="phase3-class-directory"><details class="course-finder-directory"><summary id="phase3-class-directory">Browse every board and class</summary><ul>${(gradeRows.results ?? []).map((grade) => `<li><a href="/${encodeURIComponent(grade.board_slug)}/${encodeURIComponent(grade.grade_slug)}">${phase3HtmlEscape(grade.short_name)} Class ${phase3HtmlEscape(grade.class_number)}</a></li>`).join("")}</ul></details></section>`;
+    }
+    injection = `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: `${canonicalOrigin}/` }] }).replace(/</g, "\\u003c")}</script>${classDirectory}`;
+  } else if (environment.DB) {
+    let standardSubject = /^\/([^/]+)\/(class-\d+)\/([^/]+)$/.exec(url.pathname), streamSubject = /^\/([^/]+)\/(class-\d+)\/streams\/[^/]+\/[^/]+\/([^/]+)$/.exec(url.pathname), subjectMatch = standardSubject ?? streamSubject;
+    if (subjectMatch) {
+      let [, boardSlug, gradeSlug, subjectSlug] = subjectMatch;
+      let rows = await environment.DB.prepare("SELECT b.slug AS book_slug, b.title AS book_title, c.slug AS chapter_slug, c.number AS chapter_number, c.title AS chapter_title, c.question_count FROM catalog_books b JOIN catalog_chapters c ON c.book_id = b.id WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? ORDER BY b.title, c.position").bind(boardSlug, gradeSlug, subjectSlug).all();
+      if ((rows.results ?? []).length) {
+        let books = /* @__PURE__ */ new Map();
+        for (let row of rows.results) {
+          let book = books.get(row.book_slug) ?? { title: row.book_title, chapters: [] };
+          book.chapters.push(row), books.set(row.book_slug, book);
+        }
+        let bookHtml = [...books].map(([bookSlug, book]) => `<section><h3><a href="/${encodeURIComponent(boardSlug)}/${encodeURIComponent(gradeSlug)}/${encodeURIComponent(subjectSlug)}/${encodeURIComponent(bookSlug)}">${phase3HtmlEscape(book.title)}</a></h3><ol>${book.chapters.map((chapter) => {
+          let chapterPathname = `/${encodeURIComponent(boardSlug)}/${encodeURIComponent(gradeSlug)}/${encodeURIComponent(subjectSlug)}/${encodeURIComponent(bookSlug)}/${encodeURIComponent(chapter.chapter_slug)}`, pageCount = Math.max(1, Math.ceil(Number(chapter.question_count) / 40)), pageLinks = Array.from({ length: pageCount - 1 }, (_, pageIndex) => `<a href="${chapterPathname}?page=${pageIndex + 2}">${pageIndex + 2}</a>`).join(" ");
+          return `<li><a href="${chapterPathname}"><span>Chapter ${phase3HtmlEscape(chapter.chapter_number)}</span> ${phase3HtmlEscape(chapter.chapter_title)}</a>${pageLinks ? `<span aria-label="Question pages">Pages ${pageLinks}</span>` : ""}</li>`;
+        }).join("")}</ol></section>`).join("");
+        injection = `<section class="shell catalog-section" aria-labelledby="phase3-chapter-directory"><details class="course-finder-directory"><summary id="phase3-chapter-directory">Browse all ${(rows.results ?? []).length} chapters in this subject</summary><div>${bookHtml}</div></details></section>`;
+      }
+    }
+  }
+  if (!injection && !isHomepage) return response;
+  let appended = false, replacedHomepageGraph = false, rewriter = new globalThis.HTMLRewriter();
+  if (isHomepage) rewriter.on('script[type="application/ld+json"]', { element(element) {
+    if (replacedHomepageGraph) return;
+    replacedHomepageGraph = true, element.setInnerContent(homepageGraph);
+  } });
+  return rewriter.on("main", { element(element) {
+    if (appended) return;
+    appended = true, element.append(injection, { html: true });
+  } }).transform(response);
+}
+__name(phase3EnhanceHtml, "phase3EnhanceHtml");
+__name2(phase3EnhanceHtml, "phase3EnhanceHtml");
 function statusAwareResponse(response) {
   if (response.status < 400) return response;
   const headers = new Headers(response.headers);
@@ -99294,7 +99915,28 @@ __name(statusAwareResponse, "statusAwareResponse");
 __name2(statusAwareResponse, "statusAwareResponse");
 var worker = {
   async fetch(request, environment, context) {
-    const assetPath = new URL(request.url).pathname;
+    const requestUrl = new URL(request.url);
+    const assetPath = requestUrl.pathname;
+    const phase5Response = await handlePhase5Request(request, environment);
+    if (phase5Response) return enhancePhase5Response(request, phase5Response, environment);
+    if ((request.method === "GET" || request.method === "HEAD") && assetPath === "/robots.txt") return phase3RobotsResponse(request);
+    if ((request.method === "GET" || request.method === "HEAD") && assetPath === PHASE4_METHODOLOGY_PATH) return enhancePhase5Response(request, await phase4MethodologyResponse(request, environment), environment);
+    if ((request.method === "GET" || request.method === "HEAD") && assetPath === "/sitemap.xml") {
+      let staticSitemap = await phase3StaticSitemapResponse(request, environment, "/sitemap.xml", "application/xml; charset=utf-8");
+      if (staticSitemap) {
+        let headers = new Headers(staticSitemap.headers);
+        headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_POLICY_VERSION}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}`);
+        return new Response(staticSitemap.body, { status: staticSitemap.status, statusText: staticSitemap.statusText, headers });
+      }
+      return statusAwareResponse(await phase3SitemapIndex(request, environment));
+    }
+    if ((request.method === "GET" || request.method === "HEAD") && assetPath === "/sitemaps/hierarchy.xml.gz") {
+      return statusAwareResponse(await phase3StaticSitemapResponse(request, environment, assetPath, "application/gzip") ?? await phase3HierarchySitemap(request, environment));
+    }
+    const questionSitemapMatch = /^\/sitemaps\/questions-(\d+)\.xml\.gz$/.exec(assetPath);
+    if ((request.method === "GET" || request.method === "HEAD") && questionSitemapMatch) {
+      return statusAwareResponse(await phase3StaticSitemapResponse(request, environment, assetPath, "application/gzip") ?? await phase3QuestionSitemap(request, environment, Number(questionSitemapMatch[1])));
+    }
     if ((request.method === "GET" || request.method === "HEAD") && (assetPath.startsWith("/catalog-artwork/") || assetPath.startsWith("/icon-") || assetPath.startsWith("/apple-touch-icon"))) {
       const name = decodeURIComponent(assetPath.split("/").pop() || "studywudy").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").slice(0, 34).replace(/[&<>\"]/g, "");
       const isIcon = assetPath.startsWith("/icon-") || assetPath.startsWith("/apple-touch-icon");
@@ -99306,7 +99948,12 @@ var worker = {
         }
       });
     }
-    return statusAwareResponse(await worker_default.fetch(request, environment, context));
+    const applicationResponse = statusAwareResponse(await worker_default.fetch(request, environment, context));
+    const phase3Response = await phase3EnhanceHtml(request, applicationResponse, environment);
+    return enhancePhase5Response(request, await phase4EnhanceHtml(request, phase3Response, environment), environment);
+  },
+  async scheduled(_controller, environment, context) {
+    context.waitUntil(cleanupPhase5ContactRequests(environment));
   }
 };
 var custom_worker_default = worker;

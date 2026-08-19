@@ -16,6 +16,77 @@
   width: 100%;
 }
 
+a[class*="SubjectGrid-module"][class*="__card"]:has(> .catalog-subject-book-covers) {
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+}
+
+.catalog-subject-book-covers {
+  align-items: center;
+  align-self: center;
+  background: #fffdf7;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 3px 4px 0 var(--ink);
+  box-sizing: border-box;
+  display: flex;
+  height: 116px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 5px;
+  width: 104px;
+}
+
+.catalog-subject-book-covers + span {
+  display: none !important;
+}
+
+.catalog-subject-book-covers img {
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--ink) 55%, transparent);
+  box-sizing: border-box;
+  display: block;
+  min-height: 0;
+  min-width: 0;
+  object-fit: contain;
+}
+
+.catalog-subject-book-covers-single img {
+  border: 0;
+  height: 104px;
+  max-width: 78px;
+  width: auto;
+}
+
+.catalog-subject-book-covers-fan img {
+  box-shadow: 1px 2px 0 color-mix(in srgb, var(--ink) 80%, transparent);
+  height: 100px;
+  margin-left: -24px;
+  max-width: 58px;
+  transform: rotate(-3deg);
+  width: auto;
+}
+
+.catalog-subject-book-covers-fan img:first-child {
+  margin-left: 0;
+}
+
+.catalog-subject-book-covers-fan img:nth-child(even) {
+  transform: rotate(3deg);
+}
+
+.catalog-subject-book-covers-grid {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(var(--cover-cols), minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.catalog-subject-book-covers-grid img {
+  height: 100%;
+  width: 100%;
+}
+
 .board-artwork:has(.board-official-logo),
 .board-artwork:has(img[src*="/catalog-artwork/boards/logos/"]),
 .catalog-stat-artwork:has(.board-official-logo) {
@@ -56,6 +127,27 @@
 @media (max-width: 540px) {
   .catalog-real-book-cover {
     max-height: 220px;
+  }
+
+  a[class*="SubjectGrid-module"][class*="__card"]:has(> .catalog-subject-book-covers) {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .catalog-subject-book-covers {
+    height: 88px;
+    padding: 4px;
+    width: 76px;
+  }
+
+  .catalog-subject-book-covers-single img {
+    height: 78px;
+    max-width: 58px;
+  }
+
+  .catalog-subject-book-covers-fan img {
+    height: 74px;
+    margin-left: -22px;
+    max-width: 43px;
   }
 
   .book-hero {

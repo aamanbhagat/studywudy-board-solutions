@@ -1,18 +1,45 @@
 {
   "name": "studywudy-board-solutions-recovered",
   "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": "24.19.0",
+    "pnpm": "11.19.0"
+  },
   "scripts": {
     "dev": "wrangler dev --config wrangler.recovered.jsonc",
     "dev:before": "wrangler dev --config wrangler.recovered.jsonc --port 8787 --local",
     "dev:after": "wrangler dev --config wrangler.after.jsonc --port 8789 --local --persist-to comparison/after-persistence",
-    "check:production": "wrangler deploy --dry-run --config wrangler.production.jsonc --outdir .wrangler/dry-run-production",
-    "deploy:production": "wrangler deploy --config wrangler.production.jsonc --keep-vars",
+    "build:question-seo": "node scripts/phase3-build-question-seo.mjs --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 --output audits/phase-3/question-seo-full-corpus.json --manifest-output phase3-question-seo-manifest.mjs",
+    "build:sitemaps": "node scripts/phase3-build-static-sitemaps.mjs",
+    "build:phase4-gate": "pnpm run build:question-seo && node scripts/phase4-content-gate.mjs --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 --output audits/phase-4/content-gate-audit.json --manifest-output phase4-publish-manifest.mjs && pnpm run build:sitemaps",
+    "prepare:phase6-assets": "node scripts/phase2-build-board-images.mjs && node scripts/phase6-prepare-assets.mjs",
+    "check:phase6": "pnpm run prepare:phase6-assets && node scripts/phase6-build-gates.mjs",
+    "check:corpus": "pnpm run build:phase4-gate && pnpm run audit:phase5:static && pnpm run check:phase6",
+    "release:manifest": "node scripts/release-manifest.mjs --write",
+    "check:release:manifest": "node scripts/release-manifest.mjs --verify",
+    "check:release": "pnpm run check:release:manifest && node scripts/phase5-static-audit.mjs .wrangler/reports/phase5-static-audit.json && wrangler deploy --dry-run --config wrangler.production.jsonc --outdir .wrangler/dry-run-release",
+    "check:production": "pnpm run check:release",
+    "deploy:production": "pnpm run check:release && wrangler deploy --config wrangler.production.jsonc --keep-vars --strict",
     "check": "wrangler deploy --dry-run --config wrangler.recovered.jsonc --outdir .wrangler/dry-run",
     "check:after": "wrangler deploy --dry-run --config wrangler.after.jsonc --outdir .wrangler/dry-run-after",
+    "audit:phase3": "node scripts/phase3-audit.mjs",
+    "audit:phase3:runtime": "node scripts/phase3-runtime-audit.mjs",
+    "audit:phase4": "node scripts/phase4-content-gate.mjs --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 --output audits/phase-4/content-gate-audit.json --manifest-output phase4-publish-manifest.mjs",
+    "audit:phase4:runtime": "node scripts/phase4-runtime-audit.mjs",
+    "audit:phase5:static": "node scripts/phase5-static-audit.mjs",
+    "audit:phase5:runtime": "node scripts/phase5-runtime-audit.mjs",
+    "audit:phase6:structured": "node scripts/phase6-structured-data-gate.mjs",
+    "migrate:phase5:local": "wrangler d1 execute studywudy-content --local --file migrations/0002_phase5_contact_requests.sql --config wrangler.after.jsonc --persist-to comparison/after-persistence",
+    "migrate:phase6:local": "wrangler d1 execute studywudy-content --local --file migrations/0003_phase6_crawl.sql --config wrangler.after.jsonc --persist-to comparison/after-persistence",
     "restore:d1": "wrangler d1 execute studywudy-content --local --file cloudflare-backup-2026-08-17/d1/studywudy-content.sql --config wrangler.recovered.jsonc",
     "restore:r2": "node cloudflare-backup-2026-08-17/r2/restore-to-local-r2.mjs"
   },
   "devDependencies": {
-    "wrangler": "latest"
+    "@lhci/cli": "0.15.1",
+    "wrangler": "4.123.0"
+  },
+  "dependencies": {
+    "web-vitals": "6.1.1"
   }
 }

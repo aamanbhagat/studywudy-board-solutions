@@ -15,6 +15,59 @@ const quickFindMarkup = `<section class="qf-section" id="quick-find" aria-labell
   </div></div>
 </section>`;
 
+const quickFindRuntimeScript = document.currentScript;
+const quickFindRuntimeVersion = quickFindRuntimeScript
+  ? new URL(quickFindRuntimeScript.src, location.href).searchParams.get("v")
+  : "";
+const quickFindStylesheetHref = `/quick-find.css${quickFindRuntimeVersion ? `?v=${encodeURIComponent(quickFindRuntimeVersion)}` : ""}`;
+const quickFindCriticalCss = `.course-finder,
+.board-explorer-compact,
+.catalog-section:has(> .grade-grid) > .section-mini-heading,
+.catalog-section:has(> .grade-grid) > .grade-grid,
+.explorer-wrap { display: none !important; }
+.catalog-section:has(> .grade-grid) { margin-top: calc(56rem + 6px + 2 * clamp(3.25rem, 7vw, 6rem)); }
+.catalog-section:has(> .course-finder) { margin-top: calc(32rem + 6px + 2 * clamp(3.25rem, 7vw, 6rem)); }
+@media (max-width: 760px) {
+  .catalog-section:has(> .grade-grid) { margin-top: calc(62.5rem + 6px); }
+  .catalog-section:has(> .course-finder) { margin-top: calc(37.75rem + 6px); }
+}`;
+
+function ensureQuickFindCriticalStyle() {
+  if (document.getElementById("quick-find-runtime-critical")) return;
+  const style = document.createElement("style");
+  style.id = "quick-find-runtime-critical";
+  style.textContent = quickFindCriticalCss;
+  document.head.append(style);
+}
+
+function ensureQuickFindStyles(callback) {
+  let link = [...document.querySelectorAll('link[href^="/quick-find.css"], link[href*="/quick-find.css?"]')]
+    .find((candidate) => new URL(candidate.href, location.href).pathname === "/quick-find.css");
+  if (!link || !link.isConnected) {
+    link = document.createElement("link");
+    link.href = quickFindStylesheetHref;
+    link.rel = "stylesheet";
+    link.dataset.studywudyQuickFindRuntime = "true";
+    document.head.append(link);
+  } else if (link.rel !== "stylesheet") {
+    link.rel = "stylesheet";
+  }
+  let complete = false;
+  const ready = () => {
+    if (complete) return;
+    complete = true;
+    document.documentElement.classList.add("qf-styles-ready");
+    callback();
+  };
+  if (link.sheet) {
+    ready();
+    return;
+  }
+  link.addEventListener("load", ready, { once: true });
+  link.addEventListener("error", ready, { once: true });
+  setTimeout(ready, 3000);
+}
+
 function mountQuickFind() {
   const boardLabels = {
     "maharashtra-board": "Maharashtra State Board",
@@ -38,6 +91,10 @@ function mountQuickFind() {
     ...(gradeContext ? ["grade"] : []),
   ]);
   let finder = document.querySelector("[data-quick-find]");
+  if (finder?.dataset.route && finder.dataset.route !== pathname) {
+    finder.remove();
+    finder = null;
+  }
   if (!finder) {
     if (isClassPage) {
       const catalogSection = [...document.querySelectorAll("main .catalog-section")]
@@ -62,6 +119,7 @@ function mountQuickFind() {
   }
   if (!finder || finder.dataset.ready === "true") return;
   finder.classList.toggle("qf-board-context", isBoardPage);
+  finder.dataset.route = pathname;
   finder.dataset.ready = "true";
   const pointHeroToFinder = () => {
     const heroLink = [...document.querySelectorAll("a")].find((link) => link.textContent.trim().startsWith("Find my textbook"));
@@ -199,6 +257,50 @@ function mountQuickFind() {
     return `<svg ${attrs}><path d="M4 6h16v12H4zM8 10h8M8 14h5"/></svg>`;
   }
 
+  const subjectToneById = Object.freeze({
+    accountancy: "navy",
+    biology: "emerald",
+    "book-keeping-and-accountancy": "terracotta",
+    "business-studies": "burgundy",
+    chemistry: "crimson",
+    commerce: "amber",
+    "computer-science": "azure",
+    economics: "ochre",
+    english: "violet",
+    entrepreneurship: "coral",
+    "environmental-studies": "moss",
+    "general-studies": "slate",
+    geography: "forest",
+    hindi: "orange",
+    history: "brick",
+    "home-science": "rose",
+    "information-technology": "cyan",
+    "information-technology-commerce": "cyan",
+    marathi: "magenta",
+    mathematics: "indigo",
+    "mathematics-commerce": "indigo",
+    "physical-education": "lime",
+    physics: "cobalt",
+    "political-science": "royal",
+    psychology: "plum",
+    sanskrit: "saffron",
+    science: "teal",
+    "social-science": "brown",
+    sociology: "olive",
+    statistics: "purple",
+  });
+  const subjectToneFallbacks = Object.freeze([
+    "emerald", "crimson", "cobalt", "ochre", "violet", "orange", "cyan", "magenta",
+    "indigo", "plum", "olive", "terracotta", "forest", "royal", "amber", "teal",
+  ]);
+
+  function subjectToneFor(subjectId) {
+    const id = String(subjectId || "").toLowerCase();
+    if (subjectToneById[id]) return subjectToneById[id];
+    const hash = [...id].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 0);
+    return subjectToneFallbacks[hash % subjectToneFallbacks.length];
+  }
+
   function renderOptions(items, index) {
     els.options.replaceChildren();
     const activeSteps = steps();
@@ -208,7 +310,10 @@ function mountQuickFind() {
       const control = document.createElement(isFinal ? "a" : "button");
       control.className = "qf-option";
       control.dataset.choice = item.id;
-      if (isFinal) control.href = item.href;
+      if (isFinal) {
+        control.href = item.href;
+        control.classList.add("qf-option-subject", `qf-subject-tone-${subjectToneFor(item.id)}`);
+      }
       else control.type = "button";
       const label = cleanPrompt(item.label);
       control.innerHTML = `
@@ -307,16 +412,35 @@ function mountQuickFind() {
 }
 
 function mountQuickFindAfterHydration(attempt = 0) {
-  if (!document.documentElement.classList.contains("qf-styles-ready") && attempt < 300) {
-    requestAnimationFrame(() => mountQuickFindAfterHydration(attempt + 1));
-    return;
-  }
-  document.documentElement.classList.add("qf-styles-ready");
+  ensureQuickFindCriticalStyle();
   if (document.querySelector("next-route-announcer") || attempt >= 300) {
-    requestAnimationFrame(() => requestAnimationFrame(mountQuickFind));
+    ensureQuickFindStyles(() => requestAnimationFrame(() => requestAnimationFrame(mountQuickFind)));
     return;
   }
   requestAnimationFrame(() => mountQuickFindAfterHydration(attempt + 1));
 }
 
 mountQuickFindAfterHydration();
+
+let routeMountScheduled = false;
+function scheduleQuickFindForRoute() {
+  if (routeMountScheduled) return;
+  routeMountScheduled = true;
+  queueMicrotask(() => {
+    routeMountScheduled = false;
+    ensureQuickFindCriticalStyle();
+    ensureQuickFindStyles(() => requestAnimationFrame(mountQuickFind));
+  });
+}
+
+function mutationMayChangeRouteContent(records) {
+  return records.some((record) => [...record.addedNodes].some((node) => node instanceof Element
+    && (node.matches("main, .hero, .catalog-section, .explorer-wrap")
+      || node.querySelector("main, .hero, .catalog-section, .explorer-wrap"))));
+}
+
+new MutationObserver((records) => {
+  if (mutationMayChangeRouteContent(records)) scheduleQuickFindForRoute();
+}).observe(document.body || document.documentElement, { childList: true, subtree: true });
+addEventListener("popstate", scheduleQuickFindForRoute);
+addEventListener("pageshow", scheduleQuickFindForRoute);
