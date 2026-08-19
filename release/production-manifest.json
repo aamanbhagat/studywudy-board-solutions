@@ -6745,8 +6745,8 @@
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-1.xml.gz",
-      "bytes": 602,
-      "sha256": "815621947d7cfccefda8294780db8b6bc60d64af61f4605c3e5b386b1f206ac2"
+      "bytes": 1886,
+      "sha256": "16a1ce7fcf62190c0172ef09d558285b6e7e49c3872ffca80a78a43b3f0f9cc5"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-100001.xml.gz",
@@ -6931,7 +6931,7 @@
     {
       "path": "phase4-publish-manifest.mjs",
       "bytes": 505,
-      "sha256": "042da16a90dd3f8221ffbd35678479f12c8a9a2fd36b0d987ac0129777bdc2b0"
+      "sha256": "20c6e703c5f8edefff701d775e491dca589164dca2c0bbab73ff806e90472da0"
     },
     {
       "path": "phase5-compliance.mjs",
@@ -6974,5 +6974,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "eff6e014c3e033a2fcc323f313c8fb38d630a593b11ac910054ee2510f2e3b7a"
+  "aggregateSha256": "d05a7ffbd798d34043977f049e7f91adb259eb6a2e427b02695d5c4e4f5a9022"
 }

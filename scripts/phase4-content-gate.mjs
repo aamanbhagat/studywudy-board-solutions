@@ -426,9 +426,22 @@ if (d1OutputDir) {
     Number(row.combined_genuine_words || 0), Number(row.confidence || 0), Number(row.factual_pass || 0),
     Number(row.quality_pass || 0), Number(row.completed_at || 0), Number(row.completed_at || 0),
   ].map(sqlLiteral).join(",");
-  writeFileSync(resolve(d1OutputDir, "900-enrichments.sql"), passedEnrichments.length
-    ? `${statementsForRows(passedEnrichments, enrichmentValues, "question_enrichments", enrichmentColumns, 100)}\n`
-    : "-- No generated standalone enrichments have passed yet.\n");
+  const enrichmentFileSize = 20;
+  let enrichmentFileCount = 0;
+  if (passedEnrichments.length) {
+    for (let offset = 0; offset < passedEnrichments.length; offset += enrichmentFileSize) {
+      enrichmentFileCount += 1;
+      const name = `900-enrichment-${String(enrichmentFileCount).padStart(3, "0")}.sql`;
+      const rows = passedEnrichments.slice(offset, offset + enrichmentFileSize);
+      // Generated content contains sizeable JSON and prose fields. One row per
+      // statement keeps every D1 statement well below SQLITE_MAX_SQL_LENGTH;
+      // bounded files also keep Wrangler uploads resumable as the ledger grows.
+      writeFileSync(resolve(d1OutputDir, name), `${statementsForRows(rows, enrichmentValues, "question_enrichments", enrichmentColumns, 1)}\n`);
+    }
+  } else {
+    writeFileSync(resolve(d1OutputDir, "900-enrichment-001.sql"), "-- No generated standalone enrichments have passed yet.\n");
+    enrichmentFileCount = 1;
+  }
   writeFileSync(resolve(d1OutputDir, "999-gate-ready.sql"), `INSERT INTO content_publish_gate_state (
     gate_name,policy_version,depth_floor,similarity_threshold,similarity_metric,fail_open,gate_ready,
     evaluated_at,corpus_count,depth_passed_count,similarity_passed_count,gate_passed_count
@@ -440,6 +453,7 @@ if (d1OutputDir) {
     gatePassedCount,
     generatedEnrichmentCount: passedEnrichments.length,
     gateFileCount,
+    enrichmentFileCount,
     applyOrder: "lexicographic SQL filename order; gate_ready is written last",
   }, null, 2)}\n`);
 }
