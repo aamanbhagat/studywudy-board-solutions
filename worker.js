@@ -99316,7 +99316,7 @@ var PHASE3_CONTENT_PUBLISHED_EPOCH = Math.floor(Date.parse(PHASE3_CONTENT_PUBLIS
 // the Worker/D1 execution envelope. Ten-thousand-row key ranges avoid large
 // query, XML, and gzip bursts when crawlers request several shards together.
 var PHASE3_SITEMAP_BLOCK_SIZE = 10e3;
-var PHASE4_POLICY_VERSION = "phase4-v2-all-valid-indexable";
+var PHASE4_POLICY_VERSION = "phase4-v3-grounded-staged-publish";
 var PHASE4_METHODOLOGY_PATH = "/about/methodology";
 var PHASE4_METHODOLOGY_UPDATED_AT = "2026-08-18T10:30:00Z";
 var PHASE4_METHODOLOGY_UPDATED_EPOCH = Math.floor(Date.parse(PHASE4_METHODOLOGY_UPDATED_AT) / 1e3);
@@ -99611,21 +99611,27 @@ async function phase3SitemapIndex(request, environment) {
   let gateState = await phase4GateState(environment), rowCount = gateState.ready ? gateState.indexableCount : 0;
   let blockRows = [];
   if (rowCount) {
-    let result = await environment.DB.prepare(`SELECT MIN(q.row_id) AS cursor,
+    let result = await environment.DB.prepare(`SELECT CAST((q.row_id - 1) / ? AS INTEGER) * ? + 1 AS cursor,
+      COUNT(*) AS row_count,
       MAX(COALESCE(q.updated_at, 0)) AS question_updated_at,
       MAX(COALESCE(c.updated_at, 0)) AS chapter_updated_at,
       MAX(COALESCE(b.updated_at, 0)) AS book_updated_at
       FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
       JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-      GROUP BY CAST((q.row_id - 1) / ? AS INTEGER) ORDER BY cursor`).bind(PHASE3_SITEMAP_BLOCK_SIZE).all();
+      JOIN content_publish_gate g ON g.book_id = q.book_id AND g.chapter_slug = q.chapter_slug AND g.question_id = q.question_id
+      WHERE g.gate_passed = 1 AND g.policy_version = ?
+      GROUP BY CAST((q.row_id - 1) / ? AS INTEGER) ORDER BY cursor`).bind(
+      PHASE3_SITEMAP_BLOCK_SIZE, PHASE3_SITEMAP_BLOCK_SIZE, PHASE4_POLICY_VERSION, PHASE3_SITEMAP_BLOCK_SIZE
+    ).all();
     blockRows = (result.results ?? []).map((row) => ({
       cursor: Number(row.cursor),
+      row_count: Number(row.row_count),
       updated_at: Math.max(phase3Epoch(row.question_updated_at), phase3Epoch(row.chapter_updated_at), phase3Epoch(row.book_updated_at))
     }));
   }
   let hierarchyTimestamp = await environment.DB.prepare("SELECT MAX(updated_at) AS updated_at FROM (SELECT updated_at FROM catalog_books UNION ALL SELECT updated_at FROM catalog_chapters UNION ALL SELECT updated_at FROM catalog_questions)").first();
   let children = [{ pathname: "/sitemaps/hierarchy.xml.gz", lastmod: phase3Lastmod(hierarchyTimestamp?.updated_at) }, ...blockRows.map((row) => ({ pathname: `/sitemaps/questions-${Number(row.cursor)}.xml.gz`, lastmod: phase3Lastmod(row.updated_at) }))];
-  if (rowCount && blockRows.length !== Math.ceil(rowCount / PHASE3_SITEMAP_BLOCK_SIZE)) return new Response("Invalid question sitemap bounds", { status: 500 });
+  if (rowCount && blockRows.reduce((sum, row) => sum + row.row_count, 0) !== rowCount) return new Response("Invalid question sitemap membership", { status: 500 });
   let body = children.map((child) => `  <sitemap><loc>${phase3XmlEscape(new URL(child.pathname, siteUrl).toString())}</loc><lastmod>${child.lastmod}</lastmod></sitemap>`).join("\n");
   let headers = phase3SitemapHeaders();
   headers["X-StudyWudy-Publish-Gate"] = gateState.ready ? `${PHASE4_POLICY_VERSION}; indexable=${rowCount}` : `${PHASE4_POLICY_VERSION}; catalog-unavailable`;
@@ -99666,10 +99672,11 @@ async function phase3QuestionSitemap(request, environment, cursor) {
     b.slug AS book_slug, b.updated_at AS book_updated_at, c.updated_at AS chapter_updated_at
     FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
     JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-    WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`)
-    .bind(cursor, cursor + PHASE3_SITEMAP_BLOCK_SIZE).all();
+    JOIN content_publish_gate g ON g.book_id = q.book_id AND g.chapter_slug = q.chapter_slug AND g.question_id = q.question_id
+    WHERE q.row_id >= ? AND q.row_id < ? AND g.gate_passed = 1 AND g.policy_version = ? ORDER BY q.row_id`)
+    .bind(cursor, cursor + PHASE3_SITEMAP_BLOCK_SIZE, PHASE4_POLICY_VERSION).all();
   let rows = result.results ?? [];
-  if (!rows.length || Number(rows[0].row_id) !== cursor) return new Response("Not found", { status: 404 });
+  if (!rows.length) return new Response("Not found", { status: 404 });
   let siteUrl = `${new URL(request.url).origin}/`;
   let entries = rows.map((row) => {
     let pathname = `/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`;
@@ -99696,11 +99703,30 @@ async function phase4GateState(environment) {
   if (PHASE4_GATE_STATE_CACHE && PHASE4_GATE_STATE_CACHE.expiresAt > Date.now()) return PHASE4_GATE_STATE_CACHE.value;
   let value;
   try {
-    let row = await environment.DB.prepare("SELECT (SELECT COUNT(*) FROM catalog_questions) AS catalog_count, (SELECT MAX(updated_at) FROM (SELECT updated_at FROM catalog_books UNION ALL SELECT updated_at FROM catalog_chapters UNION ALL SELECT updated_at FROM catalog_questions)) AS catalog_max_updated_at").first();
+    let row = await environment.DB.prepare(`SELECT
+      (SELECT COUNT(*) FROM catalog_questions) AS catalog_count,
+      (SELECT MAX(updated_at) FROM (SELECT updated_at FROM catalog_books UNION ALL SELECT updated_at FROM catalog_chapters UNION ALL SELECT updated_at FROM catalog_questions)) AS catalog_max_updated_at,
+      s.policy_version,s.depth_floor,s.similarity_threshold,s.similarity_metric,s.fail_open,
+      s.gate_ready,s.evaluated_at,s.corpus_count,s.depth_passed_count,
+      s.similarity_passed_count,s.gate_passed_count,
+      (SELECT COUNT(*) FROM content_publish_gate WHERE gate_passed=1 AND policy_version=s.policy_version) AS persisted_passed_count,
+      (SELECT COUNT(*) FROM content_publish_gate g LEFT JOIN question_enrichments e
+        ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
+        WHERE g.enrichment_required=1 AND g.gate_passed=1
+          AND (e.quality_pass IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1 OR e.decision<>'standalone')) AS invalid_enrichment_count
+      FROM content_publish_gate_state s WHERE s.gate_name='question-publish' LIMIT 1`).first();
     let manifestReady = PHASE4_GATE_MANIFEST.policyVersion === PHASE4_POLICY_VERSION
-      && Number(PHASE4_GATE_MANIFEST.indexableCount) === Number(PHASE4_GATE_MANIFEST.corpusCount)
-      && Number(PHASE4_GATE_MANIFEST.gatePassedCount) === Number(PHASE4_GATE_MANIFEST.corpusCount);
-    let databaseMatches = Number(row?.catalog_count ?? 0) === Number(PHASE4_GATE_MANIFEST.corpusCount) && phase3Epoch(row?.catalog_max_updated_at) === phase3Epoch(PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt);
+      && Number(PHASE4_GATE_MANIFEST.indexableCount) === Number(PHASE4_GATE_MANIFEST.gatePassedCount)
+      && Number(PHASE4_GATE_MANIFEST.gatePassedCount) <= Number(PHASE4_GATE_MANIFEST.corpusCount);
+    let databaseMatches = row?.policy_version === PHASE4_POLICY_VERSION
+      && Number(row?.fail_open) === 0
+      && Number(row?.gate_ready) === 1
+      && Number(row?.catalog_count ?? 0) === Number(PHASE4_GATE_MANIFEST.corpusCount)
+      && Number(row?.corpus_count ?? 0) === Number(PHASE4_GATE_MANIFEST.corpusCount)
+      && Number(row?.gate_passed_count ?? 0) === Number(PHASE4_GATE_MANIFEST.gatePassedCount)
+      && Number(row?.persisted_passed_count ?? 0) === Number(PHASE4_GATE_MANIFEST.gatePassedCount)
+      && Number(row?.invalid_enrichment_count ?? 0) === 0
+      && phase3Epoch(row?.catalog_max_updated_at) === phase3Epoch(PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt);
     let ready = manifestReady && databaseMatches;
     value = {
       ready,
@@ -99709,10 +99735,10 @@ async function phase4GateState(environment) {
       depthFloor: Number(PHASE4_GATE_MANIFEST.depthFloor),
       similarityThreshold: Number(PHASE4_GATE_MANIFEST.similarityThreshold),
       similarityMetric: PHASE4_GATE_MANIFEST.similarityMetric,
-      evaluatedAt: Number(PHASE4_GATE_MANIFEST.reviewedAt),
+      evaluatedAt: Number(row?.evaluated_at ?? PHASE4_GATE_MANIFEST.reviewedAt),
       corpusCount: Number(PHASE4_GATE_MANIFEST.corpusCount),
-      depthPassedCount: Number(PHASE4_GATE_MANIFEST.depthPassedCount),
-      similarityPassedCount: Number(PHASE4_GATE_MANIFEST.similarityPassedCount),
+      depthPassedCount: Number(row?.depth_passed_count ?? PHASE4_GATE_MANIFEST.depthPassedCount),
+      similarityPassedCount: Number(row?.similarity_passed_count ?? PHASE4_GATE_MANIFEST.similarityPassedCount),
       qualityPassedCount: Number(PHASE4_GATE_MANIFEST.qualityPassedCount),
       indexableCount: ready ? Number(PHASE4_GATE_MANIFEST.indexableCount) : 0,
       gatePassedCount: ready ? Number(PHASE4_GATE_MANIFEST.gatePassedCount) : 0
@@ -99750,16 +99776,44 @@ async function phase4QuestionGate(environment, route, pathname) {
     return { ready: false, passed: false, reason: "catalog-query-failed", reviewedAt: 0 };
   }
   try {
-    detail = await environment.DB.prepare("SELECT g.question_type, g.rendered_unique_words, g.genuine_unique_words, g.depth_pass, g.max_similarity, g.similarity_pass, g.policy_exclusion, g.gate_passed, g.disposition, g.remediation, g.reviewed_at, g.policy_version FROM catalog_books b JOIN content_publish_gate g ON g.book_id = b.id AND g.chapter_slug = ? AND g.question_id = ? WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ? LIMIT 1").bind(route.chapterSlug, route.questionId, route.boardSlug, route.gradeSlug, route.subjectSlug, route.bookSlug).first();
+    detail = await environment.DB.prepare(`SELECT g.question_type,g.rendered_unique_words,g.genuine_unique_words,
+      g.depth_pass,g.max_similarity,g.similarity_pass,g.policy_exclusion,g.enrichment_required,g.gate_passed,
+      g.disposition,g.remediation,g.reviewed_at,g.policy_version,
+      e.decision AS enrichment_decision,e.content_json AS enrichment_json,
+      e.genuine_unique_words AS enrichment_unique_words,e.confidence AS enrichment_confidence,
+      e.factual_pass AS enrichment_factual_pass,e.quality_pass AS enrichment_quality_pass
+      FROM catalog_books b
+      JOIN content_publish_gate g ON g.book_id=b.id AND g.chapter_slug=? AND g.question_id=?
+      LEFT JOIN question_enrichments e ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
+      WHERE b.board_slug=? AND b.grade_slug=? AND b.subject_slug=? AND b.slug=? LIMIT 1`).bind(
+      route.chapterSlug, route.questionId, route.boardSlug, route.gradeSlug, route.subjectSlug, route.bookSlug
+    ).first();
   } catch {
   }
-  let passed = state.ready && catalogFound;
-  let qualityPassed = !!detail && Number(detail.depth_pass) === 1 && Number(detail.similarity_pass) === 1 && Number(detail.policy_exclusion) !== 1;
+  let passed = state.ready && catalogFound && !!detail
+    && detail.policy_version === PHASE4_POLICY_VERSION && Number(detail.gate_passed) === 1
+    && (Number(detail.enrichment_required) !== 1 || (
+      detail.enrichment_decision === "standalone"
+      && Number(detail.enrichment_factual_pass) === 1
+      && Number(detail.enrichment_quality_pass) === 1
+    ));
+  let qualityPassed = passed && Number(detail.depth_pass) === 1
+    && Number(detail.similarity_pass) === 1 && Number(detail.policy_exclusion) !== 1;
+  let enrichmentContent = null;
+  if (passed && detail?.enrichment_decision === "standalone"
+    && Number(detail?.enrichment_factual_pass) === 1 && Number(detail?.enrichment_quality_pass) === 1) {
+    try {
+      enrichmentContent = JSON.parse(detail.enrichment_json || "null");
+    } catch {
+      passed = false;
+      qualityPassed = false;
+    }
+  }
   return {
     ready: state.ready,
     passed,
     qualityPassed,
-    reason: passed ? "published" : state.ready ? "catalog-route-missing" : state.reason,
+    reason: passed ? "published" : detail?.disposition === "consolidated" ? "consolidated-into-chapter" : state.ready ? "quality-gate-not-passed" : state.reason,
     reviewedAt: Number(detail?.reviewed_at ?? PHASE4_GATE_MANIFEST.reviewedAt),
     questionType: detail?.question_type ?? null,
     renderedUniqueWords: Number(detail?.rendered_unique_words ?? 0),
@@ -99767,7 +99821,9 @@ async function phase4QuestionGate(environment, route, pathname) {
     depthPass: detail ? Number(detail.depth_pass) === 1 : false,
     similarity: Number(detail?.max_similarity ?? 0),
     similarityPass: detail ? Number(detail.similarity_pass) === 1 : false,
-    remediation: passed ? "standalone_indexable" : "invalid_catalog_route",
+    disposition: detail?.disposition ?? "queued",
+    remediation: detail?.remediation ?? "staged_noindex",
+    enrichmentContent,
     catalogLastmod
   }
 }
@@ -99789,9 +99845,13 @@ __name2(phase4ChapterReviewedAt, "phase4ChapterReviewedAt");
 async function phase4MethodologyResponse(request, environment) {
   let canonicalOrigin = phase4CanonicalOrigin(request.url), canonical = `${canonicalOrigin}${PHASE4_METHODOLOGY_PATH}`, gate = await phase4GateState(environment);
   let reviewDate = phase4ReviewDate(gate.evaluatedAt || PHASE4_METHODOLOGY_UPDATED_EPOCH);
-  let coverage = gate.ready ? `<p class="metric"><strong>${gate.indexableCount.toLocaleString("en-IN")}</strong> valid standalone question pages are technically indexable and sitemap-listed. <strong>${gate.qualityPassedCount.toLocaleString("en-IN")}</strong> currently clear the separate depth and similarity checks; the remainder stay visible to search while editorial expansion is prioritised.</p>` : `<p class="metric"><strong>Catalog verification is unavailable.</strong> Question routes are not added to generated sitemaps until the database and build manifest agree.</p>`;
+  let coverage = gate.ready ? `<p class="metric"><strong>${gate.indexableCount.toLocaleString("en-IN")}</strong> standalone question pages currently clear every publishing gate and are sitemap-listed. All remaining question URLs are noindex until they pass, or are consolidated into their parent chapter when a standalone page would be artificial.</p>` : `<p class="metric"><strong>Catalog verification is unavailable.</strong> Question routes fail closed and are not added to generated sitemaps until the database and build manifest agree.</p>`;
   let schema = JSON.stringify({ "@context": "https://schema.org", "@graph": [{ "@type": "AboutPage", "@id": `${canonical}#webpage`, url: canonical, name: "How StudyWudy reviews textbook solutions", description: "StudyWudy's transparent methodology for source mapping, answer-depth checks, similarity screening and staged search publishing.", dateModified: PHASE4_METHODOLOGY_UPDATED_AT, isPartOf: { "@id": `${canonicalOrigin}/#website` } }, { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: `${canonicalOrigin}/` }, { "@type": "ListItem", position: 2, name: "Solution review methodology", item: canonical }] }] }).replace(/</g, "\\u003c");
   let body = `<!doctype html><html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How StudyWudy Reviews Textbook Solutions</title><meta name="description" content="See how StudyWudy verifies textbook routes, search metadata, answer depth and cross-page similarity for standalone solution pages."><meta name="robots" content="index, follow"><link rel="canonical" href="${phase3HtmlEscape(canonical)}"><script type="application/ld+json">${schema}</script><style>:root{color-scheme:light;font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#101316;background:#f5f0e6}*{box-sizing:border-box}body{margin:0}a{color:#0e4da9}header,main,footer{width:min(920px,calc(100% - 32px));margin:auto}header{padding:28px 0 8px}nav{font-size:14px}main{padding:34px 0 72px}h1{font-size:clamp(2.2rem,7vw,4.8rem);line-height:.96;letter-spacing:-.055em;max-width:800px;margin:28px 0 22px}h2{margin-top:42px;font-size:1.55rem}p,li{font-size:1.04rem;line-height:1.72}.lede{font-size:1.25rem;max-width:760px}.metric{padding:20px 22px;border:2px solid #101316;border-radius:14px;background:#fff}.metric strong{color:#0e4da9}.method{display:grid;grid-template-columns:42px 1fr;gap:12px;margin:20px 0}.method span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#1463d7;color:#fff;font-weight:800}.method h3{margin:3px 0 6px}.method p{margin:0}.note{border-left:5px solid #d99917;padding:4px 0 4px 18px}footer{border-top:1px solid #bdb5a7;padding:24px 0 42px;font-size:14px}@media(max-width:600px){h1{letter-spacing:-.04em}.method{grid-template-columns:34px 1fr}.method span{width:30px;height:30px}}</style></head><body><header><nav aria-label="Breadcrumb"><a href="/">StudyWudy</a> / Solution review methodology</nav></header><main><p>Trust &amp; publishing policy</p><h1>What “verified” means on StudyWudy</h1><p class="lede">A valid standalone solution has a verified catalog route, crawlable metadata, a self-canonical URL and sitemap coverage. Depth and similarity remain separate editorial-quality signals, not hidden indexing switches.</p>${coverage}<h2>How a solution is checked</h2><div class="method"><span>1</span><div><h3>Textbook-route integrity</h3><p>The question stays attached to its board, class, subject, textbook, chapter, exercise and original display label. Missing or mismatched catalog records are not published as valid routes.</p></div></div><div class="method"><span>2</span><div><h3>Search metadata</h3><p>Every valid question receives index/follow treatment, a self-referencing canonical, unique collision-checked title and description, breadcrumb data and Question/Answer content-understanding markup.</p></div></div><div class="method"><span>3</span><div><h3>Answer-body depth</h3><p>Navigation, breadcrumbs, the question prompt, answer choices and page boilerplate do not count. The editorial target remains at least <strong>150 unique explanatory words</strong> not already present in the prompt or choices.</p></div></div><div class="method"><span>4</span><div><h3>Pairwise originality</h3><p>Depth-passing answers are compared using exact Jaccard similarity over normalized five-word answer shingles. A score of <strong>0.85 or higher</strong> is retained as an editorial expansion signal without removing the valid page from search.</p></div></div><h2>What the review does not promise</h2><p class="note">Technical eligibility and sitemap inclusion do not guarantee that a search engine will index or rank a page. Search systems independently assess usefulness, originality, authority and query relevance.</p><h2>Review signal</h2><p>The current corpus checks were last evaluated on <strong>${phase3HtmlEscape(reviewDate)}</strong>. Solution and chapter pages show their latest publishing review and link back to this policy.</p><p><a href="/boards">Browse textbooks and chapters →</a></p></main><footer><a href="/">StudyWudy home</a> · <a href="${PHASE4_METHODOLOGY_PATH}">Review methodology</a></footer></body></html>`;
+  body = body
+    .replace("A valid standalone solution has a verified catalog route, crawlable metadata, a self-canonical URL and sitemap coverage. Depth and similarity remain separate editorial-quality signals, not hidden indexing switches.", "A valid standalone solution must have a verified catalog route, grounded answer content, sufficient depth, acceptable cross-page similarity, crawlable metadata, a self-canonical URL and matching sitemap membership.")
+    .replace("Every valid question receives index/follow treatment, a self-referencing canonical, unique collision-checked title and description, breadcrumb data and Question/Answer content-understanding markup.", "Only questions that pass the live D1 publishing gate receive index/follow treatment and question-sitemap membership. Consolidated or queued questions remain noindex and continue to pass internal link equity to their chapter.")
+    .replace("A score of <strong>0.85 or higher</strong> is retained as an editorial expansion signal without removing the valid page from search.", "A score of <strong>0.85 or higher</strong> holds the standalone page noindex until it is rewritten or consolidated.");
   return new Response(request.method === "HEAD" ? null : body, { headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400", "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
 }
 __name(phase4MethodologyResponse, "phase4MethodologyResponse");
@@ -99804,14 +99864,36 @@ function phase4RouteMatch(pathname) {
 }
 __name(phase4RouteMatch, "phase4RouteMatch");
 __name2(phase4RouteMatch, "phase4RouteMatch");
+function phase4Paragraphs(value) {
+  return String(value || "").split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
+    .map((paragraph) => `<p>${phase3HtmlEscape(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
+}
+__name(phase4Paragraphs, "phase4Paragraphs");
+__name2(phase4Paragraphs, "phase4Paragraphs");
+function phase4EnrichmentHtml(content) {
+  if (!content || typeof content !== "object") return "";
+  let concept = phase4Paragraphs(content.concept_explanation);
+  let steps = Array.isArray(content.reasoning_steps) ? content.reasoning_steps.filter(Boolean) : [];
+  let choices = Array.isArray(content.choice_explanations) ? content.choice_explanations.filter((entry) => entry?.explanation) : [];
+  let mistake = phase4Paragraphs(content.common_mistake);
+  let tip = phase4Paragraphs(content.exam_tip);
+  if (!concept && !steps.length && !choices.length && !mistake && !tip) return "";
+  return `<section class="shell phase4-grounded-enrichment" aria-labelledby="phase4-grounded-heading"><h2 id="phase4-grounded-heading">Understand the answer</h2>${concept}${steps.length ? `<h3>Reasoning steps</h3><ol>${steps.map((step) => `<li>${phase3HtmlEscape(step)}</li>`).join("")}</ol>` : ""}${choices.length ? `<h3>Why each choice fits</h3><dl>${choices.map((entry) => `<dt>${phase3HtmlEscape(entry.choice || "Choice")}</dt><dd>${phase3HtmlEscape(entry.explanation)}</dd>`).join("")}</dl>` : ""}${mistake ? `<aside><h3>Common mistake</h3>${mistake}</aside>` : ""}${tip ? `<aside><h3>Exam tip</h3>${tip}</aside>` : ""}</section>`;
+}
+__name(phase4EnrichmentHtml, "phase4EnrichmentHtml");
+__name2(phase4EnrichmentHtml, "phase4EnrichmentHtml");
 async function phase4EnhanceHtml(request, response, environment) {
   if (response.status >= 400 || !response.headers.get("content-type")?.toLowerCase().startsWith("text/html")) return response;
   let url = new URL(request.url), route = phase4RouteMatch(url.pathname), questionGate = route?.kind === "question" ? await phase4QuestionGate(environment, route, url.pathname) : null;
   let chapterReviewedAt = route?.kind === "chapter" ? await phase4ChapterReviewedAt(environment, route) : 0;
+  let consolidatedCanonical = questionGate?.disposition === "consolidated"
+    ? `${phase4CanonicalOrigin(request.url)}/${route.boardSlug}/${route.gradeSlug}/${route.subjectSlug}/${route.bookSlug}/${route.chapterSlug}#question-${encodeURIComponent(route.questionId)}`
+    : null;
   if (questionGate && !questionGate.passed) {
     let headers = new Headers(response.headers);
     headers.set("X-Robots-Tag", "noindex, follow");
     headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_POLICY_VERSION}; ${questionGate.reason}`);
+    if (consolidatedCanonical) headers.set("Link", `<${consolidatedCanonical}>; rel="canonical"`);
     headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
     headers.set("Cloudflare-CDN-Cache-Control", "no-store");
     response = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
@@ -99824,9 +99906,18 @@ async function phase4EnhanceHtml(request, response, environment) {
   }
   if (request.method !== "GET" || typeof globalThis.HTMLRewriter !== "function") return response;
   let gateDate = phase4ReviewDate(questionGate?.reviewedAt), chapterDate = phase4ReviewDate(chapterReviewedAt);
-  let trustBlock = questionGate ? `<section class="shell phase4-review-signal" aria-label="Solution publishing review"><a class="phase4-review-badge ${questionGate.qualityPassed ? "is-passed" : "is-queued"}" href="${PHASE4_METHODOLOGY_PATH}">${questionGate.qualityPassed ? "✓ Clears editorial quality checks" : "Editorial expansion recommended"}</a><small>Last publishing review: ${phase3HtmlEscape(gateDate)}</small>${questionGate.qualityPassed ? `<span>${questionGate.genuineUniqueWords.toLocaleString("en-IN")} genuine unique words · similarity ${questionGate.similarity.toFixed(3)}</span>` : `<span>This valid standalone solution is indexable; depth and originality remain editorial improvement signals.</span>`}</section>` : "";
+  let reviewLabel = questionGate?.qualityPassed ? "✓ Clears depth, similarity &amp; grounding checks"
+    : questionGate?.disposition === "consolidated" ? "Included with the chapter"
+      : "Held for content review";
+  let reviewDetail = questionGate?.qualityPassed
+    ? `${questionGate.genuineUniqueWords.toLocaleString("en-IN")} genuine unique words · similarity ${questionGate.similarity.toFixed(3)}`
+    : questionGate?.disposition === "consolidated"
+      ? "This atomic exercise remains available to students, while its chapter is the primary indexable search page."
+      : "This page remains noindex until its explanation passes the live content-quality and grounding gates.";
+  let trustBlock = questionGate ? `<section class="shell phase4-review-signal" aria-label="Solution publishing review"><a class="phase4-review-badge ${questionGate.qualityPassed ? "is-passed" : "is-queued"}" href="${PHASE4_METHODOLOGY_PATH}">${reviewLabel}</a><small>Last publishing review: ${phase3HtmlEscape(gateDate)}</small><span>${reviewDetail}</span></section>` : "";
+  let enrichmentBlock = questionGate?.passed ? phase4EnrichmentHtml(questionGate.enrichmentContent) : "";
   let globalFooter = `<footer class="phase4-methodology-footer"><div class="shell"><span>How we review solutions</span><a href="${PHASE4_METHODOLOGY_PATH}">Verification &amp; publishing methodology →</a></div></footer>`;
-  let styles = `<style id="phase4-trust-styles">.phase4-review-signal{display:grid;gap:.45rem;margin-top:1rem;padding:1rem;border:1px solid #b8b0a1;border-radius:12px;background:#fff}.phase4-review-badge{width:max-content;max-width:100%;padding:.38rem .62rem;border-radius:999px;font-weight:800;text-decoration:none}.phase4-review-badge.is-passed{background:#dff5e8;color:#155d37}.phase4-review-badge.is-queued{background:#fff1cc;color:#734f00}.phase4-review-signal small,.phase4-review-signal span{line-height:1.45}.phase4-methodology-footer{border-top:1px solid #c9c1b3;background:#f5f0e6}.phase4-methodology-footer .shell{display:flex;justify-content:space-between;gap:1rem;padding-top:1.15rem;padding-bottom:1.15rem}.phase4-methodology-footer a{font-weight:750}.phase4-chapter-review{font-size:.88rem}@media(max-width:620px){.phase4-methodology-footer .shell{align-items:flex-start;flex-direction:column}}</style>`;
+  let styles = `<style id="phase4-trust-styles">.phase4-review-signal{display:grid;gap:.45rem;margin-top:1rem;padding:1rem;border:1px solid #b8b0a1;border-radius:12px;background:#fff}.phase4-review-badge{width:max-content;max-width:100%;padding:.38rem .62rem;border-radius:999px;font-weight:800;text-decoration:none}.phase4-review-badge.is-passed{background:#dff5e8;color:#155d37}.phase4-review-badge.is-queued{background:#fff1cc;color:#734f00}.phase4-review-signal small,.phase4-review-signal span{line-height:1.45}.phase4-grounded-enrichment{margin-top:1rem;padding:clamp(1rem,3vw,1.5rem);border:2px solid #101316;border-radius:12px;background:#fff}.phase4-grounded-enrichment h2{margin-top:0}.phase4-grounded-enrichment h3{margin-bottom:.35rem}.phase4-grounded-enrichment p,.phase4-grounded-enrichment li,.phase4-grounded-enrichment dd{line-height:1.65}.phase4-grounded-enrichment dt{font-weight:800}.phase4-grounded-enrichment dd{margin:0 0 .7rem}.phase4-grounded-enrichment aside{margin-top:1rem;padding:.75rem 1rem;border-left:4px solid #d99917;background:#fff8dd}.phase4-methodology-footer{border-top:1px solid #c9c1b3;background:#f5f0e6}.phase4-methodology-footer .shell{display:flex;justify-content:space-between;gap:1rem;padding-top:1.15rem;padding-bottom:1.15rem}.phase4-methodology-footer a{font-weight:750}.phase4-chapter-review{font-size:.88rem}@media(max-width:620px){.phase4-methodology-footer .shell{align-items:flex-start;flex-direction:column}}</style>`;
   let rewriter = new globalThis.HTMLRewriter();
   rewriter.on("head", { element(element) {
     element.append(styles, { html: true });
@@ -99837,6 +99928,9 @@ async function phase4EnhanceHtml(request, response, environment) {
     } });
     rewriter.on('meta[name="googlebot"]', { element(element) {
       element.setAttribute("content", "noindex, follow");
+    } });
+    if (consolidatedCanonical) rewriter.on('link[rel="canonical"]', { element(element) {
+      element.setAttribute("href", consolidatedCanonical);
     } });
   } else if (questionGate?.passed) {
     let directive = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
@@ -99850,6 +99944,26 @@ async function phase4EnhanceHtml(request, response, environment) {
   if (chapterReviewedAt) rewriter.on(".chapter-meta", { element(element) {
     element.append(`<span class="phase4-chapter-review">Last publishing review: ${phase3HtmlEscape(chapterDate)} · <a href="${PHASE4_METHODOLOGY_PATH}">methodology</a></span>`, { html: true });
   } });
+  if (route?.kind === "chapter") {
+    let seenAnchors = /* @__PURE__ */ new Set();
+    rewriter.on('a[href*="/questions/"]', { element(element) {
+      let href = element.getAttribute("href") || "";
+      let questionId = /\/questions\/([^/?#]+)/.exec(href)?.[1];
+      if (!questionId) return;
+      let anchor = `question-${decodeURIComponent(questionId).replace(/[^a-zA-Z0-9._:-]/g, "-")}`;
+      if (seenAnchors.has(anchor)) return;
+      seenAnchors.add(anchor);
+      element.setAttribute("id", anchor);
+    } });
+  }
+  if (enrichmentBlock) {
+    let enrichmentAppended = false;
+    rewriter.on("main", { element(element) {
+      if (enrichmentAppended) return;
+      enrichmentAppended = true;
+      element.append(enrichmentBlock, { html: true });
+    } });
+  }
   return rewriter.on("body", { element(element) {
     element.append(`${trustBlock}${globalFooter}`, { html: true });
   } }).transform(response);
@@ -99922,8 +100036,9 @@ var worker = {
     if ((request.method === "GET" || request.method === "HEAD") && assetPath === "/robots.txt") return phase3RobotsResponse(request);
     if ((request.method === "GET" || request.method === "HEAD") && assetPath === PHASE4_METHODOLOGY_PATH) return enhancePhase5Response(request, await phase4MethodologyResponse(request, environment), environment);
     if ((request.method === "GET" || request.method === "HEAD") && assetPath === "/sitemap.xml") {
-      let staticSitemap = await phase3StaticSitemapResponse(request, environment, "/sitemap.xml", "application/xml; charset=utf-8");
-      if (staticSitemap) {
+      let gateState = await phase4GateState(environment);
+      let staticSitemap = gateState.ready ? await phase3StaticSitemapResponse(request, environment, "/sitemap.xml", "application/xml; charset=utf-8") : null;
+      if (staticSitemap && Number(gateState.indexableCount) === Number(PHASE4_GATE_MANIFEST.indexableCount)) {
         let headers = new Headers(staticSitemap.headers);
         headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_POLICY_VERSION}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}`);
         return new Response(staticSitemap.body, { status: staticSitemap.status, statusText: staticSitemap.statusText, headers });
@@ -99935,6 +100050,8 @@ var worker = {
     }
     const questionSitemapMatch = /^\/sitemaps\/questions-(\d+)\.xml\.gz$/.exec(assetPath);
     if ((request.method === "GET" || request.method === "HEAD") && questionSitemapMatch) {
+      let gateState = await phase4GateState(environment);
+      if (!gateState.ready) return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
       return statusAwareResponse(await phase3StaticSitemapResponse(request, environment, assetPath, "application/gzip") ?? await phase3QuestionSitemap(request, environment, Number(questionSitemapMatch[1])));
     }
     if ((request.method === "GET" || request.method === "HEAD") && (assetPath.startsWith("/catalog-artwork/") || assetPath.startsWith("/icon-") || assetPath.startsWith("/apple-touch-icon"))) {

@@ -2,8 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const ALL_FORMATS = [
@@ -26,12 +26,14 @@ const ALL_FORMATS = [
   "diagram",
 ];
 
-const POLICY_VERSION = "phase4-v2-all-valid-indexable";
+const POLICY_VERSION = "phase4-v3-grounded-staged-publish";
 const DEPTH_FLOOR = 150;
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;
 const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer-body shingles";
-const REMEDIATION = "standalone_indexable";
+const STANDALONE_REMEDIATION = "standalone_indexable";
+const CONSOLIDATED_REMEDIATION = "inline_parent_chapter";
+const QUEUED_REMEDIATION = "staged_noindex";
 const STATIC_NOINDEX_KEYS = new Set([
   "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-001",
   "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-002",
@@ -59,12 +61,22 @@ for (let index = 2; index < process.argv.length; index += 1) {
 
 const root = resolve(import.meta.dirname, "..");
 const sourcePath = resolve(root, args.get("--source-db") || "cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3");
+const enrichmentPath = resolve(root, args.get("--enrichment-db") || "enrichment-data/studywudy-enrichment.sqlite3");
 const applyPath = args.get("--apply-to") ? resolve(root, args.get("--apply-to")) : null;
 const outputPath = resolve(root, args.get("--output") || "audits/phase-4/content-gate-audit.json");
 const manifestPath = args.get("--manifest-output") ? resolve(root, args.get("--manifest-output")) : null;
+const membershipPath = resolve(root, args.get("--membership-output") || "audits/phase-4/indexable-rowids.json");
+const d1OutputDir = args.get("--d1-output-dir") ? resolve(root, args.get("--d1-output-dir")) : null;
 const reviewedAt = args.get("--reviewed-at") ? Math.floor(Date.parse(args.get("--reviewed-at")) / 1_000) : Math.floor(Date.now() / 1_000);
 
 if (!Number.isFinite(reviewedAt) || reviewedAt <= 0) throw new Error("--reviewed-at must be an ISO date-time");
+if (!existsSync(enrichmentPath)) throw new Error(`Enrichment state is required for the fail-closed gate: ${enrichmentPath}`);
+if (d1OutputDir) {
+  const generatedRoot = resolve(root, "enrichment-data");
+  if (d1OutputDir !== generatedRoot && !d1OutputDir.startsWith(`${generatedRoot}${sep}`)) {
+    throw new Error("--d1-output-dir must stay inside the ignored enrichment-data directory");
+  }
+}
 
 function contentToText(value) {
   if (value == null) return "";
@@ -198,6 +210,11 @@ function emptyStats(type) {
 }
 
 const source = new DatabaseSync(sourcePath, { readOnly: true });
+const enrichment = new DatabaseSync(enrichmentPath, { readOnly: true });
+const enrichmentRows = enrichment.prepare(`SELECT row_id,status,decision,model,enrichment_text,
+  combined_genuine_words,evidence_pass,factual_pass,quality_pass,completed_at
+  FROM enrichment_jobs ORDER BY row_id`).all();
+const enrichmentByRowId = new Map(enrichmentRows.map((row) => [Number(row.row_id), row]));
 const bookIds = source.prepare("SELECT DISTINCT book_id FROM catalog_book_chunks ORDER BY book_id").all();
 const metadataRows = source.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id,
   q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
@@ -209,6 +226,10 @@ const metadataByKey = new Map(metadataRows.map((row) => [`${row.book_id}:${row.c
 const stats = new Map(ALL_FORMATS.map((type) => [type, emptyStats(type)]));
 const records = [];
 const seenKeys = new Set();
+
+if (enrichmentRows.length !== metadataRows.length) {
+  throw new Error(`Enrichment coverage mismatch: ${enrichmentRows.length} rows for ${metadataRows.length} catalog questions`);
+}
 
 for (const { book_id: bookId } of bookIds) {
   const chunks = source.prepare("SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index").all(bookId);
@@ -222,14 +243,26 @@ for (const { book_id: bookId } of bookIds) {
         const metadata = metadataByKey.get(key);
         const rowId = Number(metadata?.row_id || 0);
         if (!rowId) throw new Error(`Content question is missing catalog metadata: ${key}`);
-        const answerBody = renderedAnswerText(question);
+        const originalAnswerBody = renderedAnswerText(question);
+        const enrichmentRow = enrichmentByRowId.get(rowId);
+        if (!enrichmentRow) throw new Error(`Missing enrichment disposition for catalog row ${rowId}`);
+        const generatedStandalone = enrichmentRow.status === "passed"
+          && enrichmentRow.decision === "standalone"
+          && Number(enrichmentRow.evidence_pass) === 1
+          && Number(enrichmentRow.factual_pass) === 1
+          && Number(enrichmentRow.quality_pass) === 1;
+        const existingStandalone = enrichmentRow.status === "existing_pass";
+        const standaloneCandidate = generatedStandalone || existingStandalone;
+        const answerBody = generatedStandalone
+          ? `${originalAnswerBody} ${enrichmentRow.enrichment_text || ""}`.trim()
+          : originalAnswerBody;
         const answerTokens = lexicalTokens(answerBody);
         const promptTokens = lexicalTokens(`${contentToText(question.prompt)} ${(question.choices || []).map((choice) => contentToText(choice.content)).join(" ")}`);
         const renderedUniqueWords = new Set(answerTokens).size;
         const promptSet = new Set(promptTokens);
         const genuineUniqueWords = new Set(answerTokens.filter((token) => !promptSet.has(token))).size;
         const recognizedFormat = stats.has(question.type);
-        const depthPass = recognizedFormat && genuineUniqueWords >= DEPTH_FLOOR;
+        const depthPass = recognizedFormat && standaloneCandidate && genuineUniqueWords >= DEPTH_FLOOR;
         const policyExclusion = STATIC_NOINDEX_KEYS.has(key);
         const record = {
           key,
@@ -242,6 +275,13 @@ for (const { book_id: bookId } of bookIds) {
           renderedUniqueWords,
           genuineUniqueWords,
           depthPass,
+          enrichmentStatus: enrichmentRow.status,
+          enrichmentDecision: enrichmentRow.decision,
+          generatorModel: enrichmentRow.model,
+          evidencePass: existingStandalone || Number(enrichmentRow.evidence_pass) === 1,
+          factualPass: existingStandalone || Number(enrichmentRow.factual_pass) === 1,
+          enrichmentRequired: generatedStandalone,
+          completedAt: Number(enrichmentRow.completed_at || 0),
           policyExclusion,
           shingles: depthPass ? shingleSet(answerTokens, promptTokens) : null,
           maxSimilarity: 0,
@@ -307,21 +347,111 @@ for (let currentIndex = 0; currentIndex < depthRecords.length; currentIndex += 1
 
 for (const record of depthRecords) record.similarityPass = record.maxSimilarity < SIMILARITY_THRESHOLD;
 for (const record of records) {
-  const qualityPassed = record.depthPass && record.similarityPass && !record.policyExclusion;
-  // Phase 4 v2 deliberately separates technical indexability from editorial
-  // depth/originality signals. Every catalog-backed question is indexable;
-  // qualityPassed remains available for prioritising editorial expansion.
+  const qualityPassed = record.depthPass && record.similarityPass
+    && record.evidencePass && record.factualPass && !record.policyExclusion;
   record.qualityPassed = qualityPassed;
-  record.gatePassed = true;
+  record.gatePassed = qualityPassed;
+  record.disposition = qualityPassed ? "published"
+    : record.enrichmentStatus === "consolidated" ? "consolidated"
+      : "queued";
+  record.remediation = qualityPassed ? STANDALONE_REMEDIATION
+    : record.enrichmentStatus === "consolidated" ? CONSOLIDATED_REMEDIATION
+      : QUEUED_REMEDIATION;
   const format = stats.get(record.type);
   if (format && record.similarityPass) format.similarityPassedCount += 1;
-  if (format) format.gatePassedCount += 1;
+  if (format && record.gatePassed) format.gatePassedCount += 1;
 }
 
 const depthPassedCount = records.filter((record) => record.depthPass).length;
 const similarityPassedCount = records.filter((record) => record.similarityPass).length;
 const qualityPassedCount = records.filter((record) => record.qualityPassed).length;
 const gatePassedCount = records.filter((record) => record.gatePassed).length;
+
+if (d1OutputDir) {
+  const sqlLiteral = (value) => {
+    if (value == null) return "NULL";
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new Error(`Cannot export non-finite SQL number: ${value}`);
+      return String(value);
+    }
+    return `'${String(value).replaceAll("'", "''")}'`;
+  };
+  const gateColumns = [
+    "book_id", "chapter_slug", "question_id", "question_type", "rendered_unique_words",
+    "genuine_unique_words", "depth_pass", "max_similarity", "nearest_question_key",
+    "similarity_pass", "policy_exclusion", "enrichment_required", "gate_passed", "disposition",
+    "remediation", "content_hash", "reviewed_at", "policy_version",
+  ];
+  const gateValues = (record) => [
+    record.bookId, record.chapterSlug, record.questionId, record.type,
+    record.renderedUniqueWords, record.genuineUniqueWords, record.depthPass ? 1 : 0,
+    Number(record.maxSimilarity.toFixed(6)), record.nearestQuestionKey,
+    record.similarityPass ? 1 : 0, record.policyExclusion ? 1 : 0,
+    record.enrichmentRequired ? 1 : 0, record.gatePassed ? 1 : 0,
+    record.disposition, record.remediation, record.contentHash, reviewedAt, POLICY_VERSION,
+  ].map(sqlLiteral).join(",");
+  const statementsForRows = (rows, valueMapper, table, columns, statementSize = 200) => {
+    const statements = [];
+    for (let offset = 0; offset < rows.length; offset += statementSize) {
+      statements.push(`INSERT INTO ${table} (${columns.join(",")}) VALUES\n${rows.slice(offset, offset + statementSize).map((row) => `(${valueMapper(row)})`).join(",\n")};`);
+    }
+    return statements.join("\n");
+  };
+
+  rmSync(d1OutputDir, { recursive: true, force: true });
+  mkdirSync(d1OutputDir, { recursive: true });
+  const enrichmentMigration = readFileSync(resolve(root, "migrations/0004_question_enrichments.sql"), "utf8");
+  const gateMigration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
+  writeFileSync(resolve(d1OutputDir, "000-schema.sql"), `${enrichmentMigration}\nDELETE FROM question_enrichments;\n${gateMigration}\n`);
+
+  const fileSize = 5_000;
+  let gateFileCount = 0;
+  for (let offset = 0; offset < records.length; offset += fileSize) {
+    gateFileCount += 1;
+    const name = `100-gate-${String(gateFileCount).padStart(3, "0")}.sql`;
+    writeFileSync(resolve(d1OutputDir, name), `${statementsForRows(records.slice(offset, offset + fileSize), gateValues, "content_publish_gate", gateColumns)}\n`);
+  }
+
+  const passedEnrichments = enrichment.prepare(`SELECT book_id,chapter_slug,question_id,question_hash,source_hash,
+    model,verifier_model,decision,output_json,verification_json,enrichment_text,combined_genuine_words,
+    confidence,factual_pass,quality_pass,completed_at FROM enrichment_jobs WHERE status='passed' ORDER BY row_id`).all();
+  const enrichmentColumns = [
+    "book_id", "chapter_slug", "question_id", "question_hash", "source_hash", "model",
+    "verifier_model", "decision", "content_json", "verification_json", "rendered_text",
+    "genuine_unique_words", "confidence", "factual_pass", "quality_pass", "generated_at", "reviewed_at",
+  ];
+  const enrichmentValues = (row) => [
+    row.book_id, row.chapter_slug, row.question_id, row.question_hash, row.source_hash, row.model,
+    row.verifier_model, row.decision, row.output_json, row.verification_json, row.enrichment_text,
+    Number(row.combined_genuine_words || 0), Number(row.confidence || 0), Number(row.factual_pass || 0),
+    Number(row.quality_pass || 0), Number(row.completed_at || 0), Number(row.completed_at || 0),
+  ].map(sqlLiteral).join(",");
+  writeFileSync(resolve(d1OutputDir, "900-enrichments.sql"), passedEnrichments.length
+    ? `${statementsForRows(passedEnrichments, enrichmentValues, "question_enrichments", enrichmentColumns, 100)}\n`
+    : "-- No generated standalone enrichments have passed yet.\n");
+  writeFileSync(resolve(d1OutputDir, "999-gate-ready.sql"), `INSERT INTO content_publish_gate_state (
+    gate_name,policy_version,depth_floor,similarity_threshold,similarity_metric,fail_open,gate_ready,
+    evaluated_at,corpus_count,depth_passed_count,similarity_passed_count,gate_passed_count
+  ) VALUES ('question-publish',${sqlLiteral(POLICY_VERSION)},${DEPTH_FLOOR},${SIMILARITY_THRESHOLD},${sqlLiteral(SIMILARITY_METRIC)},0,1,${reviewedAt},${records.length},${depthPassedCount},${similarityPassedCount},${gatePassedCount});\n`);
+  writeFileSync(resolve(d1OutputDir, "manifest.json"), `${JSON.stringify({
+    policyVersion: POLICY_VERSION,
+    reviewedAt,
+    corpusCount: records.length,
+    gatePassedCount,
+    generatedEnrichmentCount: passedEnrichments.length,
+    gateFileCount,
+    applyOrder: "lexicographic SQL filename order; gate_ready is written last",
+  }, null, 2)}\n`);
+}
+
+mkdirSync(dirname(membershipPath), { recursive: true });
+writeFileSync(membershipPath, `${JSON.stringify({
+  policyVersion: POLICY_VERSION,
+  reviewedAt,
+  corpusCount: records.length,
+  indexableCount: gatePassedCount,
+  rowIds: records.filter((record) => record.gatePassed).map((record) => record.rowId),
+})}\n`);
 
 if (manifestPath) {
   const catalogEpoch = (value) => {
@@ -341,7 +471,7 @@ if (manifestPath) {
     similarityPassedCount,
     qualityPassedCount,
     gatePassedCount,
-    indexableCount: records.length,
+    indexableCount: gatePassedCount,
     catalogMaxUpdatedAt,
     // URL rows are intentionally not embedded in the Worker bundle. Sitemaps
     // page through D1 by row_id so the full corpus stays below Worker size and
@@ -354,16 +484,16 @@ if (manifestPath) {
 
 if (applyPath) {
   const target = new DatabaseSync(applyPath);
-  const migration = readFileSync(resolve(root, "migrations/0001_phase4_content_publish_gate.sql"), "utf8");
+  const migration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
   target.exec(migration);
   const targetCount = Number(target.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
   if (targetCount !== records.length) throw new Error(`Apply target has ${targetCount} questions; expected ${records.length}`);
   const insert = target.prepare(`INSERT INTO content_publish_gate (
     book_id, chapter_slug, question_id, question_type, rendered_unique_words,
     genuine_unique_words, depth_pass, max_similarity, nearest_question_key,
-    similarity_pass, policy_exclusion, gate_passed, disposition, remediation,
+    similarity_pass, policy_exclusion, enrichment_required, gate_passed, disposition, remediation,
     content_hash, reviewed_at, policy_version
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   target.exec("BEGIN IMMEDIATE; DELETE FROM content_publish_gate_state; DELETE FROM content_publish_gate;");
   try {
     for (const record of records) {
@@ -379,9 +509,10 @@ if (applyPath) {
         record.nearestQuestionKey,
         record.similarityPass ? 1 : 0,
         record.policyExclusion ? 1 : 0,
-        1,
-        "published",
-        REMEDIATION,
+        record.enrichmentRequired ? 1 : 0,
+        record.gatePassed ? 1 : 0,
+        record.disposition,
+        record.remediation,
         record.contentHash,
         reviewedAt,
         POLICY_VERSION,
@@ -391,7 +522,7 @@ if (applyPath) {
       gate_name, policy_version, depth_floor, similarity_threshold, similarity_metric,
       fail_open, gate_ready, evaluated_at, corpus_count, depth_passed_count,
       similarity_passed_count, gate_passed_count
-    ) VALUES ('question-publish', ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?)`)
+    ) VALUES ('question-publish', ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?)`)
       .run(POLICY_VERSION, DEPTH_FLOOR, SIMILARITY_THRESHOLD, SIMILARITY_METRIC, reviewedAt, records.length, depthPassedCount, similarityPassedCount, gatePassedCount);
     target.exec("COMMIT");
   } catch (error) {
@@ -423,23 +554,25 @@ const formatAudit = ALL_FORMATS.map((type) => {
     depthPassedCount: format.depthPassedCount,
     similarityPassedCount: format.similarityPassedCount,
     gatePassedCount: format.gatePassedCount,
-    classification: observed ? (averageRenderedUniqueWords >= DEPTH_FLOOR ? "not-thin" : "thin") : "unobserved-held-thin-by-default",
-    remediation: REMEDIATION,
+    classification: observed ? (averageGenuineUniqueWords >= DEPTH_FLOOR ? "not-thin" : "thin") : "unobserved-held-thin-by-default",
+    remediation: "standalone when every gate passes; otherwise consolidate into the parent chapter or hold noindex",
   };
 });
 
 const report = {
   generatedAt: new Date(reviewedAt * 1_000).toISOString(),
   sourceDatabase: sourcePath,
+  enrichmentDatabase: enrichmentPath,
   appliedDatabase: applyPath,
   generatedManifest: manifestPath,
+  generatedMembership: membershipPath,
   pipelineFinding: {
     priorGateLocation: null,
     priorThreshold: null,
-    priorBehavior: "not wired; question metadata and Phase 3 sitemaps defaulted open except for nine static exclusions",
-    currentGateLocation: "scripts/phase4-content-gate.mjs keeps depth/similarity as editorial signals; worker.js validates catalog existence and publishes every valid question through index/follow plus D1-backed sitemap shards",
-    currentFailBehavior: "only a missing or invalid catalog route fails; thin or similar answers remain indexable and are retained as editorial-quality signals",
-    failOpen: true,
+    priorBehavior: "phase4-v2 defaulted every valid catalog question open, including thin and similar answers",
+    currentGateLocation: "scripts/content-enrichment.mjs records a corpus-complete disposition; scripts/phase4-content-gate.mjs applies depth, similarity, evidence and factual-grounding checks; worker.js and sitemap generation consume the D1 gate",
+    currentFailBehavior: "a missing, stale, thin, similar, ungrounded or incomplete row is noindex and excluded from question sitemaps",
+    failOpen: false,
   },
   policy: {
     version: POLICY_VERSION,
@@ -448,7 +581,7 @@ const report = {
     similarityThreshold: SIMILARITY_THRESHOLD,
     similarityMetric: SIMILARITY_METRIC,
     similarityScope: "all depth-passing question pairs; exact inverted-index candidate enumeration with no approximate LSH sampling",
-    similarityOutcome: "threshold-breaching pages remain indexable but are flagged for editorial expansion",
+    similarityOutcome: "threshold-breaching standalone candidates are held noindex for rewrite or consolidation",
   },
   corpus: {
     questionCount: records.length,
@@ -461,8 +594,12 @@ const report = {
     gatePassedFraction: Number((gatePassedCount / records.length).toFixed(6)),
     editorialExpansionCount: records.length - qualityPassedCount,
     gateCoverageCount: records.length,
-    indexableCount: records.length,
+    indexableCount: gatePassedCount,
     indexableMatchesGatePassed: true,
+    dispositions: Object.fromEntries(["published", "consolidated", "queued"].map((disposition) => [
+      disposition,
+      records.filter((record) => record.disposition === disposition).length,
+    ])),
   },
   similarity: {
     selfTest: similaritySelfTest,
@@ -479,3 +616,4 @@ writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
 
 source.close();
+enrichment.close();

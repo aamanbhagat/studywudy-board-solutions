@@ -1,4 +1,10 @@
-CREATE TABLE IF NOT EXISTS content_publish_gate (
+-- The v2 gate used different disposition names and cannot accept the v3
+-- fail-closed outcomes. Gate rows are fully reproducible from the catalog and
+-- enrichment ledger, so replace the derived table before importing v3 rows.
+DROP TABLE IF EXISTS content_publish_gate;
+DROP TABLE IF EXISTS content_publish_gate_state;
+
+CREATE TABLE content_publish_gate (
   book_id TEXT NOT NULL,
   chapter_slug TEXT NOT NULL,
   question_id TEXT NOT NULL,
@@ -18,18 +24,18 @@ CREATE TABLE IF NOT EXISTS content_publish_gate (
   reviewed_at INTEGER NOT NULL,
   policy_version TEXT NOT NULL,
   PRIMARY KEY (book_id, chapter_slug, question_id)
-);
+) STRICT;
 
-CREATE INDEX IF NOT EXISTS content_publish_gate_passed_idx
+CREATE INDEX content_publish_gate_passed_idx
   ON content_publish_gate (gate_passed, book_id, chapter_slug, question_id);
 
-CREATE INDEX IF NOT EXISTS content_publish_gate_chapter_idx
+CREATE INDEX content_publish_gate_chapter_idx
   ON content_publish_gate (book_id, chapter_slug, reviewed_at);
 
-CREATE INDEX IF NOT EXISTS content_publish_gate_format_idx
+CREATE INDEX content_publish_gate_format_idx
   ON content_publish_gate (question_type, gate_passed);
 
-CREATE TABLE IF NOT EXISTS content_publish_gate_state (
+CREATE TABLE content_publish_gate_state (
   gate_name TEXT PRIMARY KEY,
   policy_version TEXT NOT NULL,
   depth_floor INTEGER NOT NULL,
@@ -42,4 +48,4 @@ CREATE TABLE IF NOT EXISTS content_publish_gate_state (
   depth_passed_count INTEGER NOT NULL,
   similarity_passed_count INTEGER NOT NULL,
   gate_passed_count INTEGER NOT NULL
-);
+) STRICT;

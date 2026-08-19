@@ -2,12 +2,13 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const databasePath = resolve(root, process.argv[2] || "cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3");
 const outputDirectory = resolve(root, process.argv[3] || "comparison/after-assets/sitemaps");
+const membershipPath = resolve(root, process.argv[4] || "audits/phase-4/indexable-rowids.json");
 const origin = "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
 const blockSize = 10_000;
 const contentPublishedAt = "2026-08-15T03:30:10Z";
@@ -50,10 +51,18 @@ function streamPathsFromWorker() {
 }
 
 mkdirSync(outputDirectory, { recursive: true });
+for (const name of readdirSync(outputDirectory)) {
+  if (/^questions-\d+\.xml\.gz$/.test(name)) rmSync(resolve(outputDirectory, name));
+}
 const database = new DatabaseSync(databasePath, { readOnly: true });
 const count = Number(database.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
+const membership = JSON.parse(readFileSync(membershipPath, "utf8"));
+const indexableRowIds = new Set((membership.rowIds || []).map(Number));
+if (Number(membership.corpusCount) !== count || Number(membership.indexableCount) !== indexableRowIds.size) {
+  throw new Error(`Sitemap membership does not match the catalog: ${membership.indexableCount}/${membership.corpusCount} for ${count}`);
+}
 const children = [];
-const report = { generatedAt: new Date().toISOString(), origin, catalogQuestionCount: count, blockSize, children: [] };
+const report = { generatedAt: new Date().toISOString(), origin, policyVersion: membership.policyVersion, catalogQuestionCount: count, indexableQuestionCount: indexableRowIds.size, blockSize, children: [] };
 
 const hierarchyRows = database.prepare(`SELECT b.board_slug, b.grade_slug, b.subject_slug,
   b.slug AS book_slug, b.updated_at AS book_updated_at, c.slug AS chapter_slug,
@@ -90,14 +99,20 @@ const hierarchy = writeGzip("hierarchy.xml.gz", [...timestamps].map(([pathname, 
 children.push({ pathname: "/sitemaps/hierarchy.xml.gz", updatedAt: Math.max(...timestamps.values()) });
 report.children.push({ pathname: "/sitemaps/hierarchy.xml.gz", ...hierarchy });
 
-const questionStatement = database.prepare(`SELECT q.row_id, q.chapter_slug, q.question_id,
+const questionRows = database.prepare(`SELECT q.row_id, q.chapter_slug, q.question_id,
   q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
   b.slug AS book_slug, b.updated_at AS book_updated_at, c.updated_at AS chapter_updated_at
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-  WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`);
-for (let cursor = 1; cursor <= count; cursor += blockSize) {
-  const rows = questionStatement.all(cursor, cursor + blockSize);
+  ORDER BY q.row_id`).all().filter((row) => indexableRowIds.has(Number(row.row_id)));
+const questionBlocks = new Map();
+for (const row of questionRows) {
+  const cursor = Math.floor((Number(row.row_id) - 1) / blockSize) * blockSize + 1;
+  const rows = questionBlocks.get(cursor) || [];
+  rows.push(row);
+  questionBlocks.set(cursor, rows);
+}
+for (const [cursor, rows] of questionBlocks) {
   const entries = rows.map((row) => urlEntry(`/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`, Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
   const name = `questions-${cursor}.xml.gz`;
   const child = writeGzip(name, entries);
@@ -110,4 +125,5 @@ const indexBody = children.map((child) => `  <sitemap><loc>${xmlEscape(`${origin
 writeFileSync(resolve(outputDirectory, "..", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexBody}\n</sitemapindex>\n`);
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
-console.log(JSON.stringify({ catalogQuestionCount: count, hierarchyUrlCount: hierarchy.urlCount, questionChildCount: report.children.length - 1, questionUrlCount: report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0), pass: count === report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0) }, null, 2));
+const sitemapQuestionCount = report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0);
+console.log(JSON.stringify({ catalogQuestionCount: count, indexableQuestionCount: indexableRowIds.size, hierarchyUrlCount: hierarchy.urlCount, questionChildCount: report.children.length - 1, questionUrlCount: sitemapQuestionCount, pass: indexableRowIds.size === sitemapQuestionCount }, null, 2));

@@ -5,6 +5,8 @@ comparison/after-persistence/
 .dev.vars
 .dev.vars.*
 *.log
+.env.azure.local
+enrichment-data/
 
 # Local recovery inputs and downloaded production state. These are retained on
 # the workstation, but they are not source inputs for a release deployment.
