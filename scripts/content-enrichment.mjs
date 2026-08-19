@@ -518,13 +518,14 @@ function validateOutput(job, output) {
   return { text, combinedWords, evidencePass, confidence, errors, qualityPass };
 }
 
-function claimJob(db, formats) {
+function claimJob(db, formats, preferredBaseModel = null) {
   const now = Math.floor(Date.now() / 1_000);
   const formatFilter = formats.length ? `AND question_type IN (${formats.map(() => "?").join(",")})` : "";
+  const modelFilter = preferredBaseModel ? "AND base_model=?" : "";
   const row = db.prepare(`SELECT * FROM enrichment_jobs
-    WHERE status IN ('pending','retry') ${formatFilter}
+    WHERE status IN ('pending','retry') ${formatFilter} ${modelFilter}
     ORDER BY CASE base_model WHEN 'gpt-5.6-luna' THEN 1 WHEN 'gpt-5.6-terra' THEN 2 ELSE 3 END, row_id
-    LIMIT 1`).get(...formats);
+    LIMIT 1`).get(...formats, ...(preferredBaseModel ? [preferredBaseModel] : []));
   if (!row) return null;
   const changed = db.prepare(`UPDATE enrichment_jobs SET status='running',started_at=?,updated_at=?,attempts=attempts+1
     WHERE row_id=? AND status IN ('pending','retry')`).run(now, now, row.row_id);
@@ -641,9 +642,13 @@ async function runQueue(options) {
   process.on("SIGTERM", stop);
   const heartbeat = setInterval(() => setMeta(state, "runner_heartbeat", Math.floor(Date.now() / 1_000)), 30_000);
   const ticker = setInterval(() => printStatus(state, false), 30_000);
-  async function worker() {
+  const modelLanes = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
+  async function worker(workerIndex) {
+    const preferredBaseModel = modelLanes[workerIndex % modelLanes.length];
     while (!stopping && claimed < limit && runTokens < tokenBudget) {
-      const job = claimJob(state, formats);
+      // Balance initial work across all three deployments. If one lane drains,
+      // its workers immediately help the remaining queues.
+      const job = claimJob(state, formats, preferredBaseModel) || claimJob(state, formats);
       if (!job) break;
       claimed += 1;
       const jobTokens = await processJob(state, endpoint, apiKey, job);
@@ -652,7 +657,7 @@ async function runQueue(options) {
     }
   }
   try {
-    await Promise.all(Array.from({ length: concurrency }, worker));
+    await Promise.all(Array.from({ length: concurrency }, (_, index) => worker(index)));
   } finally {
     clearInterval(heartbeat);
     clearInterval(ticker);
@@ -705,6 +710,12 @@ function statusObject(db) {
       pid: Number(getMeta(db, "runner_pid") || 0) || null,
       heartbeat: Number(getMeta(db, "runner_heartbeat") || 0) || null,
     },
+    manager: {
+      pid: Number(getMeta(db, "manager_pid") || 0) || null,
+      stage: getMeta(db, "manager_stage") || "idle",
+      message: getMeta(db, "manager_message") || null,
+      updated_at: Number(getMeta(db, "manager_updated_at") || 0) || null,
+    },
     models,
     verification: {
       passed: Number(db.prepare("SELECT COUNT(*) AS count FROM enrichment_jobs WHERE factual_pass=1 AND quality_pass=1").get().count),
@@ -722,6 +733,7 @@ function printStatus(db, json) {
   const eta = status.eta_hours == null ? "calculating" : `${status.eta_hours.toLocaleString("en-IN")} h`;
   console.log(`[${status.generated_at}] ${status.complete.toLocaleString("en-IN")}/${status.corpus.toLocaleString("en-IN")} resolved (${status.percent_complete}%) | ${status.queued.toLocaleString("en-IN")} queued | ${status.active} active | ${status.remaining.toLocaleString("en-IN")} unresolved | ${status.rate_per_hour.toLocaleString("en-IN")}/h | ETA ${eta}`);
   console.log(`  existing=${Number(status.counts.existing_pass || 0).toLocaleString("en-IN")} passed=${Number(status.counts.passed || 0).toLocaleString("en-IN")} consolidated=${Number(status.counts.consolidated || 0).toLocaleString("en-IN")} retry=${Number(status.counts.retry || 0).toLocaleString("en-IN")} needs-source=${Number(status.counts.needs_source || 0).toLocaleString("en-IN")} failed=${Number(status.counts.failed || 0).toLocaleString("en-IN")}`);
+  console.log(`  manager=${status.manager.stage}${status.manager.message ? ` · ${status.manager.message}` : ""}`);
   console.log(`  cross-model verified standalone=${status.verification.passed.toLocaleString("en-IN")}`);
   for (const model of status.models) console.log(`  ${model.model}: ${model.completed.toLocaleString("en-IN")} completed, ${model.input_tokens.toLocaleString("en-IN")} input tokens, ${model.output_tokens.toLocaleString("en-IN")} output tokens`);
 }

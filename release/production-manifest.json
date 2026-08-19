@@ -6920,8 +6920,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 4203,
-      "sha256": "74dc5fb4fd6d5606a59cb147ac7106f0b9abc837f49305cffe74ae62d71b83ea"
+      "bytes": 4274,
+      "sha256": "c259ecf345792e3e2a00a3da0f02192bcbcb518929a66ec702cd0a34d54df1fa"
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
@@ -6974,5 +6974,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "d05a7ffbd798d34043977f049e7f91adb259eb6a2e427b02695d5c4e4f5a9022"
+  "aggregateSha256": "07aa669844ced336dde5312f12d19aaac1bc522f53ab5fbc78f8c3bcccc5154f"
 }

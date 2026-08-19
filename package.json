@@ -15,6 +15,7 @@
     "build:phase4-gate": "pnpm run build:question-seo && node scripts/phase4-content-gate.mjs --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 --output audits/phase-4/content-gate-audit.json --manifest-output phase4-publish-manifest.mjs && pnpm run build:sitemaps",
     "enrichment:init": "node scripts/content-enrichment.mjs init",
     "enrichment:run": "node scripts/content-enrichment.mjs run",
+    "enrichment:manage": "node scripts/manage-content-enrichment.mjs",
     "enrichment:status": "node scripts/content-enrichment.mjs status",
     "enrichment:export": "node scripts/content-enrichment.mjs export-sql",
     "build:phase4-d1-sync": "node scripts/phase4-content-gate.mjs --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 --output audits/phase-4/content-gate-audit.json --manifest-output phase4-publish-manifest.mjs --d1-output-dir enrichment-data/d1-sync && pnpm run build:sitemaps",

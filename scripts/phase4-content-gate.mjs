@@ -426,7 +426,7 @@ if (d1OutputDir) {
     Number(row.combined_genuine_words || 0), Number(row.confidence || 0), Number(row.factual_pass || 0),
     Number(row.quality_pass || 0), Number(row.completed_at || 0), Number(row.completed_at || 0),
   ].map(sqlLiteral).join(",");
-  const enrichmentFileSize = 20;
+  const enrichmentFileSize = 250;
   let enrichmentFileCount = 0;
   if (passedEnrichments.length) {
     for (let offset = 0; offset < passedEnrichments.length; offset += enrichmentFileSize) {
