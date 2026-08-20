@@ -99766,8 +99766,15 @@ __name2(phase4ReviewDate, "phase4ReviewDate");
 async function phase4InflateEnrichment(value) {
   if (!value) return null;
   let bytes;
-  if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
+  if (typeof value === "string" && value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value)) {
+    bytes = new Uint8Array(value.length / 2);
+    for (let index = 0; index < value.length; index += 2) {
+      bytes[index / 2] = Number.parseInt(value.slice(index, index + 2), 16);
+    }
+  } else if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
   else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  else if (Array.isArray(value)) bytes = Uint8Array.from(value);
+  else if (Array.isArray(value?.data)) bytes = Uint8Array.from(value.data);
   else return null;
   let stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
   return JSON.parse(await new Response(stream).text());
@@ -99790,7 +99797,7 @@ async function phase4QuestionGate(environment, route, pathname) {
     detail = await environment.DB.prepare(`SELECT g.question_type,g.rendered_unique_words,g.genuine_unique_words,
       g.depth_pass,g.max_similarity,g.similarity_pass,g.policy_exclusion,g.enrichment_required,g.gate_passed,
       g.disposition,g.remediation,g.reviewed_at,g.policy_version,
-      e.content_gzip AS enrichment_gzip,
+      hex(e.content_gzip) AS enrichment_hex,
       e.genuine_unique_words AS enrichment_unique_words,e.confidence AS enrichment_confidence,
       e.factual_pass AS enrichment_factual_pass,e.quality_pass AS enrichment_quality_pass
       FROM catalog_books b
@@ -99813,7 +99820,7 @@ async function phase4QuestionGate(environment, route, pathname) {
   if (passed && Number(detail?.enrichment_required) === 1
     && Number(detail?.enrichment_factual_pass) === 1 && Number(detail?.enrichment_quality_pass) === 1) {
     try {
-      enrichmentContent = await phase4InflateEnrichment(detail.enrichment_gzip);
+      enrichmentContent = await phase4InflateEnrichment(detail.enrichment_hex);
       if (!enrichmentContent) throw new Error("empty enrichment payload");
     } catch {
       passed = false;

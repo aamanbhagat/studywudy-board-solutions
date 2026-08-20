@@ -6975,8 +6975,8 @@
     },
     {
       "path": "worker.js",
-      "bytes": 6749922,
-      "sha256": "7c6c841364da26eb7653eeaf09bd4a51d5e047ebc1e76db8b6eaf460582425d4"
+      "bytes": 6750353,
+      "sha256": "0e100a7be859b2e0ab215a88c44de82c75700cb184da47b4aae6b507b3b0f309"
     },
     {
       "path": "wrangler.production.jsonc",
@@ -6984,5 +6984,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "104ce4c0ed2f59e904a89e665542dd5fd43b28081b005937a40613c12786bd2e"
+  "aggregateSha256": "7ffb8df077af0b0cc5991f0a0b068b1170093e15dfce8d3272f6e80600f50dd6"
 }
