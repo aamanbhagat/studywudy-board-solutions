@@ -17,6 +17,7 @@ const DEPTH_FLOOR = 150;
 const MIN_SOURCE_WORDS_FOR_AI = 80;
 const MAX_SOURCE_CHARS = 18_000;
 const MAX_ATTEMPTS = 3;
+const FOUNDRY_MODELS = new Set(["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]);
 
 const LUNA_FORMATS = new Set([
   "one_word", "one_sentence", "brief", "define", "name_list", "mcq_single",
@@ -670,6 +671,58 @@ async function runQueue(options) {
   }
 }
 
+function retryFailed(options) {
+  const statePath = resolve(ROOT, options.get("--state") || DEFAULT_STATE);
+  const state = openState(statePath);
+  const rescueModel = String(options.get("--model") || "gpt-5.6-sol");
+  if (!FOUNDRY_MODELS.has(rescueModel)) {
+    state.close();
+    throw new Error(`--model must be one of ${[...FOUNDRY_MODELS].join(", ")}`);
+  }
+  const active = Number(state.prepare("SELECT COUNT(*) AS count FROM enrichment_jobs WHERE status='running'").get().count);
+  if (active) {
+    state.close();
+    throw new Error(`Cannot reset failed jobs while ${active} enrichment jobs are running`);
+  }
+  const failedRows = state.prepare("SELECT row_id,last_error FROM enrichment_jobs WHERE status='failed' ORDER BY row_id").all();
+  if (!failedRows.length) {
+    console.log("No failed enrichment jobs need retrying.");
+    printStatus(state, false);
+    state.close();
+    return;
+  }
+  const now = Math.floor(Date.now() / 1_000);
+  const recordEvent = state.prepare("INSERT INTO enrichment_events(recorded_at,row_id,event,detail) VALUES(?,?,?,?)");
+  state.exec("BEGIN IMMEDIATE");
+  try {
+    state.prepare(`UPDATE enrichment_jobs SET
+      status='retry',base_model=?,decision=NULL,model=NULL,verifier_model=NULL,
+      output_json=NULL,verification_json=NULL,enrichment_text=NULL,combined_genuine_words=NULL,
+      evidence_pass=NULL,factual_pass=0,confidence=NULL,quality_pass=0,attempts=0,
+      started_at=NULL,completed_at=NULL,updated_at=?
+      WHERE status='failed'`).run(rescueModel, now);
+    for (const row of failedRows) {
+      recordEvent.run(now, row.row_id, "manual_retry_reset", JSON.stringify({
+        rescue_model: rescueModel,
+        previous_error: String(row.last_error || "").slice(0, 500),
+      }));
+    }
+    setMeta(state, "manager_stage", "queued");
+    setMeta(state, "manager_message", `${failedRows.length.toLocaleString("en-IN")} failed jobs reset for ${rescueModel} rescue with cross-model verification`);
+    setMeta(state, "manager_updated_at", now);
+    setMeta(state, "last_failed_retry_at", now);
+    setMeta(state, "last_failed_retry_count", failedRows.length);
+    state.exec("COMMIT");
+  } catch (error) {
+    state.exec("ROLLBACK");
+    state.close();
+    throw error;
+  }
+  console.log(`Reset ${failedRows.length.toLocaleString("en-IN")} failed jobs for up to ${MAX_ATTEMPTS} fresh ${rescueModel} attempts.`);
+  printStatus(state, false);
+  state.close();
+}
+
 function statusObject(db) {
   const counts = Object.fromEntries(db.prepare("SELECT status,COUNT(*) AS count FROM enrichment_jobs GROUP BY status").all()
     .map((row) => [row.status, Number(row.count)]));
@@ -774,12 +827,13 @@ function exportSql(options) {
 }
 
 function help() {
-  console.log(`StudyWudy content enrichment\n\nCommands:\n  init                 Build/resume the 299K-question queue from the read-only catalog\n  run                  Process queued questions through Azure Foundry\n  status               Print current counts, token usage, throughput and ETA\n  export-sql            Export validated enrichment rows for D1\n\nExamples:\n  pnpm enrichment:init\n  AZURE_FOUNDRY_API_KEY=... pnpm enrichment:run -- --concurrency 8 --token-budget 1000000\n  pnpm enrichment:status -- --watch 5\n  pnpm enrichment:status -- --json\n\nOptions:\n  --state <path>        Queue database (default: ${DEFAULT_STATE})\n  --source <path>       Read-only catalog database (init only)\n  --limit <n>           Maximum jobs claimed by this run\n  --concurrency <n>     Parallel Foundry requests (default: 4)\n  --token-budget <n>    Stop after approximately this many input + output tokens\n  --formats <csv>       Restrict a run to selected question formats\n  --watch <seconds>     Repeat status output\n  --output <path>       SQL export destination`);
+  console.log(`StudyWudy content enrichment\n\nCommands:\n  init                 Build/resume the 299K-question queue from the read-only catalog\n  run                  Process queued questions through Azure Foundry\n  retry-failed          Reset every failed row for a fresh, audited rescue pass\n  status               Print current counts, token usage, throughput and ETA\n  export-sql            Export validated enrichment rows for D1\n\nExamples:\n  pnpm enrichment:init\n  AZURE_FOUNDRY_API_KEY=... pnpm enrichment:run -- --concurrency 8 --token-budget 1000000\n  pnpm enrichment:retry-failed -- --model gpt-5.6-sol\n  pnpm enrichment:status -- --watch 5\n  pnpm enrichment:status -- --json\n\nOptions:\n  --state <path>        Queue database (default: ${DEFAULT_STATE})\n  --source <path>       Read-only catalog database (init only)\n  --model <deployment>  Rescue deployment for retry-failed (default: gpt-5.6-sol)\n  --limit <n>           Maximum jobs claimed by this run\n  --concurrency <n>     Parallel Foundry requests (default: 4)\n  --token-budget <n>    Stop after approximately this many input + output tokens\n  --formats <csv>       Restrict a run to selected question formats\n  --watch <seconds>     Repeat status output\n  --output <path>       SQL export destination`);
 }
 
 const { command, options } = parseArgs(process.argv.slice(2));
 if (command === "init") initQueue(options);
 else if (command === "run") await runQueue(options);
+else if (command === "retry-failed") retryFailed(options);
 else if (command === "status") await watchStatus(options);
 else if (command === "export-sql") exportSql(options);
 else help();

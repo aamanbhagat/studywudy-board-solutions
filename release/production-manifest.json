@@ -6920,8 +6920,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 4274,
-      "sha256": "c259ecf345792e3e2a00a3da0f02192bcbcb518929a66ec702cd0a34d54df1fa"
+      "bytes": 4357,
+      "sha256": "8f814a903d1402f4875e9b364802910771232eb64fa1eedf70128f01238dc2c1"
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
@@ -6974,5 +6974,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "07aa669844ced336dde5312f12d19aaac1bc522f53ab5fbc78f8c3bcccc5154f"
+  "aggregateSha256": "946c1aedcfecc2d161f67a4ffd5e5483ea9a83beda0f95f1b23ccf6b88548b00"
 }

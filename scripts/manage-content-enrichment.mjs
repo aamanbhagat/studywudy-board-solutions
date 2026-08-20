@@ -10,7 +10,9 @@ const ROOT = resolve(import.meta.dirname, "..");
 const STATE_PATH = resolve(ROOT, "enrichment-data/studywudy-enrichment.sqlite3");
 const ORIGIN = "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
 const CONCURRENCY = Math.max(3, Number(process.env.STUDYWUDY_ENRICHMENT_CONCURRENCY || 48));
-const INFRASTRUCTURE_ERROR = /(?:api.?key|unauthori[sz]ed|authentication|forbidden|permission|quota|billing|subscription|deployment|model.{0,20}not found|HTTP\s+(?:400|401|403|404))/iu;
+// Validation feedback can legitimately contain words such as “permission” or
+// “subscription”. Never mistake that editorial feedback for an Azure outage.
+const INFRASTRUCTURE_ERROR = /^(?!grounding verification failed:)(?:Foundry returned HTTP\s+(?:400|401|403|404)\b|.*\b(?:invalid api.?key|unauthori[sz]ed|authentication failed|forbidden|quota (?:exceeded|exhausted)|billing (?:disabled|required)|subscription (?:disabled|not found)|deployment .{0,80}not found|model .{0,80}not found)\b)/iu;
 
 if (!process.env.AZURE_FOUNDRY_API_KEY) throw new Error("AZURE_FOUNDRY_API_KEY is required");
 if (!existsSync(STATE_PATH)) throw new Error("Enrichment queue is missing; run pnpm enrichment:init first");
@@ -82,7 +84,7 @@ async function verifyProduction(expectedQuestions) {
 }
 
 async function main() {
-  stage("enriching", `${CONCURRENCY} parallel workers across Luna, Terra and Sol`);
+  stage("enriching", `${CONCURRENCY} parallel workers with cross-model verification`);
   run("enriching", process.execPath, ["scripts/content-enrichment.mjs", "run", "--concurrency", String(CONCURRENCY)]);
 
   let current = counts();
