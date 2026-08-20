@@ -29,6 +29,9 @@ const ALL_FORMATS = [
 const POLICY_VERSION = "phase4-v3-grounded-staged-publish";
 const DEPTH_FLOOR = 150;
 const SIMILARITY_THRESHOLD = 0.85;
+// Wrangler/D1 rejects SQL uploads near 2 MB even when each individual INSERT
+// is smaller. Keep generated import shards comfortably below that boundary.
+const MAX_D1_SQL_FILE_BYTES = 1_750_000;
 const SIMILARITY_SHINGLE_SIZE = 5;
 const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer-body shingles";
 const STANDALONE_REMEDIATION = "standalone_indexable";
@@ -397,6 +400,33 @@ if (d1OutputDir) {
     }
     return statements.join("\n");
   };
+  const writeSqlShards = (prefix, rows, valueMapper, table, columns, statementSize) => {
+    let fileCount = 0;
+    let currentStatements = [];
+    let currentBytes = 0;
+    const flush = () => {
+      if (!currentStatements.length) return;
+      fileCount += 1;
+      const name = `${prefix}-${String(fileCount).padStart(3, "0")}.sql`;
+      writeFileSync(resolve(d1OutputDir, name), `${currentStatements.join("\n")}\n`);
+      currentStatements = [];
+      currentBytes = 0;
+    };
+    for (let offset = 0; offset < rows.length; offset += statementSize) {
+      const statement = statementsForRows(
+        rows.slice(offset, offset + statementSize), valueMapper, table, columns, statementSize,
+      );
+      const statementBytes = Buffer.byteLength(`${statement}\n`);
+      if (statementBytes > MAX_D1_SQL_FILE_BYTES) {
+        throw new Error(`${prefix} generated a ${statementBytes}-byte statement; reduce its statement size`);
+      }
+      if (currentBytes && currentBytes + statementBytes > MAX_D1_SQL_FILE_BYTES) flush();
+      currentStatements.push(statement);
+      currentBytes += statementBytes;
+    }
+    flush();
+    return fileCount;
+  };
 
   rmSync(d1OutputDir, { recursive: true, force: true });
   mkdirSync(d1OutputDir, { recursive: true });
@@ -404,13 +434,9 @@ if (d1OutputDir) {
   const gateMigration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
   writeFileSync(resolve(d1OutputDir, "000-schema.sql"), `${enrichmentMigration}\nDELETE FROM question_enrichments;\n${gateMigration}\n`);
 
-  const fileSize = 5_000;
-  let gateFileCount = 0;
-  for (let offset = 0; offset < records.length; offset += fileSize) {
-    gateFileCount += 1;
-    const name = `100-gate-${String(gateFileCount).padStart(3, "0")}.sql`;
-    writeFileSync(resolve(d1OutputDir, name), `${statementsForRows(records.slice(offset, offset + fileSize), gateValues, "content_publish_gate", gateColumns)}\n`);
-  }
+  const gateFileCount = writeSqlShards(
+    "100-gate", records, gateValues, "content_publish_gate", gateColumns, 200,
+  );
 
   const passedEnrichments = enrichment.prepare(`SELECT book_id,chapter_slug,question_id,question_hash,source_hash,
     model,verifier_model,decision,output_json,verification_json,enrichment_text,combined_genuine_words,
@@ -426,18 +452,14 @@ if (d1OutputDir) {
     Number(row.combined_genuine_words || 0), Number(row.confidence || 0), Number(row.factual_pass || 0),
     Number(row.quality_pass || 0), Number(row.completed_at || 0), Number(row.completed_at || 0),
   ].map(sqlLiteral).join(",");
-  const enrichmentFileSize = 250;
   let enrichmentFileCount = 0;
   if (passedEnrichments.length) {
-    for (let offset = 0; offset < passedEnrichments.length; offset += enrichmentFileSize) {
-      enrichmentFileCount += 1;
-      const name = `900-enrichment-${String(enrichmentFileCount).padStart(3, "0")}.sql`;
-      const rows = passedEnrichments.slice(offset, offset + enrichmentFileSize);
-      // Generated content contains sizeable JSON and prose fields. One row per
-      // statement keeps every D1 statement well below SQLITE_MAX_SQL_LENGTH;
-      // bounded files also keep Wrangler uploads resumable as the ledger grows.
-      writeFileSync(resolve(d1OutputDir, name), `${statementsForRows(rows, enrichmentValues, "question_enrichments", enrichmentColumns, 1)}\n`);
-    }
+    // Generated content contains sizeable JSON and prose fields. One row per
+    // statement keeps each INSERT small; byte-bounded shards keep each Wrangler
+    // upload below D1's import parser limit as the ledger grows.
+    enrichmentFileCount = writeSqlShards(
+      "900-enrichment", passedEnrichments, enrichmentValues, "question_enrichments", enrichmentColumns, 1,
+    );
   } else {
     writeFileSync(resolve(d1OutputDir, "900-enrichment-001.sql"), "-- No generated standalone enrichments have passed yet.\n");
     enrichmentFileCount = 1;
@@ -454,6 +476,7 @@ if (d1OutputDir) {
     generatedEnrichmentCount: passedEnrichments.length,
     gateFileCount,
     enrichmentFileCount,
+    maxSqlFileBytes: MAX_D1_SQL_FILE_BYTES,
     applyOrder: "lexicographic SQL filename order; gate_ready is written last",
   }, null, 2)}\n`);
 }
