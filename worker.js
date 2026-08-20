@@ -99713,7 +99713,7 @@ async function phase4GateState(environment) {
       (SELECT COUNT(*) FROM content_publish_gate g LEFT JOIN question_enrichments e
         ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
         WHERE g.enrichment_required=1 AND g.gate_passed=1
-          AND (e.quality_pass IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1 OR e.decision<>'standalone')) AS invalid_enrichment_count
+          AND (e.content_gzip IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1)) AS invalid_enrichment_count
       FROM content_publish_gate_state s WHERE s.gate_name='question-publish' LIMIT 1`).first();
     let manifestReady = PHASE4_GATE_MANIFEST.policyVersion === PHASE4_POLICY_VERSION
       && Number(PHASE4_GATE_MANIFEST.indexableCount) === Number(PHASE4_GATE_MANIFEST.gatePassedCount)
@@ -99763,6 +99763,17 @@ function phase4ReviewDate(epoch) {
 }
 __name(phase4ReviewDate, "phase4ReviewDate");
 __name2(phase4ReviewDate, "phase4ReviewDate");
+async function phase4InflateEnrichment(value) {
+  if (!value) return null;
+  let bytes;
+  if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
+  else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  else return null;
+  let stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(stream).text());
+}
+__name(phase4InflateEnrichment, "phase4InflateEnrichment");
+__name2(phase4InflateEnrichment, "phase4InflateEnrichment");
 async function phase4QuestionGate(environment, route, pathname) {
   if (!environment.DB) return { ready: false, passed: false, reason: "database-unavailable", reviewedAt: 0 };
   let state = await phase4GateState(environment);
@@ -99779,7 +99790,7 @@ async function phase4QuestionGate(environment, route, pathname) {
     detail = await environment.DB.prepare(`SELECT g.question_type,g.rendered_unique_words,g.genuine_unique_words,
       g.depth_pass,g.max_similarity,g.similarity_pass,g.policy_exclusion,g.enrichment_required,g.gate_passed,
       g.disposition,g.remediation,g.reviewed_at,g.policy_version,
-      e.decision AS enrichment_decision,e.content_json AS enrichment_json,
+      e.content_gzip AS enrichment_gzip,
       e.genuine_unique_words AS enrichment_unique_words,e.confidence AS enrichment_confidence,
       e.factual_pass AS enrichment_factual_pass,e.quality_pass AS enrichment_quality_pass
       FROM catalog_books b
@@ -99793,27 +99804,28 @@ async function phase4QuestionGate(environment, route, pathname) {
   let passed = state.ready && catalogFound && !!detail
     && detail.policy_version === PHASE4_POLICY_VERSION && Number(detail.gate_passed) === 1
     && (Number(detail.enrichment_required) !== 1 || (
-      detail.enrichment_decision === "standalone"
-      && Number(detail.enrichment_factual_pass) === 1
+      Number(detail.enrichment_factual_pass) === 1
       && Number(detail.enrichment_quality_pass) === 1
     ));
   let qualityPassed = passed && Number(detail.depth_pass) === 1
     && Number(detail.similarity_pass) === 1 && Number(detail.policy_exclusion) !== 1;
   let enrichmentContent = null;
-  if (passed && detail?.enrichment_decision === "standalone"
+  if (passed && Number(detail?.enrichment_required) === 1
     && Number(detail?.enrichment_factual_pass) === 1 && Number(detail?.enrichment_quality_pass) === 1) {
     try {
-      enrichmentContent = JSON.parse(detail.enrichment_json || "null");
+      enrichmentContent = await phase4InflateEnrichment(detail.enrichment_gzip);
+      if (!enrichmentContent) throw new Error("empty enrichment payload");
     } catch {
       passed = false;
       qualityPassed = false;
     }
   }
+  let compactConsolidated = state.ready && catalogFound && !detail;
   return {
     ready: state.ready,
     passed,
     qualityPassed,
-    reason: passed ? "published" : detail?.disposition === "consolidated" ? "consolidated-into-chapter" : state.ready ? "quality-gate-not-passed" : state.reason,
+    reason: passed ? "published" : compactConsolidated || detail?.disposition === "consolidated" ? "consolidated-into-chapter" : state.ready ? "quality-gate-not-passed" : state.reason,
     reviewedAt: Number(detail?.reviewed_at ?? PHASE4_GATE_MANIFEST.reviewedAt),
     questionType: detail?.question_type ?? null,
     renderedUniqueWords: Number(detail?.rendered_unique_words ?? 0),
@@ -99821,8 +99833,8 @@ async function phase4QuestionGate(environment, route, pathname) {
     depthPass: detail ? Number(detail.depth_pass) === 1 : false,
     similarity: Number(detail?.max_similarity ?? 0),
     similarityPass: detail ? Number(detail.similarity_pass) === 1 : false,
-    disposition: detail?.disposition ?? "queued",
-    remediation: detail?.remediation ?? "staged_noindex",
+    disposition: detail?.disposition ?? (compactConsolidated ? "consolidated" : "queued"),
+    remediation: detail?.remediation ?? (compactConsolidated ? "inline_parent_chapter" : "staged_noindex"),
     enrichmentContent,
     catalogLastmod
   }

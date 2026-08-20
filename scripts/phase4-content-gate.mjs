@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { gunzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -370,10 +370,31 @@ const depthPassedCount = records.filter((record) => record.depthPass).length;
 const similarityPassedCount = records.filter((record) => record.similarityPass).length;
 const qualityPassedCount = records.filter((record) => record.qualityPassed).length;
 const gatePassedCount = records.filter((record) => record.gatePassed).length;
+// Published rows must exist for runtime lookup. Exceptional queued rows are
+// also retained; absence compactly represents the normal consolidated case.
+const persistedRecords = records.filter((record) => record.gatePassed || record.disposition === "queued");
+const passedEnrichments = d1OutputDir || applyPath ? enrichment.prepare(`SELECT
+  book_id,chapter_slug,question_id,output_json,combined_genuine_words,confidence,
+  factual_pass,quality_pass,completed_at
+  FROM enrichment_jobs WHERE status='passed' ORDER BY row_id`).all() : [];
+const runtimeEnrichmentGzip = (row) => {
+  const output = JSON.parse(row.output_json);
+  const runtimeContent = {
+    concept_explanation: output.concept_explanation || "",
+    reasoning_steps: output.reasoning_steps || [],
+    choice_explanations: output.choice_explanations || [],
+    common_mistake: output.common_mistake || "",
+    exam_tip: output.exam_tip || "",
+  };
+  return gzipSync(Buffer.from(JSON.stringify(runtimeContent)), { level: 9 });
+};
 
 if (d1OutputDir) {
   const sqlLiteral = (value) => {
     if (value == null) return "NULL";
+    if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+      return `X'${Buffer.from(value).toString("hex")}'`;
+    }
     if (typeof value === "number") {
       if (!Number.isFinite(value)) throw new Error(`Cannot export non-finite SQL number: ${value}`);
       return String(value);
@@ -382,17 +403,17 @@ if (d1OutputDir) {
   };
   const gateColumns = [
     "book_id", "chapter_slug", "question_id", "question_type", "rendered_unique_words",
-    "genuine_unique_words", "depth_pass", "max_similarity", "nearest_question_key",
+    "genuine_unique_words", "depth_pass", "max_similarity",
     "similarity_pass", "policy_exclusion", "enrichment_required", "gate_passed", "disposition",
-    "remediation", "content_hash", "reviewed_at", "policy_version",
+    "remediation", "reviewed_at", "policy_version",
   ];
   const gateValues = (record) => [
     record.bookId, record.chapterSlug, record.questionId, record.type,
     record.renderedUniqueWords, record.genuineUniqueWords, record.depthPass ? 1 : 0,
-    Number(record.maxSimilarity.toFixed(6)), record.nearestQuestionKey,
+    Number(record.maxSimilarity.toFixed(6)),
     record.similarityPass ? 1 : 0, record.policyExclusion ? 1 : 0,
     record.enrichmentRequired ? 1 : 0, record.gatePassed ? 1 : 0,
-    record.disposition, record.remediation, record.contentHash, reviewedAt, POLICY_VERSION,
+    record.disposition, record.remediation, reviewedAt, POLICY_VERSION,
   ].map(sqlLiteral).join(",");
   const statementsForRows = (rows, valueMapper, table, columns, statementSize = 200) => {
     const statements = [];
@@ -433,25 +454,24 @@ if (d1OutputDir) {
   mkdirSync(d1OutputDir, { recursive: true });
   const enrichmentMigration = readFileSync(resolve(root, "migrations/0004_question_enrichments.sql"), "utf8");
   const gateMigration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
-  writeFileSync(resolve(d1OutputDir, "000-schema.sql"), `${enrichmentMigration}\nDELETE FROM question_enrichments;\n${gateMigration}\n`);
+  const initialGateState = `INSERT INTO content_publish_gate_state (
+    gate_name,policy_version,depth_floor,similarity_threshold,similarity_metric,fail_open,gate_ready,
+    evaluated_at,corpus_count,depth_passed_count,similarity_passed_count,gate_passed_count
+  ) VALUES ('question-publish',${sqlLiteral(POLICY_VERSION)},${DEPTH_FLOOR},${SIMILARITY_THRESHOLD},${sqlLiteral(SIMILARITY_METRIC)},0,0,${reviewedAt},${records.length},${depthPassedCount},${similarityPassedCount},${gatePassedCount});`;
+  writeFileSync(resolve(d1OutputDir, "000-schema.sql"), `${enrichmentMigration}\n${gateMigration}\n${initialGateState}\n`);
 
   const gateFileCount = writeSqlShards(
-    "100-gate", records, gateValues, "content_publish_gate", gateColumns, 100,
+    "100-gate", persistedRecords, gateValues, "content_publish_gate", gateColumns, 100,
   );
 
-  const passedEnrichments = enrichment.prepare(`SELECT book_id,chapter_slug,question_id,question_hash,source_hash,
-    model,verifier_model,decision,output_json,verification_json,enrichment_text,combined_genuine_words,
-    confidence,factual_pass,quality_pass,completed_at FROM enrichment_jobs WHERE status='passed' ORDER BY row_id`).all();
   const enrichmentColumns = [
-    "book_id", "chapter_slug", "question_id", "question_hash", "source_hash", "model",
-    "verifier_model", "decision", "content_json", "verification_json", "rendered_text",
-    "genuine_unique_words", "confidence", "factual_pass", "quality_pass", "generated_at", "reviewed_at",
+    "book_id", "chapter_slug", "question_id", "content_gzip", "genuine_unique_words",
+    "confidence", "factual_pass", "quality_pass", "reviewed_at",
   ];
   const enrichmentValues = (row) => [
-    row.book_id, row.chapter_slug, row.question_id, row.question_hash, row.source_hash, row.model,
-    row.verifier_model, row.decision, row.output_json, row.verification_json, row.enrichment_text,
-    Number(row.combined_genuine_words || 0), Number(row.confidence || 0), Number(row.factual_pass || 0),
-    Number(row.quality_pass || 0), Number(row.completed_at || 0), Number(row.completed_at || 0),
+    row.book_id, row.chapter_slug, row.question_id, runtimeEnrichmentGzip(row),
+    Number(row.combined_genuine_words || 0), Number(row.confidence || 0),
+    Number(row.factual_pass || 0), Number(row.quality_pass || 0), Number(row.completed_at || 0),
   ].map(sqlLiteral).join(",");
   let enrichmentFileCount = 0;
   if (passedEnrichments.length) {
@@ -465,15 +485,22 @@ if (d1OutputDir) {
     writeFileSync(resolve(d1OutputDir, "900-enrichment-001.sql"), "-- No generated standalone enrichments have passed yet.\n");
     enrichmentFileCount = 1;
   }
-  writeFileSync(resolve(d1OutputDir, "999-gate-ready.sql"), `INSERT INTO content_publish_gate_state (
-    gate_name,policy_version,depth_floor,similarity_threshold,similarity_metric,fail_open,gate_ready,
-    evaluated_at,corpus_count,depth_passed_count,similarity_passed_count,gate_passed_count
-  ) VALUES ('question-publish',${sqlLiteral(POLICY_VERSION)},${DEPTH_FLOOR},${SIMILARITY_THRESHOLD},${sqlLiteral(SIMILARITY_METRIC)},0,1,${reviewedAt},${records.length},${depthPassedCount},${similarityPassedCount},${gatePassedCount});\n`);
+  writeFileSync(resolve(d1OutputDir, "999-gate-ready.sql"), `UPDATE content_publish_gate_state SET gate_ready=1
+  WHERE gate_name='question-publish'
+    AND (SELECT COUNT(*) FROM content_publish_gate)=${persistedRecords.length}
+    AND (SELECT COUNT(*) FROM question_enrichments)=${passedEnrichments.length}
+    AND NOT EXISTS (
+      SELECT 1 FROM content_publish_gate g LEFT JOIN question_enrichments e
+        ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
+      WHERE g.enrichment_required=1
+        AND (e.content_gzip IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1)
+    );\n`);
   writeFileSync(resolve(d1OutputDir, "manifest.json"), `${JSON.stringify({
     policyVersion: POLICY_VERSION,
     reviewedAt,
     corpusCount: records.length,
     gatePassedCount,
+    persistedGateRowCount: persistedRecords.length,
     generatedEnrichmentCount: passedEnrichments.length,
     gateFileCount,
     enrichmentFileCount,
@@ -523,19 +550,24 @@ if (manifestPath) {
 
 if (applyPath) {
   const target = new DatabaseSync(applyPath);
-  const migration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
-  target.exec(migration);
+  const enrichmentMigration = readFileSync(resolve(root, "migrations/0004_question_enrichments.sql"), "utf8");
+  const gateMigration = readFileSync(resolve(root, "migrations/0005_phase4_grounded_publish_gate.sql"), "utf8");
+  target.exec(`${enrichmentMigration}\n${gateMigration}`);
   const targetCount = Number(target.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
   if (targetCount !== records.length) throw new Error(`Apply target has ${targetCount} questions; expected ${records.length}`);
   const insert = target.prepare(`INSERT INTO content_publish_gate (
     book_id, chapter_slug, question_id, question_type, rendered_unique_words,
-    genuine_unique_words, depth_pass, max_similarity, nearest_question_key,
+    genuine_unique_words, depth_pass, max_similarity,
     similarity_pass, policy_exclusion, enrichment_required, gate_passed, disposition, remediation,
-    content_hash, reviewed_at, policy_version
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    reviewed_at, policy_version
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insertEnrichment = target.prepare(`INSERT INTO question_enrichments (
+    book_id,chapter_slug,question_id,content_gzip,genuine_unique_words,confidence,
+    factual_pass,quality_pass,reviewed_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   target.exec("BEGIN IMMEDIATE; DELETE FROM content_publish_gate_state; DELETE FROM content_publish_gate;");
   try {
-    for (const record of records) {
+    for (const record of persistedRecords) {
       insert.run(
         record.bookId,
         record.chapterSlug,
@@ -545,16 +577,21 @@ if (applyPath) {
         record.genuineUniqueWords,
         record.depthPass ? 1 : 0,
         Number(record.maxSimilarity.toFixed(6)),
-        record.nearestQuestionKey,
         record.similarityPass ? 1 : 0,
         record.policyExclusion ? 1 : 0,
         record.enrichmentRequired ? 1 : 0,
         record.gatePassed ? 1 : 0,
         record.disposition,
         record.remediation,
-        record.contentHash,
         reviewedAt,
         POLICY_VERSION,
+      );
+    }
+    for (const row of passedEnrichments) {
+      insertEnrichment.run(
+        row.book_id, row.chapter_slug, row.question_id, runtimeEnrichmentGzip(row),
+        Number(row.combined_genuine_words || 0), Number(row.confidence || 0),
+        Number(row.factual_pass || 0), Number(row.quality_pass || 0), Number(row.completed_at || 0),
       );
     }
     target.prepare(`INSERT INTO content_publish_gate_state (
@@ -571,8 +608,17 @@ if (applyPath) {
   const applied = target.prepare(`SELECT
     (SELECT COUNT(*) FROM content_publish_gate) AS gated_count,
     (SELECT COUNT(*) FROM content_publish_gate WHERE gate_passed = 1) AS passed_count,
+    (SELECT COUNT(*) FROM question_enrichments) AS enrichment_count,
+    (SELECT COUNT(*) FROM content_publish_gate g LEFT JOIN question_enrichments e
+      ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
+      WHERE g.enrichment_required=1
+        AND (e.content_gzip IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1)) AS invalid_enrichments,
     (SELECT gate_ready FROM content_publish_gate_state WHERE gate_name = 'question-publish') AS gate_ready`).get();
-  if (Number(applied.gated_count) !== records.length || Number(applied.passed_count) !== gatePassedCount || Number(applied.gate_ready) !== 1) {
+  if (Number(applied.gated_count) !== persistedRecords.length
+    || Number(applied.passed_count) !== gatePassedCount
+    || Number(applied.enrichment_count) !== passedEnrichments.length
+    || Number(applied.invalid_enrichments) !== 0
+    || Number(applied.gate_ready) !== 1) {
     throw new Error(`Applied gate verification failed: ${JSON.stringify(applied)}`);
   }
   target.close();

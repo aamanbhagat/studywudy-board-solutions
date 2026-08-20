@@ -1,6 +1,8 @@
 -- The v2 gate used different disposition names and cannot accept the v3
 -- fail-closed outcomes. Gate rows are fully reproducible from the catalog and
 -- enrichment ledger, so replace the derived table before importing v3 rows.
+-- Only passed rows are persisted: absence is the compact, fail-closed noindex
+-- representation for every consolidated or queued question.
 DROP TABLE IF EXISTS content_publish_gate;
 DROP TABLE IF EXISTS content_publish_gate_state;
 
@@ -13,27 +15,16 @@ CREATE TABLE content_publish_gate (
   genuine_unique_words INTEGER NOT NULL CHECK (genuine_unique_words >= 0),
   depth_pass INTEGER NOT NULL CHECK (depth_pass IN (0, 1)),
   max_similarity REAL NOT NULL DEFAULT 0 CHECK (max_similarity >= 0 AND max_similarity <= 1),
-  nearest_question_key TEXT,
   similarity_pass INTEGER NOT NULL CHECK (similarity_pass IN (0, 1)),
   policy_exclusion INTEGER NOT NULL DEFAULT 0 CHECK (policy_exclusion IN (0, 1)),
   enrichment_required INTEGER NOT NULL DEFAULT 0 CHECK (enrichment_required IN (0, 1)),
   gate_passed INTEGER NOT NULL CHECK (gate_passed IN (0, 1)),
   disposition TEXT NOT NULL CHECK (disposition IN ('published', 'consolidated', 'queued')),
   remediation TEXT NOT NULL CHECK (remediation IN ('standalone_indexable', 'inline_parent_chapter', 'staged_noindex')),
-  content_hash TEXT NOT NULL,
   reviewed_at INTEGER NOT NULL,
   policy_version TEXT NOT NULL,
   PRIMARY KEY (book_id, chapter_slug, question_id)
 ) STRICT;
-
-CREATE INDEX content_publish_gate_passed_idx
-  ON content_publish_gate (gate_passed, book_id, chapter_slug, question_id);
-
-CREATE INDEX content_publish_gate_chapter_idx
-  ON content_publish_gate (book_id, chapter_slug, reviewed_at);
-
-CREATE INDEX content_publish_gate_format_idx
-  ON content_publish_gate (question_type, gate_passed);
 
 CREATE TABLE content_publish_gate_state (
   gate_name TEXT PRIMARY KEY,

@@ -41,10 +41,11 @@ for (let index = 0; index < sqlFiles.length; index += 1) {
 const verificationSql = `SELECT s.policy_version,s.fail_open,s.gate_ready,s.corpus_count,s.gate_passed_count,
   (SELECT COUNT(*) FROM content_publish_gate) AS persisted_count,
   (SELECT COUNT(*) FROM content_publish_gate WHERE gate_passed=1) AS persisted_passed,
+  (SELECT COUNT(*) FROM question_enrichments) AS enrichment_count,
   (SELECT COUNT(*) FROM content_publish_gate g LEFT JOIN question_enrichments e
     ON e.book_id=g.book_id AND e.chapter_slug=g.chapter_slug AND e.question_id=g.question_id
     WHERE g.enrichment_required=1 AND g.gate_passed=1
-      AND (e.quality_pass IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1 OR e.decision<>'standalone')) AS invalid_enrichments
+      AND (e.content_gzip IS NULL OR e.quality_pass<>1 OR e.factual_pass<>1)) AS invalid_enrichments
   FROM content_publish_gate_state s WHERE s.gate_name='question-publish';`;
 const verify = spawnSync(wrangler, [...base, "--command", verificationSql, "--json"], {
   cwd: root,
@@ -54,5 +55,19 @@ if (verify.status !== 0) {
   process.stderr.write(verify.stderr || verify.stdout || "D1 verification failed\n");
   process.exit(verify.status || 1);
 }
+const verificationPayload = JSON.parse(verify.stdout);
+const verification = verificationPayload?.[0]?.results?.[0];
+const verificationErrors = [];
+if (verification?.policy_version !== manifest.policyVersion) verificationErrors.push("policy version mismatch");
+if (Number(verification?.fail_open) !== 0) verificationErrors.push("gate is not fail-closed");
+if (Number(verification?.gate_ready) !== 1) verificationErrors.push("gate did not activate");
+if (Number(verification?.corpus_count) !== Number(manifest.corpusCount)) verificationErrors.push("corpus count mismatch");
+if (Number(verification?.gate_passed_count) !== Number(manifest.gatePassedCount)) verificationErrors.push("declared pass count mismatch");
+if (Number(verification?.persisted_count) !== Number(manifest.persistedGateRowCount)) verificationErrors.push("persisted compact gate count mismatch");
+if (Number(verification?.persisted_passed) !== Number(manifest.gatePassedCount)) verificationErrors.push("persisted pass count mismatch");
+if (Number(verification?.enrichment_count) !== Number(manifest.generatedEnrichmentCount)) verificationErrors.push("enrichment count mismatch");
+if (Number(verification?.invalid_enrichments) !== 0) verificationErrors.push("missing or invalid enrichment rows");
+if (verificationErrors.length) {
+  throw new Error(`D1 verification failed: ${verificationErrors.join("; ")} (${JSON.stringify(verification)})`);
+}
 process.stdout.write(verify.stdout);
-

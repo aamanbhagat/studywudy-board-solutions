@@ -6941,7 +6941,7 @@
     {
       "path": "phase4-publish-manifest.mjs",
       "bytes": 510,
-      "sha256": "64a86daaea311b5ca73aa2f15e4cd8d490830f8cf37c41c63b7eefb5049680d3"
+      "sha256": "a83afa39bc058a4ecdd2d1a5bb5f97a64a69e6011d6a46019c9652f4cc23453d"
     },
     {
       "path": "phase5-compliance.mjs",
@@ -6975,8 +6975,8 @@
     },
     {
       "path": "worker.js",
-      "bytes": 6749220,
-      "sha256": "9e47e4ea4c06c4efec4b63965f6cd60cd109d3774e27864bbf821797205dbd56"
+      "bytes": 6749922,
+      "sha256": "7c6c841364da26eb7653eeaf09bd4a51d5e047ebc1e76db8b6eaf460582425d4"
     },
     {
       "path": "wrangler.production.jsonc",
@@ -6984,5 +6984,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "9aa858c799ded09484c5a37300e72e2ada30950194d07e8403da3bdb073321f6"
+  "aggregateSha256": "104ce4c0ed2f59e904a89e665542dd5fd43b28081b005937a40613c12786bd2e"
 }
