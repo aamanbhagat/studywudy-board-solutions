@@ -102,7 +102,14 @@ async function main() {
   run("building-release", "pnpm", ["build:phase4-d1-sync"]);
   run("writing-release-manifest", "pnpm", ["release:manifest"]);
   run("checking-release", "pnpm", ["check:release"]);
-  run("staging-release", "git", ["add", "-u"]);
+  // Include newly-created sitemap shards as well as modifications and removals;
+  // `git add -u` silently omitted new shards when corpus membership expanded.
+  run("staging-release", "git", ["add", "-A", "--",
+    "comparison/after-assets/sitemap.xml",
+    "comparison/after-assets/sitemaps",
+    "phase4-publish-manifest.mjs",
+    "release/production-manifest.json",
+  ]);
   const staged = spawnSync("git", ["diff", "--cached", "--quiet"], { cwd: ROOT });
   if (staged.status !== 0) {
     run("committing-release", "git", ["commit", "-m", `release: publish completed content remediation (${indexable} standalone)`]);
