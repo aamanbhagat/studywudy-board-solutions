@@ -6941,7 +6941,7 @@
     {
       "path": "phase4-publish-manifest.mjs",
       "bytes": 510,
-      "sha256": "f30b9e5289ee49c5a7435aba09d6c3594de229f6058ccfe2cc9f1245510d8b16"
+      "sha256": "64a86daaea311b5ca73aa2f15e4cd8d490830f8cf37c41c63b7eefb5049680d3"
     },
     {
       "path": "phase5-compliance.mjs",
@@ -6984,5 +6984,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "d4d771c45aff14ae42bd8fdebe9113dacfc572df0dcb68c5991461786a06cf2c"
+  "aggregateSha256": "9aa858c799ded09484c5a37300e72e2ada30950194d07e8403da3bdb073321f6"
 }

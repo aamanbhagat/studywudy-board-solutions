@@ -32,6 +32,7 @@ const SIMILARITY_THRESHOLD = 0.85;
 // Wrangler/D1 rejects SQL uploads near 2 MB even when each individual INSERT
 // is smaller. Keep generated import shards comfortably below that boundary.
 const MAX_D1_SQL_FILE_BYTES = 1_750_000;
+const MAX_D1_SQL_STATEMENT_BYTES = 90_000;
 const SIMILARITY_SHINGLE_SIZE = 5;
 const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer-body shingles";
 const STANDALONE_REMEDIATION = "standalone_indexable";
@@ -417,7 +418,7 @@ if (d1OutputDir) {
         rows.slice(offset, offset + statementSize), valueMapper, table, columns, statementSize,
       );
       const statementBytes = Buffer.byteLength(`${statement}\n`);
-      if (statementBytes > MAX_D1_SQL_FILE_BYTES) {
+      if (statementBytes > MAX_D1_SQL_STATEMENT_BYTES) {
         throw new Error(`${prefix} generated a ${statementBytes}-byte statement; reduce its statement size`);
       }
       if (currentBytes && currentBytes + statementBytes > MAX_D1_SQL_FILE_BYTES) flush();
@@ -435,7 +436,7 @@ if (d1OutputDir) {
   writeFileSync(resolve(d1OutputDir, "000-schema.sql"), `${enrichmentMigration}\nDELETE FROM question_enrichments;\n${gateMigration}\n`);
 
   const gateFileCount = writeSqlShards(
-    "100-gate", records, gateValues, "content_publish_gate", gateColumns, 200,
+    "100-gate", records, gateValues, "content_publish_gate", gateColumns, 100,
   );
 
   const passedEnrichments = enrichment.prepare(`SELECT book_id,chapter_slug,question_id,question_hash,source_hash,
@@ -477,6 +478,7 @@ if (d1OutputDir) {
     gateFileCount,
     enrichmentFileCount,
     maxSqlFileBytes: MAX_D1_SQL_FILE_BYTES,
+    maxSqlStatementBytes: MAX_D1_SQL_STATEMENT_BYTES,
     applyOrder: "lexicographic SQL filename order; gate_ready is written last",
   }, null, 2)}\n`);
 }
