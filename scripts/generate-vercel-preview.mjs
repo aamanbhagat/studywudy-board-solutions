@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
@@ -17,7 +17,11 @@ const sourceOrigin = new URL(
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const previewRoot = resolve(repositoryRoot, "vercel-preview");
 const snapshotRoot = resolve(previewRoot, "snapshots");
+const previewAssetRoot = resolve(previewRoot, "assets");
+const localR2Root = resolve(repositoryRoot, "../data/r2/objects");
 const branchUrl = `https://github.com/aamanbhagat/studywudy-board-solutions/tree/${PREVIEW_BRANCH}`;
+const referencedBoardlyMedia = new Set();
+const referencedCatalogArtwork = new Set();
 
 const htmlEscape = (value) => String(value)
   .replaceAll("&", "&amp;")
@@ -56,7 +60,23 @@ function makePreviewSafe(html) {
   const googlebot = '<meta name="googlebot" content="noindex, nofollow, noarchive">';
   let transformed = html
     .replace(/<meta\b[^>]*\bname=(?:"robots"|'robots')[^>]*>/giu, robots)
-    .replace(/<meta\b[^>]*\bname=(?:"googlebot"|'googlebot')[^>]*>/giu, googlebot);
+    .replace(/<meta\b[^>]*\bname=(?:"googlebot"|'googlebot')[^>]*>/giu, googlebot)
+    .replace(/<script\b(?=[^>]*\bsrc=(?:"\/monitoring\/[^"]*"|'\/monitoring\/[^']*'))[^>]*>\s*<\/script>/giu, "")
+    .replaceAll("/icon-192.png", "/preview-assets/studywudy-preview.svg")
+    .replaceAll("/icon-512.png", "/preview-assets/studywudy-preview.svg")
+    .replaceAll("/apple-touch-icon.png", "/preview-assets/studywudy-preview.svg")
+    .replace(
+      /\/catalog-artwork\/subjects\/(?:heroes-96x96|cards-128x128)\/([a-z0-9-]+)\.webp/giu,
+      (_match, slug) => {
+        referencedCatalogArtwork.add(slug);
+        return `/preview-assets/catalog/${slug}.svg`;
+      },
+    );
+
+  for (const match of transformed.matchAll(/\/boardly-media\/[^"'()\s<>]+/giu)) {
+    const mediaPath = new URL(match[0], "https://preview.invalid").pathname;
+    referencedBoardlyMedia.add(mediaPath);
+  }
 
   if (!/name=(?:"robots"|'robots')/iu.test(transformed)) {
     transformed = transformed.replace(/<\/head>/iu, `${robots}${googlebot}</head>`);
@@ -64,6 +84,48 @@ function makePreviewSafe(html) {
   transformed = transformed.replace(/<\/head>/iu, `${previewHeadMarkup()}</head>`);
   transformed = transformed.replace(/(<body\b[^>]*>)/iu, `$1${previewBodyMarkup()}`);
   return transformed;
+}
+
+function catalogArtworkSvg(slug) {
+  const label = slug
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+  const initials = label
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 3);
+  const hue = Number.parseInt(createHash("sha256").update(slug).digest("hex").slice(0, 4), 16) % 90 + 155;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc"><title id="title">${htmlEscape(label)}</title><desc id="desc">StudyWudy ${htmlEscape(label)} subject artwork</desc><defs><linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue} 52% 94%)"/><stop offset="1" stop-color="hsl(${hue} 44% 82%)"/></linearGradient><pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M16 0H0v16" fill="none" stroke="hsl(${hue} 32% 55% / .22)"/></pattern></defs><rect width="128" height="128" rx="24" fill="url(#paper)"/><rect width="128" height="128" rx="24" fill="url(#grid)"/><path d="M26 33h76v69H26z" fill="#fffdf8" stroke="hsl(${hue} 42% 34%)" stroke-width="3"/><path d="M38 48h52M38 60h38M38 84h52M38 94h38" stroke="hsl(${hue} 38% 50%)" stroke-width="3" stroke-linecap="round"/><circle cx="84" cy="67" r="14" fill="hsl(${hue} 62% 38%)"/><text x="84" y="72" fill="white" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="800" text-anchor="middle">${htmlEscape(initials)}</text></svg>`;
+}
+
+function previewMarkSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc"><title id="title">StudyWudy preview</title><desc id="desc">An open study book with a verification check</desc><rect width="128" height="128" rx="26" fill="#17211d"/><path d="M22 34c17-5 31-1 42 8v58c-11-9-25-13-42-8V34Zm84 0c-17-5-31-1-42 8v58c11-9 25-13 42-8V34Z" fill="#f8f4e9" stroke="#bfe8d0" stroke-width="4" stroke-linejoin="round"/><path d="m76 67 8 8 18-22" fill="none" stroke="#1a8054" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+async function writePreviewAssets() {
+  await rm(previewAssetRoot, { recursive: true, force: true });
+  await mkdir(resolve(previewAssetRoot, "preview-assets/catalog"), { recursive: true });
+  await writeFile(
+    resolve(previewAssetRoot, "preview-assets/studywudy-preview.svg"),
+    previewMarkSvg(),
+  );
+
+  for (const slug of [...referencedCatalogArtwork].sort()) {
+    await writeFile(
+      resolve(previewAssetRoot, `preview-assets/catalog/${slug}.svg`),
+      catalogArtworkSvg(slug),
+    );
+  }
+
+  for (const mediaPath of [...referencedBoardlyMedia].sort()) {
+    const source = resolve(localR2Root, `.${mediaPath.slice("/boardly-media".length)}`);
+    const destination = resolve(previewAssetRoot, `.${mediaPath}`);
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(source, destination);
+  }
 }
 
 async function fetchHtml(route) {
@@ -128,6 +190,8 @@ async function main() {
   }
   process.stdout.write("\n");
 
+  await writePreviewAssets();
+
   const manifest = {
     format: "studywudy-static-vercel-preview-v1",
     branch: PREVIEW_BRANCH,
@@ -135,6 +199,7 @@ async function main() {
     cloudflareProductionBindingsUsed: false,
     robotsPolicy: "noindex, nofollow, noarchive",
     routeCount: records.length,
+    assetCount: referencedBoardlyMedia.size + referencedCatalogArtwork.size + 1,
     routes: records,
   };
   await writeFile(resolve(previewRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

@@ -7,6 +7,7 @@ const repositoryRoot = resolve(import.meta.dirname, "..");
 const assetsRoot = resolve(repositoryRoot, "comparison/after-assets");
 const previewRoot = resolve(repositoryRoot, "vercel-preview");
 const snapshotsRoot = resolve(previewRoot, "snapshots");
+const previewAssetsRoot = resolve(previewRoot, "assets");
 const outputRoot = resolve(repositoryRoot, "vercel-dist");
 
 const excludedAssetRoots = new Set(["monitoring", "pages", "sitemaps"]);
@@ -47,6 +48,7 @@ async function main() {
   await rm(outputRoot, { recursive: true, force: true });
   await mkdir(outputRoot, { recursive: true });
   await cp(assetsRoot, outputRoot, { recursive: true, filter: copyAsset });
+  await cp(previewAssetsRoot, outputRoot, { recursive: true });
 
   const snapshotFiles = (await walk(snapshotsRoot)).filter((path) => path.endsWith(".html.gz"));
   for (const snapshotFile of snapshotFiles) {
