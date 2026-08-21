@@ -6,6 +6,7 @@ import {
   evaluateQuestionFormulaAccessibility,
   extractFormulaSources,
   formulaRepresentations,
+  repairCrawlerFormulaSource,
   renderSemanticMath,
   validateFormulaRepresentations,
 } from "../semantic-math.mjs";
@@ -30,6 +31,15 @@ test("canonical formula representations preserve fractions, exponents and subscr
   const reaction = formulaRepresentations("2PbO(s) + C(s) -&gt; 2Pb(s) + CO_2(g)");
   assert.equal(reaction.plainText, "2PbO(s) + C(s) → 2Pb(s) + CO₂(g)");
   assert.doesNotMatch(reaction.mathml, /&amp;(?:amp;)?gt;/u);
+
+  const dipole = formulaRepresentations("V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0");
+  assert.equal(dipole.plainText, "V₍equatorial₎ = (1/4πε₀)(p cos 90°/r²) = 0");
+});
+
+test("repairs the verified dipole formula lost by the imported crawler label", () => {
+  const repaired = repairCrawlerFormulaSource("V_equatorial = \\frac{1}{4\\pi _{0}}\\frac{p 90^}{r^{2}} = 0");
+  assert.equal(repaired, "V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0");
+  assert.equal(formulaRepresentations(repaired).plainText, "V₍equatorial₎ = (1/4πε₀)(p cos 90°/r²) = 0");
 });
 
 test("the consistency gate rejects each crawler-visible corruption class", () => {

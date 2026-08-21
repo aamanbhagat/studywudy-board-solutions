@@ -118,6 +118,15 @@ test("optional study panels render only from question-specific source fields", (
   assert.match(enriched.solutionSupplement, /Isolation fixes Q/);
 });
 
+test("a formula-only principle renders semantic math instead of visible TeX delimiters", () => {
+  const payload = fixturePayload();
+  payload.chapters[0].exercises[0].questions[0].formulaUsed = "$$V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0$$";
+  const markup = renderQuestionPageExperience(modelFor(payload));
+  assert.match(markup.solutionSupplement, /data-math-source=/u);
+  assert.match(markup.solutionSupplement, /data-math-plain="V₍equatorial₎ = \(1\/4πε₀\)\(p cos 90°\/r²\) = 0"/u);
+  assert.doesNotMatch(markup.solutionSupplement, />\$\$/u);
+});
+
 test("missing edition metadata is disclosed instead of inventing verification", () => {
   const model = modelFor(fixturePayload({ edition: null }));
   const markup = renderQuestionPageExperience(model);

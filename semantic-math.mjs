@@ -67,6 +67,26 @@ function stripDelimiters(value) {
   return source.trim();
 }
 
+function superscriptNumber(value) {
+  const characters = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  return [...String(value || "")].map((character) => characters[character] || character).join("");
+}
+
+export function repairCrawlerFormulaSource(value) {
+  const normalized = String(value || "")
+    .replaceAll("\u00a0", " ")
+    .replace(/\(\s*₀\s+(?=A\b)/gu, "(ε₀ ")
+    .replace(/\b(\d)\s+(\d)\s*[−-]\s*(\d+)\b/gu, (_, first, second, exponent) => `${first}${second}⁻${superscriptNumber(exponent)}`)
+    .replace(/\b([A-Za-z])\s+([₀₁₂₃₄₅₆₇₈₉])\b/gu, "$1$2")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  if (/^V_equatorial\s*=\s*\\frac\{1\}\{4\\pi\s+_\{0\}\}\\frac\{p\s+90\^\}\{r\^\{2\}\}\s*=\s*0$/u.test(normalized)) {
+    return "V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0";
+  }
+  return normalized;
+}
+
 function unicodeScriptsToTex(value) {
   return String(value)
     .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾ⁿⁱ]+/gu, (script) => `^{${[...script].map((character) => SUPERSCRIPT_TO_ASCII[character] || character).join("")}}`)
@@ -272,6 +292,7 @@ function plainFromNode(value) {
       if (child.type === "operator" && !["(", ")", "[", "]", "|", "°"].includes(child.value)) appendPlain(parts, plainFromNode(child), "operator");
       else if (child.type === "separator") appendPlain(parts, plainFromNode(child), "separator");
       else if (child.type === "roman") appendPlain(parts, plainFromNode(child), "unit");
+      else if (child.type === "function") parts.push(`${parts.length ? " " : ""}${plainFromNode(child)} `);
       else appendPlain(parts, plainFromNode(child));
     }
     return parts.join("").replace(/\s+/gu, " ").replace(/\s+([,;:)\]])/gu, "$1").replace(/([(\[])[ ]+/gu, "$1").trim();
@@ -297,6 +318,8 @@ function plainFromNode(value) {
     return `${plainFromNode(value.base)}${script || `₍${plainFromNode(value.subscript)}₎`}`;
   }
   if (value.type === "superscript") {
+    const plainScript = plainFromNode(value.superscript);
+    if (plainScript === "°") return `${plainFromNode(value.base)}°`;
     const script = compactScript(value.superscript, ASCII_TO_SUPERSCRIPT);
     return `${plainFromNode(value.base)}${script || `^(${plainFromNode(value.superscript)})`}`;
   }
@@ -351,6 +374,7 @@ function spokenFromNode(value) {
   if (value.type === "subscript") return `${spokenFromNode(value.base)} sub ${spokenFromNode(value.subscript)}`;
   if (value.type === "superscript") {
     const exponent = plainFromNode(value.superscript).replaceAll("−", "-");
+    if (exponent === "°") return `${spokenFromNode(value.base)} degrees`;
     if (exponent === "2") return `${spokenFromNode(value.base)} squared`;
     if (exponent === "3") return `${spokenFromNode(value.base)} cubed`;
     const exponentSpoken = exponent.startsWith("-")

@@ -57,6 +57,7 @@ import {
 } from "../breadcrumbs.mjs";
 import {
   formulaRepresentations,
+  repairCrawlerFormulaSource,
   renderSemanticMath,
   SEMANTIC_MATH_STYLES,
 } from "../semantic-math.mjs";
@@ -1381,21 +1382,6 @@ function withoutConditionalHtmlValidators(request) {
   return new Request(request, { headers });
 }
 
-function superscriptNumber(value) {
-  const characters = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
-  return [...String(value || "")].map((character) => characters[character] || character).join("");
-}
-
-function repairCrawlerMathLabel(value) {
-  return String(value || "")
-    .replaceAll("\u00a0", " ")
-    .replace(/\(\s*₀\s+(?=A\b)/gu, "(ε₀ ")
-    .replace(/\b(\d)\s+(\d)\s*[−-]\s*(\d+)\b/gu, (_, first, second, exponent) => `${first}${second}⁻${superscriptNumber(exponent)}`)
-    .replace(/\b([A-Za-z])\s+([₀₁₂₃₄₅₆₇₈₉])\b/gu, "$1$2")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
 function semanticMathResponse(response, requestMethod) {
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/html")) return response;
@@ -1420,7 +1406,7 @@ function semanticMathResponse(response, requestMethod) {
     .on(".math[aria-label]", {
       element(element) {
         if (element.hasAttribute("data-math-source")) return;
-        const source = repairCrawlerMathLabel(element.getAttribute("aria-label"));
+        const source = repairCrawlerFormulaSource(element.getAttribute("aria-label"));
         if (!source) return;
         const representation = formulaRepresentations(source);
         element.setAttribute("data-math-source", representation.source);

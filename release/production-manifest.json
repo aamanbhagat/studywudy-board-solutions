@@ -6930,8 +6930,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 89614,
-      "sha256": "7f4b19339468f14b69264a4a5c26b0edb17c56a860de8e721124aa89bb7f4a4f"
+      "bytes": 88961,
+      "sha256": "03fdc274e335901966e66a8d716d86b1292dfe52409bf25b04aeedbefa32ccf7"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -7000,8 +7000,8 @@
     },
     {
       "path": "question-page-experience.mjs",
-      "bytes": 33022,
-      "sha256": "f171093c814792b3cbcee1524d23d94f68cd15740d39fcf033bbfdd74b923e13"
+      "bytes": 33563,
+      "sha256": "b56d38a1793c09ba1f71fabd7154b9a8b298a40457c08a20d975ebddb915a7f5"
     },
     {
       "path": "question-routes.mjs",
@@ -7025,8 +7025,8 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 26247,
-      "sha256": "f299babb76da89bf4464645cc1dcec777dbd80c479db06a64be8d3df1e5b5295"
+      "bytes": 27516,
+      "sha256": "889dbcfc2d4b0b3654ac4df1e7314d0881f583543b9f16912aeb3caf37f94c20"
     },
     {
       "path": "structured-data.mjs",
@@ -7054,5 +7054,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "5df2481ec3a91681d0330fd1ac79f8bc1b8862c3f19fb76cc75655d8f20fd650"
+  "aggregateSha256": "47b7fe625f23444133cc77b3b167a457b49b813fe5ec93d4b2697040a2761197"
 }
