@@ -23,7 +23,7 @@ for (const { route } of manifest.routes) {
   }
 }
 
-for (const required of ["robots.txt", "404.html", "preview-scope/index.html", "preview-manifest.json"]) {
+for (const required of ["robots.txt", "404.html", "preview-scope/index.html", "preview-manifest.json", "vercel.json"]) {
   try {
     await access(resolve(outputRoot, required));
   } catch {

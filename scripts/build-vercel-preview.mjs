@@ -75,6 +75,19 @@ async function main() {
   await writeFile(resolve(outputRoot, "404.html"), unavailableHtml);
   await writeFile(resolve(outputRoot, "robots.txt"), "User-agent: *\nDisallow: /\n");
   await writeFile(resolve(outputRoot, "preview-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeFile(resolve(outputRoot, "vercel.json"), `${JSON.stringify({
+    cleanUrls: true,
+    trailingSlash: false,
+    headers: [{
+      source: "/(.*)",
+      headers: [
+        { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        { key: "X-StudyWudy-Environment", value: "vercel-static-qa-preview" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      ],
+    }],
+  }, null, 2)}\n`);
 
   const rootIndex = resolve(outputRoot, previewSnapshotRelativePath("/", false));
   const rootStats = await stat(rootIndex);

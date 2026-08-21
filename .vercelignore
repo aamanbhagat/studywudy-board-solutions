@@ -1,0 +1,22 @@
+# Vercel receives only the static QA preview build inputs. The recovered
+# Cloudflare runtime, local persistence, databases, dependencies and audit
+# workspaces must never be uploaded to this preview project.
+.git/
+.github/
+.vercel/
+.wrangler/
+node_modules/
+vercel-dist/
+comparison/after-persistence/
+audits/
+migrations/
+release/
+tests/
+
+/*.js
+/*.mjs
+/*.cjs
+/*.md
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
+/wrangler*.jsonc
