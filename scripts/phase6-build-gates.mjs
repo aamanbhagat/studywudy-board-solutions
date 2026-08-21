@@ -7,7 +7,7 @@ import { PHASE6_CRAWL } from "../phase6-crawl.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const origin = "http://127.0.0.1:8796";
-const assetVersion = "20260819-all-questions-indexable-v7";
+const assetVersion = "20260821-selective-structured-data-v28";
 const environment = { ...process.env, PHASE6_GATE_ORIGIN: origin };
 const browserCandidates = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",

@@ -205,7 +205,7 @@ const sitemapAudit = {
 // Phase 5 adds Privacy, Terms and Contact to the previously verified hierarchy.
 const expectedHierarchyUrls = 12728 + 3;
 const QUESTION_SITEMAP_BLOCK_SIZE = 10_000;
-const expectedQuestionChildren = Math.ceil(PHASE4_GATE_MANIFEST.indexableCount / QUESTION_SITEMAP_BLOCK_SIZE);
+const expectedQuestionChildren = Math.ceil(PHASE4_GATE_MANIFEST.maximumRowId / QUESTION_SITEMAP_BLOCK_SIZE);
 sitemapAudit.pass = indexResponse.ok && childUrls.length === 1 + expectedQuestionChildren && childResults.every((child) => child.pass) && sitemapUrlTotal === expectedHierarchyUrls + PHASE4_GATE_MANIFEST.indexableCount;
 
 const homeHtml = (await fetchText("/")).text;

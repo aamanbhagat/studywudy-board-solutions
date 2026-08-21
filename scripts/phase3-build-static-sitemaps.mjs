@@ -4,16 +4,22 @@ import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { isQuestionRowIndexable } from "../answer-completeness.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { isBookQuarantined } from "../multilingual-text-quality.mjs";
+import { STUDY_CLUSTER_INDEXABLE_PATHS } from "../study-cluster.mjs";
+import { TRUST_POLICY_UPDATED_AT, TRUST_TRANSPARENCY_PATHS } from "../trust-transparency.mjs";
 
 const root = resolve(import.meta.dirname, "..");
-const databasePath = resolve(root, process.argv[2] || "cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3");
+const databasePath = resolve(root, process.argv[2] || "../data/d1/studywudy-content.sqlite3");
 const outputDirectory = resolve(root, process.argv[3] || "comparison/after-assets/sitemaps");
 const origin = "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
 const blockSize = 10_000;
 const contentPublishedAt = "2026-08-15T03:30:10Z";
 const contentPublishedEpoch = Math.floor(Date.parse(contentPublishedAt) / 1_000);
-const methodologyEpoch = Math.floor(Date.parse("2026-08-18T10:30:00Z") / 1_000);
+const methodologyEpoch = Number(PHASE4_GATE_MANIFEST.reviewedAt);
 const policyEpoch = Math.floor(Date.parse("2026-08-18T00:00:00+05:30") / 1_000);
+const trustPolicyEpoch = Math.floor(Date.parse(TRUST_POLICY_UPDATED_AT) / 1_000);
 
 function xmlEscape(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
@@ -53,14 +59,23 @@ mkdirSync(outputDirectory, { recursive: true });
 const database = new DatabaseSync(databasePath, { readOnly: true });
 const count = Number(database.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
 const children = [];
-const report = { generatedAt: new Date().toISOString(), origin, catalogQuestionCount: count, blockSize, children: [] };
+const report = {
+  generatedAt: new Date().toISOString(),
+  origin,
+  policyVersion: PHASE4_GATE_MANIFEST.policyVersion,
+  catalogQuestionCount: count,
+  expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
+  blockSize,
+  children: [],
+};
 
-const hierarchyRows = database.prepare(`SELECT b.board_slug, b.grade_slug, b.subject_slug,
+const hierarchyRows = database.prepare(`SELECT b.id AS book_id, b.board_slug, b.grade_slug, b.subject_slug,
   b.slug AS book_slug, b.updated_at AS book_updated_at, c.slug AS chapter_slug,
   c.updated_at AS chapter_updated_at, c.question_count, MAX(q.updated_at) AS question_updated_at
   FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id
   LEFT JOIN catalog_questions q ON q.book_id = c.book_id AND q.chapter_slug = c.slug
-  GROUP BY c.id ORDER BY b.board_slug, b.grade_slug, b.subject_slug, b.slug, c.position`).all();
+  GROUP BY c.id ORDER BY b.board_slug, b.grade_slug, b.subject_slug, b.slug, c.position`).all()
+  .filter((row) => !isBookQuarantined(row.book_id));
 const timestamps = new Map([
   ["/", contentPublishedEpoch], ["/boards", contentPublishedEpoch],
   ["/about/methodology", methodologyEpoch], ["/privacy", policyEpoch],
@@ -71,6 +86,8 @@ const record = (pathname, ...values) => {
   timestamps.set(pathname, Math.max(timestamps.get(pathname) || 0, timestamp));
 };
 for (const pathname of streamPathsFromWorker()) record(pathname, contentPublishedEpoch);
+for (const pathname of STUDY_CLUSTER_INDEXABLE_PATHS) record(pathname, methodologyEpoch);
+for (const pathname of TRUST_TRANSPARENCY_PATHS) record(pathname, trustPolicyEpoch);
 for (const row of hierarchyRows) {
   const board = `/${row.board_slug}`;
   const grade = `${board}/${row.grade_slug}`;
@@ -90,14 +107,17 @@ const hierarchy = writeGzip("hierarchy.xml.gz", [...timestamps].map(([pathname, 
 children.push({ pathname: "/sitemaps/hierarchy.xml.gz", updatedAt: Math.max(...timestamps.values()) });
 report.children.push({ pathname: "/sitemaps/hierarchy.xml.gz", ...hierarchy });
 
-const questionStatement = database.prepare(`SELECT q.row_id, q.chapter_slug, q.question_id,
+const questionStatement = database.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id,
   q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
   b.slug AS book_slug, b.updated_at AS book_updated_at, c.updated_at AS chapter_updated_at
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`);
 for (let cursor = 1; cursor <= count; cursor += blockSize) {
-  const rows = questionStatement.all(cursor, cursor + blockSize);
+  const rows = questionStatement.all(cursor, cursor + blockSize)
+    .filter((row) => !isBookQuarantined(row.book_id)
+      && isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)));
+  if (!rows.length) continue;
   const entries = rows.map((row) => urlEntry(`/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`, Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
   const name = `questions-${cursor}.xml.gz`;
   const child = writeGzip(name, entries);
@@ -110,4 +130,13 @@ const indexBody = children.map((child) => `  <sitemap><loc>${xmlEscape(`${origin
 writeFileSync(resolve(outputDirectory, "..", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexBody}\n</sitemapindex>\n`);
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
-console.log(JSON.stringify({ catalogQuestionCount: count, hierarchyUrlCount: hierarchy.urlCount, questionChildCount: report.children.length - 1, questionUrlCount: report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0), pass: count === report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0) }, null, 2));
+const questionUrlCount = report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0);
+console.log(JSON.stringify({
+  catalogQuestionCount: count,
+  expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
+  hierarchyUrlCount: hierarchy.urlCount,
+  questionChildCount: report.children.length - 1,
+  questionUrlCount,
+  pass: questionUrlCount === Number(PHASE4_GATE_MANIFEST.indexableCount),
+}, null, 2));
+if (questionUrlCount !== Number(PHASE4_GATE_MANIFEST.indexableCount)) process.exitCode = 1;

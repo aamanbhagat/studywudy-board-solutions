@@ -16,7 +16,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 120
     environment: production
     steps:
       - name: Check out tagged release
@@ -39,6 +39,39 @@ jobs:
 
       - name: Verify exact release inputs
         run: pnpm check:release
+
+      - name: Crawl every internal link on the release preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec wrangler dev \
+            --config wrangler.production.jsonc \
+            --remote \
+            --ip 127.0.0.1 \
+            --port 8787 \
+            --inspector-ip 127.0.0.1 \
+            --inspector-port 9230 \
+            --log-level warn \
+            > /tmp/studywudy-release-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error http://127.0.0.1:8787/ > /dev/null; then
+              break
+            fi
+            if ! kill -0 "$preview_pid" 2>/dev/null; then
+              cat /tmp/studywudy-release-preview.log
+              exit 1
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error http://127.0.0.1:8787/ > /dev/null
+          STUDYWUDY_LINK_GATE_ORIGIN=http://127.0.0.1:8787 \
+          STUDYWUDY_LINK_GATE_CONCURRENCY=64 \
+          pnpm check:release:links:runtime
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy the verified commit
         run: >-

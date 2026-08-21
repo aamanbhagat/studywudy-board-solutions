@@ -25,9 +25,16 @@ const sourcePath = resolve(root, args.get("--source-db") || "cloudflare-backup-2
 const manifestPath = resolve(root, args.get("--manifest-output") || "phase3-question-seo-manifest.mjs");
 const outputPath = resolve(root, args.get("--output") || "audits/phase-3/question-seo-full-corpus.json");
 const database = new DatabaseSync(sourcePath, { readOnly: true });
-const rows = database.prepare(`SELECT q.row_id, q.display_label, q.prompt_text, q.question_id,
-  b.title AS book_title, c.number AS chapter_number, c.title AS chapter_title
+const rows = database.prepare(`SELECT q.row_id, q.display_label, q.type, q.prompt_text, q.question_id,
+  q.concept_tags, b.title AS book_title, b.board_slug, b.grade_slug, b.subject_slug,
+  bo.name AS board_name, bo.short_name AS board_short_name,
+  g.class_number, g.label AS grade_label, s.name AS subject_name,
+  c.number AS chapter_number, c.title AS chapter_title
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
+  JOIN catalog_boards bo ON bo.slug = b.board_slug
+  JOIN catalog_grades g ON g.board_slug = b.board_slug AND g.slug = b.grade_slug
+  JOIN catalog_subjects s ON s.board_slug = b.board_slug AND s.grade_slug = b.grade_slug
+    AND s.slug = b.subject_slug
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   ORDER BY q.row_id`).all();
 

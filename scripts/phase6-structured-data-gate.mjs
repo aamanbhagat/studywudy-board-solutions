@@ -6,12 +6,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const origin = (process.argv.find((argument) => argument.startsWith("--origin="))?.slice(9) || process.env.PHASE6_GATE_ORIGIN || "http://127.0.0.1:8796").replace(/\/$/, "");
 const output = resolve(root, "audits/phase-6/structured-data-gate.json");
 const questionPath = "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-008";
+const studyBase = "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics";
+const diagramPath = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-036";
 const templates = [
-  { name: "homepage", path: "/", required: ["Organization", "WebSite", "BreadcrumbList"] },
-  { name: "board-index", path: "/boards", required: ["BreadcrumbList"] },
-  { name: "subject-index", path: "/cbse/class-10/english", required: ["BreadcrumbList"] },
-  { name: "question", path: questionPath, required: ["BreadcrumbList", "Question", "Answer"] },
-  { name: "methodology", path: "/about/methodology", required: ["BreadcrumbList"] },
+  { name: "homepage", path: "/", required: ["Organization", "WebSite", "BreadcrumbList"], rootRequired: ["Organization", "WebSite"] },
+  { name: "board-index", path: "/boards", required: ["BreadcrumbList"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "subject-index", path: "/cbse/class-10/english", required: ["BreadcrumbList"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "question", path: questionPath, required: ["BreadcrumbList", "Question", "Answer"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "revision-article", path: `${studyBase}/revision`, required: ["BreadcrumbList", "Article", "LearningResource"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "practice-quiz", path: `${studyBase}/practice`, required: ["BreadcrumbList", "Quiz", "Question", "Answer"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "original-diagram", path: diagramPath, required: ["BreadcrumbList", "ImageObject", "Question", "Answer"], rootForbidden: ["Organization", "WebSite"] },
+  { name: "methodology", path: "/about/methodology", required: ["BreadcrumbList"], rootForbidden: ["Organization", "WebSite"] },
 ];
 
 function typesOf(value) {
@@ -37,7 +42,15 @@ function parseJsonLd(html, errors) {
     }
   }
   if (!documents.length) errors.push("No JSON-LD documents found");
-  return documents.flatMap((document) => collectObjects(document));
+  const roots = documents.flatMap((document) => Array.isArray(document)
+    ? document
+    : Array.isArray(document?.["@graph"])
+      ? document["@graph"]
+      : [document]);
+  return {
+    objects: documents.flatMap((document) => collectObjects(document)),
+    rootTypes: [...new Set(roots.flatMap(typesOf))].sort(),
+  };
 }
 
 function validateBreadcrumb(object, errors) {
@@ -80,6 +93,31 @@ function validateQuestion(objects, errors) {
   if (answer && !String(answer.text || "").trim()) errors.push("Answer has no text");
 }
 
+function validateQuiz(objects, errors) {
+  const quiz = objects.find((object) => typesOf(object).includes("Quiz"));
+  if (!Array.isArray(quiz?.hasPart) || !quiz.hasPart.length) {
+    errors.push("Quiz has no visible question parts");
+    return;
+  }
+  for (const question of quiz.hasPart) {
+    if (!typesOf(question).includes("Question") || !question.text || !question.acceptedAnswer?.text) {
+      errors.push("Quiz contains an incomplete Question/Answer pair");
+    }
+    if (question.eduQuestionType === "Flashcard") errors.push("MCQ practice is incorrectly labelled as Flashcard content");
+  }
+}
+
+function validateOriginalDiagram(objects, errors) {
+  const image = objects.find((object) => typesOf(object).includes("ImageObject") && /dicot-seed-labelled-q36\.png$/u.test(String(object.contentUrl || "")));
+  if (!image) {
+    errors.push("Reviewed original diagram has no matching ImageObject");
+    return;
+  }
+  if (!image.creditText || !image.creator || !image.copyrightNotice || image.width !== 1450 || image.height !== 1085) {
+    errors.push("Original diagram lacks creator, credit, copyright or intrinsic dimensions");
+  }
+}
+
 const results = [];
 let failed = false;
 for (const template of templates) {
@@ -87,10 +125,20 @@ for (const template of templates) {
   const html = await response.text();
   const errors = [];
   if (response.status !== 200) errors.push(`Expected HTTP 200, received ${response.status}`);
-  const objects = parseJsonLd(html, errors);
+  const parsed = parseJsonLd(html, errors);
+  const objects = parsed.objects;
   const foundTypes = [...new Set(objects.flatMap(typesOf))].sort();
   for (const required of template.required) {
     if (!foundTypes.includes(required)) errors.push(`Missing required ${required} structured data`);
+  }
+  for (const required of template.rootRequired || []) {
+    if (!parsed.rootTypes.includes(required)) errors.push(`Missing root ${required} structured data`);
+  }
+  for (const forbidden of template.rootForbidden || []) {
+    if (parsed.rootTypes.includes(forbidden)) errors.push(`${forbidden} must not be a root entity on this non-home page`);
+  }
+  for (const forbidden of ["QAPage", "MathSolver"]) {
+    if (foundTypes.includes(forbidden)) errors.push(`${forbidden} is not eligible for this template`);
   }
   for (const breadcrumb of objects.filter((object) => typesOf(object).includes("BreadcrumbList"))) validateBreadcrumb(breadcrumb, errors);
   if (template.name === "homepage") validateHomepage(objects, errors);
@@ -99,15 +147,21 @@ for (const template of templates) {
     const robots = `${response.headers.get("x-robots-tag") || ""} ${html.match(/<meta\b[^>]*name=["']robots["'][^>]*content=["']([^"']*)/i)?.[1] || ""}`;
     if (/noindex/i.test(robots)) errors.push("Gate-passed question sample is noindex");
   }
+  if (template.name === "practice-quiz") validateQuiz(objects, errors);
+  if (template.name === "original-diagram") {
+    validateQuestion(objects, errors);
+    validateOriginalDiagram(objects, errors);
+    if (!html.includes("Original solution diagram · StudyWudy Editorial Team")) errors.push("Original diagram credit is not visible on the page");
+  }
   if (errors.length) failed = true;
-  results.push({ template: template.name, path: template.path, status: response.status, foundTypes, errors, warnings: [] });
+  results.push({ template: template.name, path: template.path, status: response.status, rootTypes: parsed.rootTypes, foundTypes, errors, warnings: [] });
 }
 
 const audit = {
   generatedAt: new Date().toISOString(),
   origin,
-  validator: "Google-supported structured-data invariant gate",
-  note: "Google does not provide a Rich Results Test API; this build gate enforces the supported required fields on every representative template.",
+  validator: "Selective structured-data and eligibility invariant gate",
+  note: "Google does not provide a Rich Results Test API. This gate validates representative templates, keeps site identity on the homepage, and treats the MCQ Quiz as descriptive schema rather than falsely claiming Flashcard eligibility.",
   templates: results,
   errors: results.reduce((count, result) => count + result.errors.length, 0),
   warnings: 0,

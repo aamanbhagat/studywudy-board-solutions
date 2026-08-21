@@ -1,113 +1,97 @@
-# Phase 4 — content integrity and staged publishing
+# Phase 4 — question-type-aware publishing gate
 
-Status: implemented and validated against the complete recovered corpus on 18 August 2026. This report describes the local production-equivalent Worker; it has not been deployed to the public Cloudflare service in this task.
+Status: implemented and evaluated against the complete recovered corpus on 21 August 2026. This task changed local release source and assets; it did not deploy to Cloudflare.
 
-## Recovered pipeline finding
+## Policy
 
-The content-similarity gate described before this phase was **not wired into the recovered repository**:
+Policy `phase4-v7-language-quality` keeps the question-type completeness and question-specific page-experience requirements, and adds a fail-closed native-language text gate. There is no minimum word count for indexability. Word totals remain in the audit as diagnostics only.
 
-- `git log -S similarity` and `git log -G 'pairwise|similarity.*threshold|content.*similarity'` found no publishing-gate implementation in commits through `6ceb77530`.
-- A repository-wide and parent-workspace search found no content-gate threshold or staged-publish implementation.
-- The only pre-existing similarity implementation is catalog-artwork matching in `scripts/build_catalog_artwork.py`; it does not inspect answer content or affect publishing.
-- Question metadata called the static `isCatalogQuestionIndexable()` blacklist, which excluded nine question keys. Phase 3 question sitemaps used the same nine-key exclusion. There was no depth check, similarity check, rewrite queue, or fail-closed state.
+The answer checks now follow the stored question type:
 
-Therefore, before Phase 4, 299,449 of 299,458 stored questions (99.9970%) were indexable even though none had cleared a content gate. The prior gate's location, threshold, and failure behavior were absent—not merely disabled by a flag.
+- Single- and multiple-choice questions require valid correct choices, governing-principle reasoning and distractor reasoning.
+- One-word and fill-in-the-blank questions require a direct answer and short explanatory context.
+- Short-answer and give-reason questions require the relevant points, terminology and causal reasoning where requested.
+- Numericals require a formula, substitution, units, arithmetic and a final answer.
+- Derivations require assumptions or givens, ordered steps, equations and a conclusion.
+- Diagram questions require the diagram, labels, useful alternative text and explanation.
+- Long answers require coverage, structure, accuracy safeguards and an exam-appropriate final answer or conclusion.
+- True/false, matching, comparison and passage records have separate structural checks.
 
-## Gate now live in the publish pipeline
-
-`pnpm deploy:production` now runs `build:phase4-gate` before the Worker deploy:
-
-1. `scripts/phase4-content-gate.mjs` decompresses every `catalog_book_chunks` payload and evaluates every stored question.
-2. It writes the complete audit and generates `phase4-publish-manifest.mjs`.
-3. `worker.js` imports that manifest and uses it as the authoritative set for both page robots treatment and question sitemaps.
-4. The Worker verifies that the manifest's corpus count and catalog timestamp match D1. A missing, incomplete, version-mismatched, or stale manifest fails closed.
-5. The optional D1 migration `migrations/0001_phase4_content_publish_gate.sql` persists per-question evidence and the `queued_for_rewrite` disposition for editorial querying. The production decision does not default open if those queue tables are temporarily absent; this was tested explicitly.
-
-Policy `phase4-v1`:
-
-- Depth floor: **150 genuine unique words**.
-- Depth metric: Unicode lexical words in the rendered solution body only. Navigation, breadcrumbs, footer, related questions, prompt words, and answer-choice words are excluded. This prevents question/answer restatement from satisfying the floor.
-- Similarity threshold: **0.85**.
-- Similarity metric: exact Jaccard similarity over normalized five-word answer-body shingles. The inverted index prunes only pairs that cannot reach 0.85 by length or overlap; this is not MinHash/LSH sampling.
-- Similarity scope: all 7,933 depth-passing pages across the corpus.
-- Threshold breach: both pages are marked failed and queued for rewrite. The current corpus had 27,449 viable candidate comparisons and zero pairs at or above 0.85.
-- Remediation: option **(b)** for every thin or unobserved format. The standalone URL remains usable, but receives `noindex, follow`, is omitted from question sitemaps, and remains queued until a later build clears both gates.
+A standalone question is indexable only when it also has distinct intent, verified textbook/chapter/exercise mapping, readable equations, non-prompt answer context, a valid self-canonical catalog URL, no equivalent indexed page for the same textbook/chapter intent, and validated native-script text for a localized edition.
 
 ## Full-corpus result
 
 | Measure | Count | Fraction |
 |---|---:|---:|
-| Stored question pages | 299,458 | 100% |
-| Previously indexable | 299,449 | 99.9970% |
-| Depth-passing | 7,933 | 2.6491% |
-| Similarity-passing after depth | 7,933 | 2.6491% |
-| Gate-passed / indexable now | 7,933 | 2.6491% |
-| Queued for rewrite | 291,525 | 97.3509% |
+| Stored question pages evaluated | 299,458 | 100% |
+| Type-complete answers | 161,075 | 53.789% |
+| Gate-passed / indexable | 142,961 | 47.740% |
+| Review required / noindex | 156,497 | 52.260% |
 
-The generated manifest contains 7,933 passed paths. The runtime question sitemap contains exactly the same 7,933 paths: zero missing and zero unexpected. The D1 gate table has exactly 299,458 evidence rows and exactly 7,933 `gate_passed = 1` rows.
+The difference between type-complete and indexable pages comes from the mapping, equation, useful-context, canonical, static-exclusion, duplicate-intent and multilingual-text checks. The generated manifest contains a compact row-ID decision set for all 299,458 catalog rows. Production question sitemap assets contain exactly 142,961 unique gate-passed URLs.
 
-## All 17 formats
+The multilingual audit found 131 Hindi-edition books and no Tamil-language books in this snapshot. Two Class 10 Hindi science editions have verified native book and chapter titles, and all 1,192 of their question prompts pass the release validator after safe NFC normalization and a small set of recorded source corrections. The other 129 Hindi editions (38,867 question pages) are quarantined from catalog discovery, runtime indexing and sitemaps until their stripped Devanagari text is repaired from a verified source.
 
-Format classification is based on average unique words in the rendered answer body. `Genuine avg` additionally removes words found in the prompt and choices and is the per-page gate metric. An absent format cannot honestly be called content-rich, so it is held thin-by-default until real rows are evaluated.
+## Question-page experience result
 
-| Format | Persisted rows | Rendered unique avg | Genuine avg | Pages clearing 150 | Classification | Implemented remediation |
-|---|---:|---:|---:|---:|---|---|
-| `one_word` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `one_sentence` | 12,518 | 2.4 | 1.7 | 0 | Thin | Staged URL, `noindex` until pass |
-| `brief` | 179,029 | 29.2 | 23.3 | 2,500 | Thin | Staged URL; passing individual pages may index |
-| `detailed` | 26,951 | 86.9 | 78.8 | 5,159 | Thin on average | Staged URL; passing individual pages may index |
-| `define` | 2,058 | 32.8 | 29.9 | 4 | Thin | Staged URL; passing individual pages may index |
-| `give_reason` | 3,158 | 75.3 | 65.6 | 262 | Thin | Staged URL; passing individual pages may index |
-| `name_list` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `mcq_single` | 52,418 | 21.9 | 13.9 | 0 | Thin | Staged URL, `noindex` until explanation is expanded |
-| `mcq_multi` | 166 | 40.0 | 29.2 | 0 | Thin | Staged URL, `noindex` until explanation is expanded |
-| `assertion_reason` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `true_false` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `fill_blank` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `match_column` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `distinguish` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `passage` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
-| `numerical` | 23,160 | 43.4 | 33.1 | 8 | Thin | Staged URL; passing individual pages may index |
-| `diagram` | 0 | — | — | 0 | Unobserved; held thin | Staged URL, `noindex` until pass |
+- 299,439 records have a direct answer and complete page-context model. The 19 without a direct answer already fail the publishing gate.
+- All 299,458 records have exact board/textbook/chapter/exercise context and a recorded source revision.
+- 299,404 records have at least one neighboring question in the same exercise.
+- No recovered source record names a textbook edition, explicit common-mistake field, alternative method or previous-year attribution. The runtime therefore discloses the missing edition metadata and omits those optional sections instead of inventing claims or repeated filler.
+- Every indexable page is required to load the `question-specific-trust-v2` experience; runtime failure changes the page to `noindex, follow`.
 
-The original suspicion is only partly confirmable: MCQ is conclusively thin. True/False and Fill-in-the-blank have no persisted production rows, so the corpus cannot confirm their average; they are safely held out instead of being assumed good.
+## Persisted source formats
 
-## Trust and review signals
+| Stored format | Rows | Type-complete | Indexable |
+|---|---:|---:|---:|
+| `one_sentence` | 12,518 | 2,327 | 1,832 |
+| `brief` | 179,029 | 129,975 | 113,653 |
+| `detailed` | 26,951 | 11,309 | 10,768 |
+| `define` | 2,058 | 2,017 | 2,011 |
+| `give_reason` | 3,158 | 2,812 | 2,772 |
+| `mcq_single` | 52,418 | 9,243 | 8,544 |
+| `mcq_multi` | 166 | 82 | 81 |
+| `numerical` | 23,160 | 3,310 | 3,300 |
 
-- `/about/methodology` is an indexable, canonical methodology page with `AboutPage` and `BreadcrumbList` structured data.
-- Every HTML template receives a sitewide methodology footer link.
-- Every solution page receives a publishing-review panel. Passed pages show “Verified publishing checks”; queued pages state that editorial expansion is queued. Both link to the exact methodology and show the latest review date.
-- Every chapter page shows its latest publishing-review date and methodology link.
-- The wording explicitly limits “verified” to textbook-route integrity, rendered depth, pairwise originality, and staged publishing. It does not invent a teacher or human-review claim.
+The other supported formats have no persisted rows in this recovered snapshot. Some `one_sentence` records are recognized as fill-in-the-blank questions from their prompt and evaluated with that more specific rule.
 
-## Validation evidence
+## Runtime behavior
 
-`audits/phase-4/runtime-audit.json` passed all checks:
+- Gate-passed pages receive `index, follow`, an explicitly automated type-completeness badge and normal public caching.
+- Review-required pages stay usable for students but receive `noindex, follow`, no-store caching and an “Automated answer checks incomplete” badge.
+- Question pages add an exact direct-answer summary, expected response shape, textbook/exercise mapping, source revision, automated gate date, human-review status, academic-error link, solution-coverage cues and same-exercise questions from the current source payload.
+- Missing textbook edition, academic year and source-page data are disclosed as not recorded. A “Reviewed by” label is impossible unless the reviewer registry contains a real name, qualification, review date, edition and academic year.
+- The current recovered registry contains zero named academic reviewers and zero dated academic answer corrections, so pages say “Editorial review pending” and the public corrections ledger shows an honest empty state.
+- Formula/principle, common-mistake, alternative-method and previous-year panels are conditional on question-specific source data.
+- Question sitemaps contain only gate-passed row IDs. The sitemap response reports the same policy version and count.
+- Hindi and Tamil imports are normalized to NFC, checked for mixed-script confusables, missing or broken combining marks, OCR residue, transliteration and malformed scientific symbols. Only source-verified corrections can make a damaged localized edition publishable.
+- Verified language equivalents retain separate self-canonical URLs and receive reciprocal `hreflang`; unverified pairs receive no alternate annotation.
+- `/about/methodology` explains the type-specific rules and explicitly says that concise complete answers can pass.
+- Exact duplicate intent within one textbook chapter is consolidated to the first complete atomic page. Similarity is a duplicate safeguard, not an invitation to add filler.
 
-- Gate coverage: 299,458 / 299,458.
-- D1 gate-passed count = generated-manifest count = sitemap question count = 7,933.
-- Passed sample: one `index, follow` directive and `X-StudyWudy-Publish-Gate: phase4-v1; passed`.
-- Queued sample: one `noindex, follow` directive, `X-Robots-Tag: noindex, follow`, no-store cache policy, and no sitemap entry.
-- The methodology page has zero local structured-data errors or warnings and is linked from both passed and queued solution samples.
-- The hierarchy sitemap includes the methodology page.
-- Both gzipped child sitemaps stay below 50,000 URLs and 50 MB uncompressed.
-- Manifest-only enforcement was separately tested against a D1 database with zero gate tables: passed, queued, and sitemap decisions remained correct and fail-closed.
+## Evidence and release gates
 
-## Operating commands
+- `audits/phase-4/content-gate-audit.json` contains aggregate results and missing-check counts for the full corpus.
+- `tests/answer-completeness.test.mjs` proves concise MCQs can pass and exercises each requested answer family.
+- `tests/question-indexability-release.test.mjs` verifies that the compact decision set contains no length threshold and exactly matches the generated sitemap URL count.
+- `audits/phase-4/multilingual-text-quality.json` records every reviewed correction and proves that quarantined routes are absent from sitemaps.
+- `tests/multilingual-text-quality.test.mjs` exercises NFC, confusables, Devanagari, Tamil, OCR, transliteration and scientific-symbol failures.
+- `migrations/0004_question_type_completeness.sql` can persist per-question evidence in D1 for editorial queries; the release Worker uses the generated decision set and does not require that optional table at request time.
+- `audits/phase-4/search-metadata-quality.json` checks the data-driven search templates across 235 subjects, 477 publishable textbooks and 6,203 publishable chapters. It requires the four reviewed Maharashtra Physics examples, zero repeated meta descriptions, and a compact title ceiling. The separate full-question SEO audit proves uniqueness across all 299,458 question records.
+- `tests/search-metadata.test.mjs` proves that the shortened question title never replaces the exact visible question H1 and that chapter snippets use real question types, source identity and textbook pages.
+- `audits/phase-4/selective-structured-data-gate.json` records the schema profile for each current resource family. Site-level `Organization` and `WebSite` entities are roots only on the homepage; hierarchy pages retain `BreadcrumbList`; substantial revision, answer-writing and concept guides use `Article`; catalogue-like study hubs use `CollectionPage`; and the interactive chapter test uses `Quiz` with its visible MCQ/answer pairs.
+- The structured-data gate explicitly rejects `QAPage` and `MathSolver` on all current templates. MCQs are not labelled as flashcards, and only the reviewed original dicot-seed solution diagram receives `ImageObject` creator, credit, copyright and intrinsic-size metadata.
+- `audits/phase-4/trust-transparency-gate.json` verifies the reviewer/correction registries, production question evidence ledger, public reviewer/process/profile pages, corrections history and fail-closed wording.
+
+Rebuild and verify with:
 
 ```sh
 pnpm run audit:phase4
-pnpm run dev:after
-pnpm run audit:phase4:runtime
-pnpm run check:production
-```
-
-To materialize the detailed queue in a local SQLite-backed D1 state:
-
-```sh
-node scripts/phase4-content-gate.mjs \
-  --source-db cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3 \
-  --apply-to <path-to-local-miniflare-d1.sqlite> \
-  --manifest-output phase4-publish-manifest.mjs \
-  --output audits/phase-4/content-gate-audit.json
+pnpm run audit:multilingual
+pnpm run audit:search-metadata
+pnpm run audit:structured-data
+pnpm run audit:trust
+pnpm run build:sitemaps
+pnpm run test:content-gates
+pnpm run check:release
 ```

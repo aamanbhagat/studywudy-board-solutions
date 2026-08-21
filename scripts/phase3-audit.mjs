@@ -12,7 +12,7 @@ for (let index = 2; index < process.argv.length; index += 2) {
 }
 
 const root = resolve(import.meta.dirname, "..");
-const databasePath = resolve(root, args.get("--db") || "cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3");
+const databasePath = resolve(root, args.get("--db") || "../data/d1/studywudy-content.sqlite3");
 const outputPath = resolve(root, args.get("--output") || "audits/phase-3/full-corpus-audit.json");
 const workerPath = resolve(root, "worker.js");
 const database = new DatabaseSync(databasePath, { readOnly: true });
@@ -139,6 +139,10 @@ function record(path, template, title, description) {
 record("/", "home", "Textbook answers, made clear", "Choose your board, class and subject, then study free textbook solutions in the exact order of your book.");
 record("/boards", "boards", "All education boards", "Browse free study material by education board, medium, class and subject.");
 record("/about/methodology", "methodology", "About StudyWudy & Solution Verification", "Learn how StudyWudy sources, reviews, updates and publishes textbook solutions for students across India.");
+record("/reviewers", "reviewers", "Reviewer Registry and Review Status", "See which StudyWudy checks are automated and which question pages have verified named academic reviewer evidence.");
+record("/reviewers/aman-bhagat", "publisher-profile", "Aman Bhagat – StudyWudy Publisher and Corrections Contact", "See Aman Bhagat's documented StudyWudy role and why it is not used as an academic reviewer credit without evidence.");
+record("/reviewers/studywudy-editorial-process", "editorial-process", "StudyWudy Editorial Process – Automated vs Human Review", "Understand the boundary between StudyWudy source checks, automated validation and named human academic review.");
+record("/corrections", "corrections", "Academic Answer Corrections History", "Read the dated public ledger of verified StudyWudy academic answer changes, separate from pending reports.");
 record("/privacy", "privacy", "Privacy Policy", "Read how StudyWudy handles data, cookies, child-directed treatment and contextual advertising.");
 record("/terms", "terms", "Terms of Service", "Read the terms for using StudyWudy's free textbook solutions and study resources.");
 record("/contact", "contact", "Contact StudyWudy", "Contact StudyWudy for support, corrections, data requests or grievance assistance.");
@@ -229,9 +233,15 @@ for (const path of streamPaths) {
 }
 
 const questions = database.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id, q.display_label,
-  q.prompt_text, b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug,
-  b.title AS book_title, c.number AS chapter_number, c.title AS chapter_title
+  q.type, q.prompt_text, q.concept_tags, b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug,
+  b.title AS book_title, bo.name AS board_name, bo.short_name AS board_short_name,
+  g.class_number, g.label AS grade_label, s.name AS subject_name,
+  c.number AS chapter_number, c.title AS chapter_title
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
+  JOIN catalog_boards bo ON bo.slug = b.board_slug
+  JOIN catalog_grades g ON g.board_slug = b.board_slug AND g.slug = b.grade_slug
+  JOIN catalog_subjects s ON s.board_slug = b.board_slug AND s.grade_slug = b.grade_slug
+    AND s.slug = b.subject_slug
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug ORDER BY q.row_id`).iterate();
 let excludedQuestions = 0;
 for (const question of questions) {
@@ -311,7 +321,7 @@ const report = {
   },
 };
 
-report.pass = report.corpus.indexableUrls === 312189 && report.corpus.uniquePaths === report.corpus.indexableUrls && report.metadataSimilarity.pass && report.clickDepth.pass;
+report.pass = report.corpus.indexableUrls === 312193 && report.corpus.uniquePaths === report.corpus.indexableUrls && report.metadataSimilarity.pass && report.clickDepth.pass;
 
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);

@@ -1,4 +1,14 @@
+import { PHASE4_GATE_MANIFEST } from "./phase4-publish-manifest.mjs";
+import {
+  MANUAL_REVIEWER_PROFILES,
+  QUESTION_CORRECTIONS,
+  TRUST_POLICY_UPDATED_AT,
+  TRUST_TRANSPARENCY_PATHS,
+  TRUST_TRANSPARENCY_SUMMARY,
+} from "./trust-transparency.mjs";
+
 const PHASE5_POLICY_UPDATED_AT = "2026-08-18T00:00:00+05:30";
+const METHODOLOGY_UPDATED_AT = "2026-08-21T05:30:00+05:30";
 const PHASE5_CONTACT_NAME = "Aman Bhagat";
 const PHASE5_CONTACT_RETENTION_SECONDS = 180 * 24 * 60 * 60;
 
@@ -8,6 +18,7 @@ const PHASE5_REQUIRED_PATHS = new Set([
   "/contact",
   "/about",
   "/about/methodology",
+  ...TRUST_TRANSPARENCY_PATHS,
 ]);
 
 const GOOGLE_AD_CSP_SOURCES = [
@@ -46,7 +57,8 @@ const LEGAL_PAGE_STYLES = `<style id="phase5-legal-page-styles">
   .phase5-note{padding:18px 20px;border:2px solid #101316;border-radius:14px;background:#fff}.phase5-muted{color:#505358}
   .phase5-policy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:28px 0}.phase5-policy-grid section{padding:18px 20px;border:1px solid #bbb4a8;border-radius:12px;background:#fff}.phase5-policy-grid h2{margin:0 0 8px;font-size:1.2rem}
   .phase5-contact-form{display:grid;gap:16px;max-width:720px;padding:22px;border:2px solid #101316;border-radius:14px;background:#fff}.phase5-contact-form label{display:grid;gap:6px;font-weight:700}.phase5-contact-form input,.phase5-contact-form select,.phase5-contact-form textarea{width:100%;padding:.72rem .8rem;border:1px solid #777;border-radius:8px;background:#fff;color:#101316}.phase5-contact-form textarea{min-height:180px;resize:vertical}.phase5-contact-form .phase5-check{display:grid;grid-template-columns:auto 1fr;align-items:start;gap:10px;font-weight:500}.phase5-contact-form .phase5-check input{width:auto;margin-top:.38rem}.phase5-contact-form button{width:max-content;padding:.65rem 1rem;border:2px solid #101316;border-radius:9px;background:#1463d7;color:#fff;font-weight:800;cursor:pointer}.phase5-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important}.phase5-success{padding:18px 20px;border:2px solid #17633c;border-radius:12px;background:#e4f7ec}.phase5-error{padding:18px 20px;border:2px solid #973434;border-radius:12px;background:#fff0f0}
-  @media(max-width:700px){.phase5-policy-grid{grid-template-columns:1fr}h1{letter-spacing:-.035em}.phase5-contact-form{padding:18px}}
+  .trust-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:28px 0}.trust-counts div{padding:18px;border:1px solid #a9a296;border-radius:12px;background:#fff}.trust-counts strong{display:block;color:#0757d8;font-size:2rem;line-height:1}.trust-counts span{display:block;margin-top:8px;color:#50585c}.trust-boundary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0;margin:28px 0;border:2px solid #101316;border-radius:14px;overflow:hidden;background:#fff}.trust-boundary section{padding:22px}.trust-boundary section+section{border-left:6px solid #d99917;background:#fff7df}.trust-boundary h2{margin:0 0 10px}.trust-ledger{display:grid;gap:12px;margin:24px 0}.trust-ledger article{padding:18px 20px;border-left:5px solid #17603a;border-radius:0 12px 12px 0;background:#fff}.trust-ledger article.is-pending{border-left-color:#d99917;background:#fff8e7}.trust-ledger h2,.trust-ledger h3{margin:0 0 8px}.trust-ledger p{margin:.35rem 0}.trust-profile-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:24px 0}.trust-profile-links a{display:block;padding:18px 20px;border:1px solid #aaa397;border-radius:12px;background:#fff;color:#101316;text-decoration:none}.trust-profile-links strong,.trust-profile-links span{display:block}.trust-profile-links span{margin-top:5px;color:#555d59}.trust-profile-links a:focus-visible,.phase5-legal-footer a:focus-visible{outline:3px solid #0757d8;outline-offset:3px}
+  @media(max-width:700px){.phase5-policy-grid,.trust-counts,.trust-boundary,.trust-profile-links{grid-template-columns:1fr}.trust-boundary section+section{border-top:6px solid #d99917;border-left:0}h1{letter-spacing:-.035em}.phase5-contact-form{padding:18px}}
 </style>`;
 
 function escapeHtml(value) {
@@ -66,16 +78,31 @@ function canonicalOrigin(requestUrl) {
 }
 
 function legalFooter() {
-  return `<footer id="phase5-compliance-footer" class="phase5-legal-footer"><div class="shell"><div><strong>StudyWudy</strong><p>Independent textbook help with a documented publishing methodology.</p></div><nav aria-label="Site policies"><a href="/about/methodology">About Us &amp; Methodology</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/contact">Contact Us</a></nav><small>Advertising policy: contextual/non-personalized only, with child-directed treatment on every enabled ad request.</small></div></footer>`;
+  return `<footer id="phase5-compliance-footer" class="phase5-legal-footer"><div class="shell"><div><strong>StudyWudy</strong><p>Independent textbook help with a documented publishing methodology.</p></div><nav aria-label="Site policies"><a href="/about/methodology">Methodology</a><a href="/reviewers">Reviewer registry</a><a href="/corrections">Corrections</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a></nav><small>Advertising policy: contextual/non-personalized only, with child-directed treatment on every enabled ad request.</small></div></footer>`;
 }
 
 function nativeFooterLinks() {
-  return `<div class="phase5-native-links"><h2>About</h2><a href="/about/methodology">About &amp; Methodology <span aria-hidden="true">→</span></a><a href="/privacy">Privacy Policy <span aria-hidden="true">→</span></a><a href="/terms">Terms of Service <span aria-hidden="true">→</span></a><a href="/contact">Contact Us <span aria-hidden="true">→</span></a></div>`;
+  return `<div class="phase5-native-links"><h2>About</h2><a href="/about/methodology">About &amp; Methodology <span aria-hidden="true">→</span></a><a href="/reviewers">Reviewer registry <span aria-hidden="true">→</span></a><a href="/corrections">Corrections history <span aria-hidden="true">→</span></a><a href="/privacy">Privacy Policy <span aria-hidden="true">→</span></a><a href="/terms">Terms of Service <span aria-hidden="true">→</span></a><a href="/contact">Contact Us <span aria-hidden="true">→</span></a></div>`;
 }
 
-function legalPage({ request, path, title, description, eyebrow, heading, lede, body, schemaType = "WebPage" }) {
+function legalPage({ request, path, title, description, eyebrow, heading, lede, body, schemaType = "WebPage", modifiedAt = PHASE5_POLICY_UPDATED_AT, breadcrumbParent = null }) {
   const origin = canonicalOrigin(request.url);
   const canonical = `${origin}${path}`;
+  const breadcrumbItems = [
+    { "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
+    ...(breadcrumbParent ? [{
+      "@type": "ListItem",
+      position: 2,
+      name: breadcrumbParent.name,
+      item: `${origin}${breadcrumbParent.path}`,
+    }] : []),
+    {
+      "@type": "ListItem",
+      position: breadcrumbParent ? 3 : 2,
+      name: heading,
+      item: canonical,
+    },
+  ];
   const schema = JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
@@ -85,19 +112,17 @@ function legalPage({ request, path, title, description, eyebrow, heading, lede, 
         url: canonical,
         name: title,
         description,
-        dateModified: PHASE5_POLICY_UPDATED_AT,
+        dateModified: modifiedAt,
         isPartOf: { "@id": `${origin}/#website` },
       },
       {
         "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
-          { "@type": "ListItem", position: 2, name: heading, item: canonical },
-        ],
+        itemListElement: breadcrumbItems,
       },
     ],
   }).replaceAll("<", "\\u003c");
-  const html = `<!doctype html><html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}"><meta name="robots" content="index, follow"><link rel="canonical" href="${escapeHtml(canonical)}"><script type="application/ld+json">${schema}</script>${LEGAL_PAGE_STYLES}${PHASE5_STYLES}</head><body><header><nav aria-label="Breadcrumb"><a href="/">StudyWudy</a> / ${escapeHtml(heading)}</nav></header><main><p class="phase5-eyebrow">${escapeHtml(eyebrow)}</p><h1>${escapeHtml(heading)}</h1><p class="phase5-lede">${escapeHtml(lede)}</p>${body}</main>${legalFooter()}</body></html>`;
+  const breadcrumb = `<a href="/">StudyWudy</a>${breadcrumbParent ? ` / <a href="${escapeHtml(breadcrumbParent.path)}">${escapeHtml(breadcrumbParent.name)}</a>` : ""} / ${escapeHtml(heading)}`;
+  const html = `<!doctype html><html lang="en-IN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}"><meta name="robots" content="index, follow"><link rel="canonical" href="${escapeHtml(canonical)}"><script type="application/ld+json">${schema}</script>${LEGAL_PAGE_STYLES}${PHASE5_STYLES}</head><body><header><nav aria-label="Breadcrumb">${breadcrumb}</nav></header><main><p class="phase5-eyebrow">${escapeHtml(eyebrow)}</p><h1>${escapeHtml(heading)}</h1><p class="phase5-lede">${escapeHtml(lede)}</p>${body}</main>${legalFooter()}</body></html>`;
   return new Response(request.method === "HEAD" ? null : html, {
     headers: {
       "Cache-Control": "public, max-age=3600, s-maxage=86400",
@@ -136,6 +161,133 @@ function privacyPage(request) {
       <h2>Retention, security and your requests</h2>
       <p>We keep operational logs only as long as reasonably needed for reliability, security and legal obligations. Adult contact submissions carry a 180-day expiry unless they must be retained for an unresolved grievance or legal requirement. Reasonable safeguards are used, but no internet system can promise absolute security.</p>
       <p>An adult may ask to access, correct or erase contact data, withdraw a request, or raise a grievance through <a href="/contact">Contact Us</a>. The named business and grievance contact is <strong>${PHASE5_CONTACT_NAME}</strong>. For a child’s request, a parent or lawful guardian should contact us without including unnecessary information about the child.</p>`,
+  });
+}
+
+function methodologyPage(request) {
+  const indexed = Number(PHASE4_GATE_MANIFEST.indexableCount || 0).toLocaleString("en-IN");
+  const corpus = Number(PHASE4_GATE_MANIFEST.corpusCount || 0).toLocaleString("en-IN");
+  return legalPage({
+    request,
+    path: "/about/methodology",
+    title: "How StudyWudy Reviews Textbook Solutions",
+    description: "StudyWudy's question-type-aware answer completeness, textbook mapping, equation, originality, canonical and indexing methodology.",
+    eyebrow: "Trust & publishing policy",
+    heading: "What “verified” means on StudyWudy",
+    lede: "A concise answer can be complete, and a long answer can still be unhelpful. StudyWudy does not use a minimum word count to decide whether an atomic question page may be indexed.",
+    schemaType: "AboutPage",
+    modifiedAt: METHODOLOGY_UPDATED_AT,
+    body: `<p class="phase5-muted">Methodology last updated: 21 August 2026</p>
+      <section class="phase5-note"><strong>${indexed} of ${corpus} question pages currently satisfy the question-type-aware publishing gate.</strong><p>Pages that do not satisfy it remain available to students through their chapter context, but are excluded from question sitemaps and receive <code>noindex, follow</code> until the missing answer elements are corrected.</p></section>
+      <h2>No universal word-count rule</h2>
+      <p>Word counts are retained only as editorial diagnostics. A page is not indexed merely because it contains 150 words, and a naturally concise solution is not suppressed merely because it contains fewer. This follows Google Search Central’s people-first guidance, which explicitly says Google has no preferred word count and instead asks whether readers leave with a satisfying, complete answer.</p>
+      <div class="phase5-policy-grid">
+        <section><h2>MCQ: single or multiple</h2><p>Checks the correct choice or choices, the governing principle, reasoning and a useful explanation of the tempting distractor or distractors.</p></section>
+        <section><h2>One word or fill in the blank</h2><p>Checks the direct answer and brief context that explains what the answer means in this question.</p></section>
+        <section><h2>Short answer or give reason</h2><p>Checks the required points, subject terminology and causal reasoning where the prompt asks “why” or “give reason”.</p></section>
+        <section><h2>Numerical</h2><p>Checks the formula, substitution, units, arithmetic and final answer, as well as readable equations.</p></section>
+        <section><h2>Derivation</h2><p>Checks assumptions or givens, ordered steps, equations and a conclusion.</p></section>
+        <section><h2>Diagram</h2><p>Checks the diagram asset, labels, descriptive alternative text and a supporting explanation.</p></section>
+        <section><h2>Long answer</h2><p>Checks coverage, structure, unresolved-content and equation safeguards, and an exam-appropriate conclusion or final answer.</p></section>
+        <section><h2>Other structured formats</h2><p>True/false, matching, comparison and passage questions use their own structural checks rather than inheriting a prose-length target.</p></section>
+      </div>
+      <h2>Atomic-page index decision</h2>
+      <p>A standalone question page is eligible only when it has all of the following:</p>
+      <ul><li>distinct search intent;</li><li>a complete answer for its question type;</li><li>verified board, class, subject, textbook, chapter and exercise mapping;</li><li>correctly delimited, readable equations with matching source, spoken, plain-text and semantic MathML forms;</li><li>useful answer context not copied from the prompt;</li><li>validated native-script text for a localized edition;</li><li>a valid self-canonical URL built from the catalog route; and</li><li>no substantially equivalent indexed page for the same textbook and chapter intent.</li></ul>
+      <p>Exact duplicate-intent candidates are consolidated to one indexable atomic page. Similarity screening is a duplicate safeguard, not a reward for adding filler.</p>
+      <h2>Semantic mathematics</h2>
+      <p>Every detected formula is derived from one canonical source representation. The publishing gate compares that source with a clean crawler-visible form, spoken text and semantic MathML. It rejects separated numerals, reversed fractions, missing exponents, ordinary hyphens substituted for mathematical minus signs, detached units and confusion between Latin <em>I</em> and numeral <em>1</em>.</p>
+      <p>The visual typesetting is retained for students, while its split glyph tree is excluded from search snippets. Screen readers receive labelled MathML, and copied solutions use the clean plain-text equation rather than the visual layout nodes.</p>
+      <h2>Question-specific page experience</h2>
+      <p>An indexable question page must also load its own direct-answer summary, exact board-to-exercise context, source revision, automated publishing-gate date, human-review status and working academic-error link. The main solution keeps the structure present in that question’s source data: worked steps, reasoning, formulae, substitutions, units, arithmetic, diagrams and a separated final answer where applicable.</p>
+      <p>Similar-question links are selected from the same mapped exercise. Alternative methods, common mistakes and previous-year sections are shown only when the current question or its mapped chapter contains supporting source fields. They are omitted when that evidence is absent; a repeated filler paragraph is never substituted.</p>
+      <p>Where a source record names a textbook edition, the page displays it as the verification edition. Where it does not, the page says that edition metadata is unavailable and makes no edition-specific verification claim.</p>
+      <h2>Review labels and corrections</h2>
+      <p><strong>Source mapping verified</strong> means the catalog route and source payload agree. <strong>Automated arithmetic checks passed</strong> means a machine check found a calculation pattern and found no mismatch in its stated result. <strong>Diagram checked against source</strong> appears only when the source record contains an explicit visual-verification flag. None of these labels means expert review.</p>
+      <p>Unless a real person, qualification, review date, textbook edition and academic year are recorded together, the page says <strong>Editorial review pending</strong>. See the <a href="/reviewers">reviewer registry</a> and <a href="/corrections">corrections history</a>.</p>
+      <h2>Hindi and Tamil text quality</h2>
+      <p>Localized imports are normalized to Unicode NFC and checked for mixed-script confusables, missing Devanagari vowel marks, OCR or encoding damage, broken Tamil combining sequences, accidental transliteration and malformed scientific symbols. A damaged title is never repaired by guessing: only a source-verified correction can make that edition publishable.</p>
+      <p>Each verified language edition keeps its own URL, page language and self-canonical link. Reciprocal <code>hreflang</code> is added only for verified equivalents. Unresolved Hindi or Tamil editions are removed from discovery and held under <code>noindex</code> until review is complete.</p>
+      <h2>Accuracy, quality and scaled content</h2>
+      <p>Google’s current guidance focuses on accuracy, quality, relevance and added value, and warns that generating many pages without value can violate its scaled-content policy. StudyWudy therefore gates each answer by usefulness for its format rather than by who or what produced it.</p>
+      <p><a href="https://developers.google.com/search/docs/fundamentals/creating-helpful-content" rel="noreferrer">Google: creating helpful, reliable, people-first content</a><br><a href="https://developers.google.com/search/docs/fundamentals/using-gen-ai-content" rel="noreferrer">Google: generative AI content guidance</a></p>
+      <h2>What this does not promise</h2>
+      <p>Technical eligibility and sitemap inclusion do not guarantee indexing or ranking. Search engines make their own assessment of usefulness, originality, authority and relevance. Students should compare solutions with the current textbook and teacher guidance.</p>
+      <p><a href="/boards">Browse textbooks and chapters →</a></p>`,
+  });
+}
+
+function reviewersPage(request) {
+  const namedProfiles = MANUAL_REVIEWER_PROFILES.map((profile) => `<a href="/reviewers/${escapeHtml(profile.slug)}"><strong>${escapeHtml(profile.name)}</strong><span>${escapeHtml(profile.qualification)}</span></a>`).join("");
+  return legalPage({
+    request,
+    path: "/reviewers",
+    title: "Reviewer Registry and Review Status | StudyWudy",
+    description: "See which StudyWudy checks are automated, which pages have a verified named academic reviewer, and what evidence a reviewer label requires.",
+    eyebrow: "Human review registry",
+    heading: "Reviewer registry",
+    lede: "A publishing gate is not a person. This registry lists named academic reviewers only when their identity, qualification and page-level review evidence have been recorded.",
+    schemaType: "CollectionPage",
+    modifiedAt: TRUST_POLICY_UPDATED_AT,
+    body: `<div class="trust-counts"><div><strong>${TRUST_TRANSPARENCY_SUMMARY.namedAcademicReviewerCount}</strong><span>verified named academic reviewer profiles</span></div><div><strong>${TRUST_TRANSPARENCY_SUMMARY.manuallyReviewedQuestionCount}</strong><span>question records with valid manual-review evidence</span></div><div><strong>${TRUST_TRANSPARENCY_SUMMARY.recordedCorrectionCount}</strong><span>dated academic answer corrections</span></div></div>
+      <section class="phase5-note"><strong>Current status: editorial review pending.</strong><p>The recovered question corpus does not contain a verified academic reviewer name, qualification, review date, textbook edition and academic year together. Question pages therefore do not show a “Reviewed by” claim.</p></section>
+      <h2>What a named reviewer profile requires</h2><ul><li>the reviewer’s real name;</li><li>a real, relevant qualification;</li><li>a description of the review scope;</li><li>a page-level reviewed-on date;</li><li>the textbook edition and academic year checked; and</li><li>a durable link from the reviewed answer to this profile.</li></ul>
+      <div class="trust-profile-links">${namedProfiles}<a href="/reviewers/studywudy-editorial-process"><strong>StudyWudy editorial process</strong><span>What automated and human checks mean</span></a><a href="/reviewers/aman-bhagat"><strong>Aman Bhagat</strong><span>Publisher and corrections contact—not listed as an academic reviewer</span></a></div>
+      <h2>Why there is no default team credit</h2><p>A generic “editorial team” label does not prove who checked an answer or what they were qualified to check. StudyWudy keeps the pending label until the complete evidence record exists.</p>`,
+  });
+}
+
+function publisherProfilePage(request) {
+  return legalPage({
+    request,
+    path: "/reviewers/aman-bhagat",
+    title: "Aman Bhagat – StudyWudy Publisher and Corrections Contact",
+    description: "Aman Bhagat's documented StudyWudy role, its limits, and why it is not used as an academic reviewer credit without qualification and page-level review evidence.",
+    eyebrow: "Publisher profile",
+    heading: "Aman Bhagat",
+    lede: "Aman Bhagat is identified as StudyWudy’s publisher and contact for privacy, grievance and content-correction requests. That operational role is not presented as academic review.",
+    modifiedAt: TRUST_POLICY_UPDATED_AT,
+    breadcrumbParent: { name: "Reviewer registry", path: "/reviewers" },
+    body: `<div class="trust-boundary"><section><h2>Recorded role</h2><p>Publisher and named contact for StudyWudy’s managed correction channel.</p><p><a href="/contact">Send a correction request →</a></p></section><section><h2>Academic-review boundary</h2><p>No academic qualification or page-level reviewer assignment is recorded in the recovered solution data. Question pages therefore do not say “Reviewed by Aman Bhagat”.</p></section></div>
+      <h2>What this profile verifies</h2><p>It gives students, parents and teachers a named route for reporting academic errors and explains who manages that route. It does not claim subject expertise, textbook-edition verification or manual review of every answer.</p>
+      <h2>When the label would change</h2><p>If Aman Bhagat or another real reviewer completes an academic review, the question record must also store the relevant qualification, exact reviewed-on date, textbook edition and academic year before a “Reviewed by” label can appear.</p>`,
+  });
+}
+
+function editorialProcessPage(request) {
+  return legalPage({
+    request,
+    path: "/reviewers/studywudy-editorial-process",
+    title: "StudyWudy Editorial Process – Automated vs Human Review",
+    description: "Understand the boundary between StudyWudy source checks, automated validation, diagram verification and named human academic review.",
+    eyebrow: "Process profile",
+    heading: "StudyWudy editorial process",
+    lede: "This is a process profile, not a person or an academic qualification. It explains exactly what each trust label on a solution page proves.",
+    modifiedAt: TRUST_POLICY_UPDATED_AT,
+    breadcrumbParent: { name: "Reviewer registry", path: "/reviewers" },
+    body: `<div class="trust-boundary"><section><h2>Recorded automated evidence</h2><p><strong>Source mapping verified</strong> checks the catalog and source payload.</p><p><strong>Automated arithmetic checks passed</strong> checks detected arithmetic expressions and their stated results.</p><p><strong>Diagram checked against source</strong> requires an explicit diagram-verification record.</p></section><section><h2>Human academic review</h2><p><strong>Editorial review pending</strong> is the default when no valid named review exists.</p><p><strong>Reviewed by</strong> appears only with a real profile, qualification, date, edition and academic year.</p></section></div>
+      <h2>Fail-closed wording</h2><p>Missing evidence removes the stronger label. A diagram’s presence does not prove it was checked. A successful calculation test does not prove every scientific premise. A publishing date is not a manual review date.</p>
+      <h2>Corrections</h2><p>A submitted report is a request, not a correction record. The public <a href="/corrections">corrections history</a> changes only when an answer change has a verified date and summary.</p>`,
+  });
+}
+
+function correctionsPage(request) {
+  const entries = QUESTION_CORRECTIONS.length
+    ? QUESTION_CORRECTIONS.map((entry) => `<article id="${escapeHtml(entry.questionId)}"><h2>${escapeHtml(entry.questionId)}</h2><p><strong>Corrected on ${escapeHtml(entry.correctedOn)}</strong></p><p>${escapeHtml(entry.summary)}</p><p><a href="${escapeHtml(entry.pathname)}">Open the corrected answer →</a></p></article>`).join("")
+    : `<article class="is-pending"><h2>No dated academic answer corrections recorded</h2><p>The recovered answer dataset does not contain a verified correction date and change summary. This empty state is intentional; import clean-ups and automated checks are not being relabelled as academic answer corrections.</p></article>`;
+  return legalPage({
+    request,
+    path: "/corrections",
+    title: "Academic Answer Corrections History | StudyWudy",
+    description: "A dated public ledger of verified StudyWudy academic answer changes, kept separate from pending reports and import clean-ups.",
+    eyebrow: "Public change ledger",
+    heading: "Corrections history",
+    lede: "When an academic answer changes, its correction date and a concise change note appear here and on the question page. Pending reports are not published as corrections.",
+    schemaType: "CollectionPage",
+    modifiedAt: TRUST_POLICY_UPDATED_AT,
+    body: `<section class="trust-ledger">${entries}</section>
+      <h2>What enters this ledger</h2><ul><li>the canonical question ID;</li><li>the date the answer changed;</li><li>a specific summary of what was corrected; and</li><li>a link back to the affected answer.</li></ul>
+      <h2>Report a possible error</h2><p>Use the “Report an academic error” link on a question page so its canonical URL is included automatically, or <a href="/contact?request_type=content_correction">open the correction form</a>.</p>`,
   });
 }
 
@@ -179,6 +331,14 @@ function contactFeedback(url) {
 
 function contactPage(request) {
   const url = new URL(request.url);
+  const requestedType = url.searchParams.get("request_type") === "content_correction" ? "content_correction" : "";
+  const requestedPage = String(url.searchParams.get("page_url") || "").trim();
+  const correctionPage = requestedPage.startsWith("/") && requestedPage.length <= 900 && !/[\r\n]/u.test(requestedPage)
+    ? requestedPage
+    : "";
+  const correctionMessage = correctionPage
+    ? `Possible academic error on: ${correctionPage}\n\nWhat appears incorrect or unclear:\n`
+    : "";
   return legalPage({
     request,
     path: "/contact",
@@ -195,8 +355,8 @@ function contactPage(request) {
         <label>Your relationship to this request<select name="role" required><option value="">Choose one</option><option value="parent_guardian">Parent or lawful guardian</option><option value="teacher">Teacher or school adult</option><option value="adult_data_principal">Adult asking about their own data</option><option value="other_adult">Other adult</option></select></label>
         <label>Your name<input name="name" autocomplete="name" minlength="2" maxlength="80" required></label>
         <label>Your email address<input name="email" type="email" autocomplete="email" maxlength="160" required></label>
-        <label>Request type<select name="request_type" required><option value="">Choose one</option><option value="privacy">Privacy or data request</option><option value="grievance">DPDP grievance</option><option value="content_correction">Solution correction</option><option value="copyright">Copyright or legal notice</option><option value="technical">Technical problem</option><option value="other">Other</option></select></label>
-        <label>Message<textarea name="message" minlength="20" maxlength="3000" required placeholder="Include the page URL and enough detail to investigate. Avoid student personal data."></textarea></label>
+        <label>Request type<select name="request_type" required><option value="">Choose one</option><option value="privacy">Privacy or data request</option><option value="grievance">DPDP grievance</option><option value="content_correction"${requestedType ? " selected" : ""}>Academic solution error</option><option value="copyright">Copyright or legal notice</option><option value="technical">Technical problem</option><option value="other">Other</option></select></label>
+        <label>Message<textarea name="message" minlength="20" maxlength="3000" required placeholder="Include the page URL and enough detail to investigate. Avoid student personal data.">${escapeHtml(correctionMessage)}</textarea></label>
         <label class="phase5-check"><input name="adult_attested" type="checkbox" value="yes" required><span>I confirm that I am 18 or older and I am submitting this request myself or as the responsible adult for a child.</span></label>
         <label class="phase5-honeypot" aria-hidden="true">Leave this field empty<input name="website" tabindex="-1" autocomplete="off"></label>
         <button type="submit">Submit request</button>
@@ -393,6 +553,11 @@ export async function handlePhase5Request(request, environment) {
   if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/about") {
     return Response.redirect(new URL("/about/methodology", request.url).toString(), 308);
   }
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/about/methodology") return methodologyPage(request);
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/reviewers") return reviewersPage(request);
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/reviewers/aman-bhagat") return publisherProfilePage(request);
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/reviewers/studywudy-editorial-process") return editorialProcessPage(request);
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/corrections") return correctionsPage(request);
   if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/privacy") return privacyPage(request);
   if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/terms") return termsPage(request);
   if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/contact") return contactPage(request);

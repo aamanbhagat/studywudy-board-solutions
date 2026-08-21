@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { isQuestionRowIndexable } from "../answer-completeness.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 2) args.set(process.argv[index], process.argv[index + 1]);
@@ -22,11 +23,13 @@ function routeFor(row) {
 }
 
 function questionByGate(gatePassed) {
-  return database.prepare(`SELECT b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug,
-    q.chapter_slug, q.question_id, g.question_type, g.genuine_unique_words, g.max_similarity
-    FROM content_publish_gate g JOIN catalog_questions q ON q.book_id = g.book_id
-    AND q.chapter_slug = g.chapter_slug AND q.question_id = g.question_id
-    JOIN catalog_books b ON b.id = g.book_id WHERE g.gate_passed = ? ORDER BY q.row_id LIMIT 1`).get(gatePassed);
+  const rows = database.prepare(`SELECT q.row_id, b.board_slug, b.grade_slug, b.subject_slug,
+    b.slug AS book_slug, q.chapter_slug, q.question_id
+    FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id ORDER BY q.row_id`).iterate();
+  for (const row of rows) {
+    if (isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)) === Boolean(gatePassed)) return row;
+  }
+  return null;
 }
 
 async function fetchText(path, options = {}) {
@@ -43,10 +46,9 @@ function schemas(html) {
 }
 
 const catalogCount = Number(database.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
-const gateState = database.prepare("SELECT * FROM content_publish_gate_state WHERE gate_name = 'question-publish'").get();
-const gateCoverage = Number(database.prepare("SELECT COUNT(*) AS count FROM content_publish_gate").get().count);
-const gatePassedCount = Number(database.prepare("SELECT COUNT(*) AS count FROM content_publish_gate WHERE gate_passed = 1").get().count);
-const queuedCount = Number(database.prepare("SELECT COUNT(*) AS count FROM content_publish_gate WHERE disposition = 'queued_for_rewrite'").get().count);
+const gateCoverage = catalogCount;
+const gatePassedCount = Number(PHASE4_GATE_MANIFEST.gatePassedCount);
+const queuedCount = catalogCount - gatePassedCount;
 const passRow = questionByGate(1);
 const failRow = questionByGate(0);
 const passPath = routeFor(passRow);
@@ -91,8 +93,10 @@ for (const child of childUrls) {
   });
 }
 
-const manifestPaths = new Set(database.prepare(`SELECT '/' || b.board_slug || '/' || b.grade_slug || '/' || b.subject_slug || '/' || b.slug || '/' || q.chapter_slug || '/questions/' || q.question_id AS path
-  FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id`).all().map((row) => row.path));
+const manifestPaths = new Set(database.prepare(`SELECT q.row_id, '/' || b.board_slug || '/' || b.grade_slug || '/' || b.subject_slug || '/' || b.slug || '/' || q.chapter_slug || '/questions/' || q.question_id AS path
+  FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id`).all()
+  .filter((row) => isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)))
+  .map((row) => row.path));
 const missingFromSitemap = [...manifestPaths].filter((path) => !questionPaths.has(path));
 const unexpectedInSitemap = [...questionPaths].filter((path) => !manifestPaths.has(path));
 const methodologySchemas = schemas(methodologyPage.text);
@@ -107,11 +111,10 @@ const failRobots = robotsValues(failPage.text);
 const formats = gateAudit.formats.map((format) => ({
   type: format.type,
   persistedCount: format.persistedCount,
-  averageRenderedUniqueWords: format.averageRenderedUniqueWords,
-  averageGenuineUniqueWords: format.averageGenuineUniqueWords,
-  classification: format.classification,
-  remediation: format.remediation,
-  pass: ["thin", "unobserved-held-thin-by-default", "not-thin"].includes(format.classification) && Boolean(format.remediation),
+  completenessPassedCount: format.completenessPassedCount,
+  gatePassedCount: format.gatePassedCount,
+  wordCountRole: format.wordCountRole,
+  pass: format.wordCountRole === "diagnostic only; never an indexability threshold",
 }));
 
 const report = {
@@ -119,19 +122,19 @@ const report = {
   baseUrl,
   pipeline: {
     policyVersion: PHASE4_GATE_MANIFEST.policyVersion,
-    depthFloor: Number(PHASE4_GATE_MANIFEST.depthFloor),
+    completenessPolicy: PHASE4_GATE_MANIFEST.completenessPolicy,
+    hasMinimumWordCount: Object.hasOwn(PHASE4_GATE_MANIFEST, "depthFloor"),
     similarityThreshold: Number(PHASE4_GATE_MANIFEST.similarityThreshold),
     similarityMetric: PHASE4_GATE_MANIFEST.similarityMetric,
-    failOpen: true,
-    gateReady: PHASE4_GATE_MANIFEST.indexableCount === catalogCount,
+    failOpen: false,
+    gateReady: PHASE4_GATE_MANIFEST.corpusCount === catalogCount,
     currentLocation: gateAudit.pipelineFinding.currentGateLocation,
     failureBehavior: gateAudit.pipelineFinding.currentFailBehavior,
   },
   corpus: {
     catalogCount,
-    previouslyIndexableCount: gateAudit.corpus.previouslyIndexableCount,
     gateCoverage,
-    qualityPassedCount: gatePassedCount,
+    completenessPassedCount: Number(PHASE4_GATE_MANIFEST.completenessPassedCount),
     queuedCount,
     manifestPassedCount: PHASE4_GATE_MANIFEST.gatePassedCount,
     sitemapQuestionCount: questionPaths.size,
@@ -142,30 +145,25 @@ const report = {
   samples: {
     passed: {
       path: passPath,
-      type: passRow.question_type,
-      genuineUniqueWords: Number(passRow.genuine_unique_words),
-      maxSimilarity: Number(passRow.max_similarity),
       status: passPage.response.status,
       robots: passRobots,
       gateHeader: passPage.response.headers.get("x-studywudy-publish-gate"),
-      hasVerifiedMethodologyLink: passPage.text.includes('href="/about/methodology">✓ Clears editorial quality checks</a>'),
+      hasVerifiedMethodologyLink: passPage.text.includes('href="/about/methodology">✓ Automated completeness gate passed</a>'),
     },
     queued: {
       path: failPath,
-      type: failRow.question_type,
-      genuineUniqueWords: Number(failRow.genuine_unique_words),
       status: failPage.response.status,
       robots: failRobots,
       xRobotsTag: failPage.response.headers.get("x-robots-tag"),
       headXRobotsTag: failHead.headers.get("x-robots-tag"),
       gateHeader: failPage.response.headers.get("x-studywudy-publish-gate"),
       cacheControl: failPage.response.headers.get("cache-control"),
-      hasQueueMethodologyLink: failPage.text.includes('href="/about/methodology">Editorial expansion recommended</a>'),
+      hasQueueMethodologyLink: failPage.text.includes('href="/about/methodology">Automated answer checks incomplete</a>'),
     },
     chapter: {
       path: chapterPath,
       status: chapterPage.response.status,
-      hasLastReviewedSignal: /Last publishing review: [^<]+ · <a href="\/about\/methodology">methodology<\/a>/.test(chapterPage.text),
+      hasAutomatedCatalogSignal: /Automated catalog check [^<]+ · <a href="\/reviewers">human editorial review status<\/a>/.test(chapterPage.text),
     },
   },
   methodology: {
@@ -189,25 +187,25 @@ const report = {
   formats,
 };
 
-report.pass = report.pipeline.policyVersion === "phase4-v2-all-valid-indexable"
-  && report.pipeline.depthFloor === 150
+report.pass = report.pipeline.policyVersion === PHASE4_GATE_MANIFEST.policyVersion
+  && report.pipeline.completenessPolicy === "question-type-aware; no minimum word count"
+  && report.pipeline.hasMinimumWordCount === false
   && report.pipeline.similarityThreshold === 0.85
-  && report.pipeline.failOpen === true
+  && report.pipeline.failOpen === false
   && report.pipeline.gateReady === true
   && report.corpus.exactMatch
   && report.samples.passed.status === 200
   && passRobots.length === 1
   && passRobots[0].startsWith("index, follow")
-  && report.samples.passed.gateHeader === "phase4-v2-all-valid-indexable; indexable"
+  && report.samples.passed.gateHeader === `${PHASE4_GATE_MANIFEST.policyVersion}; complete`
   && report.samples.passed.hasVerifiedMethodologyLink
   && report.samples.queued.status === 200
   && failRobots.length === 1
-  && failRobots[0].startsWith("index, follow")
-  && report.samples.queued.xRobotsTag?.startsWith("index, follow")
-  && report.samples.queued.headXRobotsTag?.startsWith("index, follow")
-  && !/no-store/.test(report.samples.queued.cacheControl || "")
+  && failRobots[0].startsWith("noindex, follow")
+  && report.samples.queued.xRobotsTag?.startsWith("noindex, follow")
+  && report.samples.queued.headXRobotsTag?.startsWith("noindex, follow")
+  && /no-store/.test(report.samples.queued.cacheControl || "")
   && report.samples.queued.hasQueueMethodologyLink
-  && report.samples.chapter.hasLastReviewedSignal
   && report.methodology.status === 200
   && report.methodology.robots.length === 1
   && report.methodology.robots[0] === "index, follow"
@@ -217,6 +215,7 @@ report.pass = report.pipeline.policyVersion === "phase4-v2-all-valid-indexable"
   && report.methodology.structuredDataErrors.length === 0
   && report.methodology.structuredDataWarnings.length === 0
   && report.sitemap.indexStatus === 200
+  && report.sitemap.gateHeader === `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}`
   && report.sitemap.hierarchyHasMethodology
   && report.sitemap.children.every((child) => child.pass)
   && formats.length === 17

@@ -5,33 +5,30 @@ import { gunzipSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+  SUPPORTED_ANSWER_TYPES,
+  contentToText,
+  encodeIndexabilityBitset,
+  equationsAreReadable,
+  evaluateAnswerCompleteness,
+  lexicalTokens,
+  normalizeIntent,
+  renderedAnswerText,
+  simpleArithmeticIsAccurate,
+} from "../answer-completeness.mjs";
+import { conciseDirectAnswer } from "../question-page-experience.mjs";
+import { getQuestionUrl, questionRecordFromCatalogRow } from "../question-routes.mjs";
+import { evaluateQuestionFormulaAccessibility } from "../semantic-math.mjs";
+import {
+  POLICY_VERSION as MULTILINGUAL_POLICY_VERSION,
+  isBookQuarantined,
+} from "../multilingual-text-quality.mjs";
 
-const ALL_FORMATS = [
-  "one_word",
-  "one_sentence",
-  "brief",
-  "detailed",
-  "define",
-  "give_reason",
-  "name_list",
-  "mcq_single",
-  "mcq_multi",
-  "assertion_reason",
-  "true_false",
-  "fill_blank",
-  "match_column",
-  "distinguish",
-  "passage",
-  "numerical",
-  "diagram",
-];
-
-const POLICY_VERSION = "phase4-v2-all-valid-indexable";
-const DEPTH_FLOOR = 150;
+const POLICY_VERSION = "phase4-v7-language-quality";
+const QUESTION_PAGE_EXPERIENCE_VERSION = "question-specific-trust-v2";
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;
-const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer-body shingles";
-const REMEDIATION = "standalone_indexable";
+const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer shingles within duplicate-intent groups";
 const STATIC_NOINDEX_KEYS = new Set([
   "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-001",
   "tamil-nadu-board::class-4::mathematics::samacheer-kalvi-mathematics-term-1-class-4:patterns:q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-002",
@@ -58,72 +55,12 @@ for (let index = 2; index < process.argv.length; index += 1) {
 }
 
 const root = resolve(import.meta.dirname, "..");
-const sourcePath = resolve(root, args.get("--source-db") || "cloudflare-backup-2026-08-17/d1/studywudy-content.sqlite3");
+const sourcePath = resolve(root, args.get("--source-db") || "../data/d1/studywudy-content.sqlite3");
 const applyPath = args.get("--apply-to") ? resolve(root, args.get("--apply-to")) : null;
 const outputPath = resolve(root, args.get("--output") || "audits/phase-4/content-gate-audit.json");
 const manifestPath = args.get("--manifest-output") ? resolve(root, args.get("--manifest-output")) : null;
 const reviewedAt = args.get("--reviewed-at") ? Math.floor(Date.parse(args.get("--reviewed-at")) / 1_000) : Math.floor(Date.now() / 1_000);
-
 if (!Number.isFinite(reviewedAt) || reviewedAt <= 0) throw new Error("--reviewed-at must be an ISO date-time");
-
-function contentToText(value) {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map(contentToText).join(" ");
-  if (typeof value !== "object") return String(value);
-  if (value.kind === "rich") return (value.segments || []).map((segment) => segment.text || "").join(" ");
-  if (value.kind === "paragraphs") return (value.paragraphs || []).join(" ");
-  if (value.kind === "blocks") {
-    return (value.blocks || []).map((block) => {
-      if (block.kind === "paragraph") return block.text || "";
-      if (block.kind === "list") return (block.items || []).join(" ");
-      if (block.kind === "table") return [...(block.headers || []), ...(block.rows || []).flat()].join(" ");
-      return block.code || "";
-    }).join(" ");
-  }
-  return Object.values(value).map(contentToText).join(" ");
-}
-
-function renderedAnswerText(question) {
-  if (["mcq_single", "mcq_multi", "assertion_reason"].includes(question.type)) {
-    const correctIds = new Set(question.correctChoiceIds || (question.correctChoiceId ? [question.correctChoiceId] : []));
-    const selected = (question.choices || []).filter((choice) => correctIds.has(choice.id)).map((choice) => contentToText(choice.content)).join(" ");
-    return `${selected} ${contentToText(question.explanation)}`.trim();
-  }
-  if (question.type === "numerical") {
-    return `${(question.steps || []).map((step) => contentToText(step.content)).join(" ")} ${contentToText(question.finalAnswer)}`.trim();
-  }
-  if (question.result) {
-    return `${question.result.value ? "True" : "False"} ${contentToText(question.result.correction)} ${contentToText(question.explanation)}`.trim();
-  }
-  if (question.blanks) {
-    return `${question.blanks.map((blank) => contentToText(blank.answer)).join(" ")} ${contentToText(question.explanation)}`.trim();
-  }
-  if (question.comparison) {
-    return `${question.comparison.rows.map((row) => `${contentToText(row.left)} ${contentToText(row.right)}`).join(" ")} ${contentToText(question.explanation)}`.trim();
-  }
-  if (question.matches) {
-    const matches = question.matches.map((match) => {
-      const left = question.left?.find((item) => item.id === match.leftId);
-      const right = question.right?.find((item) => item.id === match.rightId);
-      return `${contentToText(left?.content || match.leftId)} ${contentToText(right?.content || match.rightId)}`;
-    }).join(" ");
-    return `${matches} ${contentToText(question.explanation)}`.trim();
-  }
-  if (question.type === "passage" && question.subQuestions) return question.subQuestions.map(renderedAnswerText).join(" ");
-  return `${contentToText(question.answer)} ${contentToText(question.answers)} ${contentToText(question.finalAnswer)} ${contentToText(question.explanation)}`.trim();
-}
-
-function lexicalTokens(value) {
-  const normalized = String(value || "")
-    .normalize("NFKC")
-    .toLocaleLowerCase("en-IN")
-    .replace(/https?:\/\/\S+/giu, " ")
-    .replace(/<[^>]+>/gu, " ")
-    .replace(/\\(?:begin|end)\{[^}]+\}|\\[a-z]+/giu, " ")
-    .replace(/\{\{blank-\d+\}\}/giu, " ");
-  return (normalized.match(/[\p{L}\p{M}]+/gu) || []).filter((token) => [...token].length > 1);
-}
 
 function shingleSet(answerTokens, promptTokens) {
   const promptSet = new Set(promptTokens);
@@ -150,35 +87,23 @@ function jaccardSimilarity(left, right) {
   return union ? intersection / union : 0;
 }
 
-function alphabeticToken(index) {
-  let value = index + 1;
-  let suffix = "";
-  while (value > 0) {
-    value -= 1;
-    suffix = String.fromCharCode(97 + (value % 26)) + suffix;
-    value = Math.floor(value / 26);
-  }
-  return `concept${suffix}`;
-}
-
 const similaritySelfTest = (() => {
-  const firstTokens = Array.from({ length: DEPTH_FLOOR + 30 }, (_, index) => alphabeticToken(index));
+  const firstTokens = Array.from({ length: 30 }, (_, index) => `concept${String.fromCharCode(97 + index)}`);
   const nearDuplicateTokens = [...firstTokens];
-  nearDuplicateTokens[nearDuplicateTokens.length - 1] = "replacementword";
-  const unrelatedTokens = firstTokens.map((_, index) => `unrelated${alphabeticToken(index)}`);
+  nearDuplicateTokens[nearDuplicateTokens.length - 1] = "replacement";
   const first = shingleSet(firstTokens, []);
   const nearDuplicate = shingleSet(nearDuplicateTokens, []);
-  const unrelated = shingleSet(unrelatedTokens, []);
+  const unrelated = shingleSet(firstTokens.map((token) => `unrelated${token}`), []);
   const nearDuplicateScore = jaccardSimilarity(first, nearDuplicate);
   const unrelatedScore = jaccardSimilarity(first, unrelated);
-  const caught = nearDuplicateScore >= SIMILARITY_THRESHOLD && unrelatedScore < SIMILARITY_THRESHOLD;
-  if (!caught) throw new Error(`Similarity self-test failed: near=${nearDuplicateScore}, unrelated=${unrelatedScore}`);
+  if (nearDuplicateScore < SIMILARITY_THRESHOLD || unrelatedScore >= SIMILARITY_THRESHOLD) {
+    throw new Error(`Similarity self-test failed: near=${nearDuplicateScore}, unrelated=${unrelatedScore}`);
+  }
   return {
-    fixture: "two 180-genuine-word mock answers differing by one terminal word",
+    fixture: "short, complete mock answers with and without substantial equivalence",
     nearDuplicateScore: Number(nearDuplicateScore.toFixed(6)),
     unrelatedScore: Number(unrelatedScore.toFixed(6)),
     threshold: SIMILARITY_THRESHOLD,
-    outcome: "both near-duplicate fixtures queued_for_rewrite",
     pass: true,
   };
 })();
@@ -191,10 +116,14 @@ function emptyStats(type) {
     genuineUniqueWordTotal: 0,
     minimumGenuineUniqueWords: null,
     maximumGenuineUniqueWords: null,
-    depthPassedCount: 0,
-    similarityPassedCount: 0,
+    completenessPassedCount: 0,
     gatePassedCount: 0,
+    missingChecks: new Map(),
   };
+}
+
+function recordMissingChecks(stats, completeness) {
+  for (const check of completeness.missing) stats.missingChecks.set(check, (stats.missingChecks.get(check) || 0) + 1);
 }
 
 const source = new DatabaseSync(sourcePath, { readOnly: true });
@@ -206,13 +135,21 @@ const metadataRows = source.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug,
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   ORDER BY q.row_id`).all();
 const metadataByKey = new Map(metadataRows.map((row) => [`${row.book_id}:${row.chapter_slug}:${row.question_id}`, row]));
-const stats = new Map(ALL_FORMATS.map((type) => [type, emptyStats(type)]));
+const stats = new Map(SUPPORTED_ANSWER_TYPES.map((type) => [type, emptyStats(type)]));
 const records = [];
 const seenKeys = new Set();
 
 for (const { book_id: bookId } of bookIds) {
   const chunks = source.prepare("SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index").all(bookId);
   const payload = JSON.parse(gunzipSync(Buffer.concat(chunks.map((row) => Buffer.from(row.content_chunk)))).toString("utf8"));
+  const sourceRevisionPass = Boolean(String(payload.sourceChecksum || payload.sourceVersion || "").trim());
+  const sourceEditionRecorded = Boolean(String(
+    payload.catalog?.book?.edition
+      || payload.catalog?.edition
+      || payload.textbookEdition
+      || payload.sourceEdition
+      || "",
+  ).trim());
   for (const chapter of payload.chapters || []) {
     for (const exercise of chapter.exercises || []) {
       for (const question of exercise.questions || []) {
@@ -222,34 +159,105 @@ for (const { book_id: bookId } of bookIds) {
         const metadata = metadataByKey.get(key);
         const rowId = Number(metadata?.row_id || 0);
         if (!rowId) throw new Error(`Content question is missing catalog metadata: ${key}`);
+
         const answerBody = renderedAnswerText(question);
         const answerTokens = lexicalTokens(answerBody);
-        const promptTokens = lexicalTokens(`${contentToText(question.prompt)} ${(question.choices || []).map((choice) => contentToText(choice.content)).join(" ")}`);
-        const renderedUniqueWords = new Set(answerTokens).size;
+        const promptText = contentToText(question.prompt);
+        const promptTokens = lexicalTokens(`${promptText} ${(question.choices || []).map((choice) => contentToText(choice.content)).join(" ")}`);
         const promptSet = new Set(promptTokens);
+        const renderedUniqueWords = new Set(answerTokens).size;
         const genuineUniqueWords = new Set(answerTokens.filter((token) => !promptSet.has(token))).size;
+        const completeness = evaluateAnswerCompleteness(question);
         const recognizedFormat = stats.has(question.type);
-        const depthPass = recognizedFormat && genuineUniqueWords >= DEPTH_FLOOR;
+        const textbookMappingPass = Boolean(
+          metadata
+          && metadata.book_id === bookId
+          && metadata.chapter_slug === chapter.slug
+          && question.exerciseId
+          && (!exercise.id || exercise.id === question.exerciseId),
+        );
+        let canonicalPath = null;
+        let canonicalPass = false;
+        try {
+          canonicalPath = getQuestionUrl(questionRecordFromCatalogRow(metadata));
+          canonicalPass = canonicalPath.endsWith(`/questions/${question.id}`);
+        } catch {
+          canonicalPass = false;
+        }
+        const equationPass = equationsAreReadable(question) && simpleArithmeticIsAccurate(question);
+        const formulaEvaluation = evaluateQuestionFormulaAccessibility(question, { includeRepresentations: false });
+        const formulaAccessibility = {
+          complete: formulaEvaluation.complete,
+          formulaCount: formulaEvaluation.formulaCount,
+          missing: formulaEvaluation.missing,
+          failures: formulaEvaluation.failures,
+        };
+        const formulaAccessibilityPass = formulaAccessibility.complete;
+        const usefulContextPass = answerTokens.some((token) => !promptSet.has(token));
+        const distinctIntentPass = Boolean(normalizeIntent(promptText));
+        const directAnswerPass = Boolean(conciseDirectAnswer(question));
+        const exactQuestionContextPass = Boolean(
+          question.displayLabel != null
+          && String(question.displayLabel).trim()
+          && exercise.id
+          && question.exerciseId === exercise.id
+          && chapter.title
+          && payload.catalog?.book?.title,
+        );
+        const questionPageExperiencePass = directAnswerPass && exactQuestionContextPass && sourceRevisionPass;
         const policyExclusion = STATIC_NOINDEX_KEYS.has(key);
+        const languageQualityPass = !isBookQuarantined(bookId);
+        const eligibleBeforeEquivalence = recognizedFormat
+          && completeness.complete
+          && textbookMappingPass
+          && canonicalPass
+          && equationPass
+          && formulaAccessibilityPass
+          && usefulContextPass
+          && distinctIntentPass
+          && questionPageExperiencePass
+          && languageQualityPass
+          && !policyExclusion;
         const record = {
           key,
           rowId,
-          metadata,
           bookId,
           chapterSlug: chapter.slug,
           questionId: question.id,
           type: question.type,
+          answerKind: completeness.kind,
+          completeness,
           renderedUniqueWords,
           genuineUniqueWords,
-          depthPass,
+          textbookMappingPass,
+          canonicalPass,
+          canonicalPath,
+          equationPass,
+          formulaAccessibilityPass,
+          formulaAccessibility,
+          usefulContextPass,
+          distinctIntentPass,
+          directAnswerPass,
+          exactQuestionContextPass,
+          sourceRevisionPass,
+          sourceEditionRecorded,
+          questionPageExperiencePass,
+          languageQualityPass,
+          sameExerciseNavigationAvailable: (exercise.questions || []).length > 1,
+          explicitCommonMistakeAvailable: Boolean(question.commonStudentMistake || question.commonMistake || question.examinerWarning || question.mistakeToAvoid),
+          explicitAlternativeMethodAvailable: Boolean(question.alternativeMethod || question.alternativeMethods || question.otherMethod),
+          previousYearMetadataAvailable: Boolean(question.previousYear || question.examYear || question.year || question.boardExamYear || question.exam?.year),
           policyExclusion,
-          shingles: depthPass ? shingleSet(answerTokens, promptTokens) : null,
+          eligibleBeforeEquivalence,
+          intentGroup: `${bookId}:${chapter.slug}:${normalizeIntent(promptText)}`,
+          shingles: shingleSet(answerTokens, promptTokens),
           maxSimilarity: 0,
           nearestQuestionKey: null,
-          similarityPass: depthPass,
+          equivalentPagePass: true,
           contentHash: createHash("sha256").update(answerBody.normalize("NFKC")).digest("hex"),
         };
         records.push(record);
+
         if (!recognizedFormat) continue;
         const format = stats.get(question.type);
         format.persistedCount += 1;
@@ -257,7 +265,8 @@ for (const { book_id: bookId } of bookIds) {
         format.genuineUniqueWordTotal += genuineUniqueWords;
         format.minimumGenuineUniqueWords = format.minimumGenuineUniqueWords == null ? genuineUniqueWords : Math.min(format.minimumGenuineUniqueWords, genuineUniqueWords);
         format.maximumGenuineUniqueWords = format.maximumGenuineUniqueWords == null ? genuineUniqueWords : Math.max(format.maximumGenuineUniqueWords, genuineUniqueWords);
-        if (depthPass) format.depthPassedCount += 1;
+        if (completeness.complete) format.completenessPassedCount += 1;
+        else recordMissingChecks(format, completeness);
       }
     }
   }
@@ -268,84 +277,77 @@ if (records.length !== metadataRows.length || seenKeys.size !== metadataRows.len
 }
 
 records.sort((left, right) => left.rowId - right.rowId);
-const depthRecords = records.filter((record) => record.depthPass);
-const postingLists = new Map();
+const intentGroups = new Map();
+for (const record of records.filter((candidate) => candidate.eligibleBeforeEquivalence)) {
+  const group = intentGroups.get(record.intentGroup) || [];
+  group.push(record);
+  intentGroups.set(record.intentGroup, group);
+}
+
 let comparedPairCount = 0;
 let rejectedPairCount = 0;
-
-for (let currentIndex = 0; currentIndex < depthRecords.length; currentIndex += 1) {
-  const current = depthRecords[currentIndex];
-  const overlapByIndex = new Map();
-  for (const shingle of current.shingles) {
-    for (const previousIndex of postingLists.get(shingle) || []) {
-      const previous = depthRecords[previousIndex];
-      const smaller = Math.min(current.shingles.size, previous.shingles.size);
-      const larger = Math.max(current.shingles.size, previous.shingles.size);
-      if (larger && smaller / larger >= SIMILARITY_THRESHOLD) overlapByIndex.set(previousIndex, (overlapByIndex.get(previousIndex) || 0) + 1);
+for (const group of intentGroups.values()) {
+  if (group.length < 2) continue;
+  for (let rightIndex = 1; rightIndex < group.length; rightIndex += 1) {
+    const right = group[rightIndex];
+    for (let leftIndex = 0; leftIndex < rightIndex; leftIndex += 1) {
+      const left = group[leftIndex];
+      const similarity = jaccardSimilarity(left.shingles, right.shingles);
+      comparedPairCount += 1;
+      if (similarity > right.maxSimilarity) {
+        right.maxSimilarity = similarity;
+        right.nearestQuestionKey = left.key;
+      }
+      if (similarity > left.maxSimilarity) {
+        left.maxSimilarity = similarity;
+        left.nearestQuestionKey = right.key;
+      }
+      if (similarity >= SIMILARITY_THRESHOLD) rejectedPairCount += 1;
     }
-  }
-  for (const [previousIndex, intersection] of overlapByIndex) {
-    const previous = depthRecords[previousIndex];
-    const similarity = intersection / (current.shingles.size + previous.shingles.size - intersection);
-    comparedPairCount += 1;
-    if (similarity > current.maxSimilarity) {
-      current.maxSimilarity = similarity;
-      current.nearestQuestionKey = previous.key;
-    }
-    if (similarity > previous.maxSimilarity) {
-      previous.maxSimilarity = similarity;
-      previous.nearestQuestionKey = current.key;
-    }
-    if (similarity >= SIMILARITY_THRESHOLD) rejectedPairCount += 1;
-  }
-  for (const shingle of current.shingles) {
-    const postings = postingLists.get(shingle) || [];
-    postings.push(currentIndex);
-    postingLists.set(shingle, postings);
+    right.equivalentPagePass = false;
+    right.distinctIntentPass = false;
   }
 }
 
-for (const record of depthRecords) record.similarityPass = record.maxSimilarity < SIMILARITY_THRESHOLD;
 for (const record of records) {
-  const qualityPassed = record.depthPass && record.similarityPass && !record.policyExclusion;
-  // Phase 4 v2 deliberately separates technical indexability from editorial
-  // depth/originality signals. Every catalog-backed question is indexable;
-  // qualityPassed remains available for prioritising editorial expansion.
-  record.qualityPassed = qualityPassed;
-  record.gatePassed = true;
+  record.gatePassed = record.eligibleBeforeEquivalence && record.equivalentPagePass;
   const format = stats.get(record.type);
-  if (format && record.similarityPass) format.similarityPassedCount += 1;
-  if (format) format.gatePassedCount += 1;
+  if (record.gatePassed && format) format.gatePassedCount += 1;
 }
 
-const depthPassedCount = records.filter((record) => record.depthPass).length;
-const similarityPassedCount = records.filter((record) => record.similarityPass).length;
-const qualityPassedCount = records.filter((record) => record.qualityPassed).length;
+const completenessPassedCount = records.filter((record) => record.completeness.complete).length;
 const gatePassedCount = records.filter((record) => record.gatePassed).length;
+const maximumRowId = records.reduce((maximum, record) => Math.max(maximum, record.rowId), 0);
+const catalogEpoch = (value) => {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  return number > 1e12 ? Math.floor(number / 1e3) : Math.floor(number);
+};
+const catalogMaxUpdatedAt = metadataRows.reduce((maximum, metadata) => Math.max(
+  maximum,
+  catalogEpoch(metadata.book_updated_at),
+  catalogEpoch(metadata.chapter_updated_at),
+  catalogEpoch(metadata.question_updated_at),
+), 0);
+const indexabilityBitsetBase64 = encodeIndexabilityBitset(records, maximumRowId);
 
 if (manifestPath) {
-  const catalogEpoch = (value) => {
-    const number = Number(value || 0);
-    if (!Number.isFinite(number) || number <= 0) return 0;
-    return number > 1e12 ? Math.floor(number / 1e3) : Math.floor(number);
-  };
-  const catalogMaxUpdatedAt = metadataRows.reduce((maximum, metadata) => Math.max(maximum, catalogEpoch(metadata.book_updated_at), catalogEpoch(metadata.chapter_updated_at), catalogEpoch(metadata.question_updated_at)), 0);
   const manifest = {
     policyVersion: POLICY_VERSION,
-    depthFloor: DEPTH_FLOOR,
+    completenessPolicy: "question-type-aware; no minimum word count",
+    questionPageExperienceVersion: QUESTION_PAGE_EXPERIENCE_VERSION,
+    formulaAccessibilityPolicy: "canonical source, spoken text, plain text and semantic MathML must agree",
+    multilingualTextPolicy: `${MULTILINGUAL_POLICY_VERSION}; unresolved Hindi and Tamil imports are quarantined`,
     similarityThreshold: SIMILARITY_THRESHOLD,
     similarityMetric: SIMILARITY_METRIC,
     reviewedAt,
     corpusCount: records.length,
-    depthPassedCount,
-    similarityPassedCount,
-    qualityPassedCount,
+    completenessPassedCount,
     gatePassedCount,
-    indexableCount: records.length,
+    indexableCount: gatePassedCount,
+    maximumRowId,
+    indexabilityBitsetBase64,
     catalogMaxUpdatedAt,
-    // URL rows are intentionally not embedded in the Worker bundle. Sitemaps
-    // page through D1 by row_id so the full corpus stays below Worker size and
-    // startup limits as it grows.
     entries: [],
   };
   mkdirSync(dirname(manifestPath), { recursive: true });
@@ -354,17 +356,16 @@ if (manifestPath) {
 
 if (applyPath) {
   const target = new DatabaseSync(applyPath);
-  const migration = readFileSync(resolve(root, "migrations/0001_phase4_content_publish_gate.sql"), "utf8");
-  target.exec(migration);
+  target.exec(readFileSync(resolve(root, "migrations/0004_question_type_completeness.sql"), "utf8"));
   const targetCount = Number(target.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
   if (targetCount !== records.length) throw new Error(`Apply target has ${targetCount} questions; expected ${records.length}`);
-  const insert = target.prepare(`INSERT INTO content_publish_gate (
-    book_id, chapter_slug, question_id, question_type, rendered_unique_words,
-    genuine_unique_words, depth_pass, max_similarity, nearest_question_key,
-    similarity_pass, policy_exclusion, gate_passed, disposition, remediation,
-    content_hash, reviewed_at, policy_version
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  target.exec("BEGIN IMMEDIATE; DELETE FROM content_publish_gate_state; DELETE FROM content_publish_gate;");
+  const insert = target.prepare(`INSERT INTO answer_completeness_gate (
+    book_id, chapter_slug, question_id, question_type, answer_kind, checks_json,
+    completeness_pass, distinct_intent_pass, textbook_mapping_pass, equations_pass,
+    useful_context_pass, canonical_pass, equivalent_page_pass, max_similarity,
+    nearest_question_key, gate_passed, disposition, content_hash, reviewed_at, policy_version
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  target.exec("BEGIN IMMEDIATE; DELETE FROM answer_completeness_gate_state; DELETE FROM answer_completeness_gate;");
   try {
     for (const record of records) {
       insert.run(
@@ -372,61 +373,85 @@ if (applyPath) {
         record.chapterSlug,
         record.questionId,
         record.type,
-        record.renderedUniqueWords,
-        record.genuineUniqueWords,
-        record.depthPass ? 1 : 0,
+        record.answerKind,
+        JSON.stringify({
+          answer: record.completeness.checks,
+          formulaAccessibility: record.formulaAccessibility,
+        }),
+        record.completeness.complete ? 1 : 0,
+        record.distinctIntentPass ? 1 : 0,
+        record.textbookMappingPass ? 1 : 0,
+        record.equationPass ? 1 : 0,
+        record.usefulContextPass ? 1 : 0,
+        record.canonicalPass ? 1 : 0,
+        record.equivalentPagePass ? 1 : 0,
         Number(record.maxSimilarity.toFixed(6)),
         record.nearestQuestionKey,
-        record.similarityPass ? 1 : 0,
-        record.policyExclusion ? 1 : 0,
-        1,
-        "published",
-        REMEDIATION,
+        record.gatePassed ? 1 : 0,
+        record.gatePassed ? "published" : "review_required",
         record.contentHash,
         reviewedAt,
         POLICY_VERSION,
       );
     }
-    target.prepare(`INSERT INTO content_publish_gate_state (
-      gate_name, policy_version, depth_floor, similarity_threshold, similarity_metric,
-      fail_open, gate_ready, evaluated_at, corpus_count, depth_passed_count,
-      similarity_passed_count, gate_passed_count
-    ) VALUES ('question-publish', ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?)`)
-      .run(POLICY_VERSION, DEPTH_FLOOR, SIMILARITY_THRESHOLD, SIMILARITY_METRIC, reviewedAt, records.length, depthPassedCount, similarityPassedCount, gatePassedCount);
+    target.prepare(`INSERT INTO answer_completeness_gate_state (
+      gate_name, policy_version, fail_open, gate_ready, evaluated_at, corpus_count,
+      completeness_passed_count, gate_passed_count
+    ) VALUES ('question-publish', ?, 0, 1, ?, ?, ?, ?)`)
+      .run(POLICY_VERSION, reviewedAt, records.length, completenessPassedCount, gatePassedCount);
     target.exec("COMMIT");
   } catch (error) {
     target.exec("ROLLBACK");
     throw error;
   }
   const applied = target.prepare(`SELECT
-    (SELECT COUNT(*) FROM content_publish_gate) AS gated_count,
-    (SELECT COUNT(*) FROM content_publish_gate WHERE gate_passed = 1) AS passed_count,
-    (SELECT gate_ready FROM content_publish_gate_state WHERE gate_name = 'question-publish') AS gate_ready`).get();
+    (SELECT COUNT(*) FROM answer_completeness_gate) AS gated_count,
+    (SELECT COUNT(*) FROM answer_completeness_gate WHERE gate_passed = 1) AS passed_count,
+    (SELECT gate_ready FROM answer_completeness_gate_state WHERE gate_name = 'question-publish') AS gate_ready`).get();
   if (Number(applied.gated_count) !== records.length || Number(applied.passed_count) !== gatePassedCount || Number(applied.gate_ready) !== 1) {
     throw new Error(`Applied gate verification failed: ${JSON.stringify(applied)}`);
   }
   target.close();
 }
 
-const formatAudit = ALL_FORMATS.map((type) => {
+const formatAudit = SUPPORTED_ANSWER_TYPES.map((type) => {
   const format = stats.get(type);
   const observed = format.persistedCount > 0;
-  const averageRenderedUniqueWords = observed ? Number((format.renderedUniqueWordTotal / format.persistedCount).toFixed(1)) : null;
-  const averageGenuineUniqueWords = observed ? Number((format.genuineUniqueWordTotal / format.persistedCount).toFixed(1)) : null;
   return {
     type,
     persistedCount: format.persistedCount,
-    averageRenderedUniqueWords,
-    averageGenuineUniqueWords,
+    answerKind: records.find((record) => record.type === type)?.answerKind || null,
+    averageRenderedUniqueWords: observed ? Number((format.renderedUniqueWordTotal / format.persistedCount).toFixed(1)) : null,
+    averageGenuineUniqueWords: observed ? Number((format.genuineUniqueWordTotal / format.persistedCount).toFixed(1)) : null,
     minimumGenuineUniqueWords: format.minimumGenuineUniqueWords,
     maximumGenuineUniqueWords: format.maximumGenuineUniqueWords,
-    depthPassedCount: format.depthPassedCount,
-    similarityPassedCount: format.similarityPassedCount,
+    completenessPassedCount: format.completenessPassedCount,
     gatePassedCount: format.gatePassedCount,
-    classification: observed ? (averageRenderedUniqueWords >= DEPTH_FLOOR ? "not-thin" : "thin") : "unobserved-held-thin-by-default",
-    remediation: REMEDIATION,
+    mostCommonMissingChecks: [...format.missingChecks]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 8)
+      .map(([check, count]) => ({ check, count })),
+    wordCountRole: "diagnostic only; never an indexability threshold",
   };
 });
+
+const gateFailureCounts = new Map();
+for (const record of records.filter((candidate) => !candidate.gatePassed)) {
+  const reasons = [
+    ...record.completeness.missing.map((check) => `answer:${check}`),
+    ...(!record.textbookMappingPass ? ["textbookMapping"] : []),
+    ...(!record.equationPass ? ["equations"] : []),
+    ...(!record.formulaAccessibilityPass ? record.formulaAccessibility.missing.map((check) => `formulaAccessibility:${check}`) : []),
+    ...(!record.usefulContextPass ? ["usefulContext"] : []),
+    ...(!record.canonicalPass ? ["selfCanonical"] : []),
+    ...(!record.distinctIntentPass ? ["distinctIntent"] : []),
+    ...(!record.questionPageExperiencePass ? ["questionPageExperience"] : []),
+    ...(!record.languageQualityPass ? ["multilingualTextQuality"] : []),
+    ...(!record.equivalentPagePass ? ["equivalentPage"] : []),
+    ...(record.policyExclusion ? ["policyExclusion"] : []),
+  ];
+  for (const reason of new Set(reasons)) gateFailureCounts.set(reason, (gateFailureCounts.get(reason) || 0) + 1);
+}
 
 const report = {
   generatedAt: new Date(reviewedAt * 1_000).toISOString(),
@@ -434,48 +459,93 @@ const report = {
   appliedDatabase: applyPath,
   generatedManifest: manifestPath,
   pipelineFinding: {
-    priorGateLocation: null,
-    priorThreshold: null,
-    priorBehavior: "not wired; question metadata and Phase 3 sitemaps defaulted open except for nine static exclusions",
-    currentGateLocation: "scripts/phase4-content-gate.mjs keeps depth/similarity as editorial signals; worker.js validates catalog existence and publishes every valid question through index/follow plus D1-backed sitemap shards",
-    currentFailBehavior: "only a missing or invalid catalog route fails; thin or similar answers remain indexable and are retained as editorial-quality signals",
-    failOpen: true,
+    currentGateLocation: "scripts/phase4-content-gate.mjs and the generated row-indexability bitset",
+    currentFailBehavior: "fail closed for incomplete, unmapped, malformed, non-canonical, non-distinct or substantially equivalent atomic question pages",
+    failOpen: false,
   },
   policy: {
     version: POLICY_VERSION,
-    depthFloor: DEPTH_FLOOR,
-    depthMetric: "unique Unicode lexical words in the rendered solution body, excluding words already present in the prompt and choices",
+    minimumWordCount: null,
+    completenessPolicy: "question-type-aware",
+    wordCountRole: "diagnostic only; a naturally concise complete answer can pass",
+    indexRequirements: [
+      "distinct search intent",
+      "complete answer for its type",
+      "verified textbook mapping",
+      "correct and readable equations",
+      "matching source, spoken, plain-text and semantic MathML formula representations",
+      "useful non-prompt context",
+      "self-canonical URL",
+      "no substantially equivalent indexed page",
+      "complete question-specific answer-page experience",
+      "validated native-script language text or an explicit publishing quarantine",
+    ],
     similarityThreshold: SIMILARITY_THRESHOLD,
     similarityMetric: SIMILARITY_METRIC,
-    similarityScope: "all depth-passing question pairs; exact inverted-index candidate enumeration with no approximate LSH sampling",
-    similarityOutcome: "threshold-breaching pages remain indexable but are flagged for editorial expansion",
   },
   corpus: {
     questionCount: records.length,
-    previouslyIndexableCount: records.length - STATIC_NOINDEX_KEYS.size,
-    previouslyIndexableFraction: Number(((records.length - STATIC_NOINDEX_KEYS.size) / records.length).toFixed(6)),
-    depthPassedCount,
-    similarityPassedCount,
-    qualityPassedCount,
+    completenessPassedCount,
     gatePassedCount,
     gatePassedFraction: Number((gatePassedCount / records.length).toFixed(6)),
-    editorialExpansionCount: records.length - qualityPassedCount,
+    reviewRequiredCount: records.length - gatePassedCount,
     gateCoverageCount: records.length,
-    indexableCount: records.length,
+    indexableCount: gatePassedCount,
     indexableMatchesGatePassed: true,
+    maximumRowId,
+  },
+  questionPageExperience: {
+    version: QUESTION_PAGE_EXPERIENCE_VERSION,
+    readyCount: records.filter((record) => record.questionPageExperiencePass).length,
+    directAnswerReadyCount: records.filter((record) => record.directAnswerPass).length,
+    exactQuestionContextCount: records.filter((record) => record.exactQuestionContextPass).length,
+    sourceRevisionRecordedCount: records.filter((record) => record.sourceRevisionPass).length,
+    textbookEditionRecordedCount: records.filter((record) => record.sourceEditionRecorded).length,
+    editionFallback: "When the source does not name an edition, the page discloses that fact and does not claim edition verification.",
+    sameExerciseNavigationAvailableCount: records.filter((record) => record.sameExerciseNavigationAvailable).length,
+    explicitCommonMistakeCount: records.filter((record) => record.explicitCommonMistakeAvailable).length,
+    explicitAlternativeMethodCount: records.filter((record) => record.explicitAlternativeMethodAvailable).length,
+    previousYearMetadataCount: records.filter((record) => record.previousYearMetadataAvailable).length,
+    optionalSectionPolicy: "Render only when the current question or mapped exercise contains supporting source data; never synthesize a repeated filler paragraph.",
+  },
+  formulaAccessibility: {
+    policy: "Every detected formula is derived from one canonical source and checked for coherent MathML, spoken text and crawler-visible plain text.",
+    questionCountWithFormula: records.filter((record) => record.formulaAccessibility.formulaCount > 0).length,
+    formulaCount: records.reduce((total, record) => total + record.formulaAccessibility.formulaCount, 0),
+    passedQuestionCount: records.filter((record) => record.formulaAccessibilityPass).length,
+    failedQuestionCount: records.filter((record) => !record.formulaAccessibilityPass).length,
+    sampleFailures: records
+      .filter((record) => !record.formulaAccessibilityPass)
+      .slice(0, 24)
+      .map((record) => ({ key: record.key, failures: record.formulaAccessibility.failures.slice(0, 3) })),
+    rejectedDefects: [
+      "separated numerals",
+      "reversed numerator and denominator",
+      "missing exponents",
+      "hyphen substituted for a mathematical minus",
+      "detached units",
+      "Latin I confused with numeral 1",
+    ],
+  },
+  multilingualTextQuality: {
+    policyVersion: MULTILINGUAL_POLICY_VERSION,
+    publishableQuestionCount: records.filter((record) => record.languageQualityPass).length,
+    quarantinedQuestionCount: records.filter((record) => !record.languageQualityPass).length,
+    disposition: "Unresolved Hindi and Tamil imports remain reachable only through an explicit review hold and are excluded from indexing and sitemaps.",
   },
   similarity: {
     selfTest: similaritySelfTest,
-    depthPassingDocumentsCompared: depthRecords.length,
+    duplicateIntentGroups: [...intentGroups.values()].filter((group) => group.length > 1).length,
     candidatePairsCompared: comparedPairCount,
     thresholdBreachingPairs: rejectedPairCount,
-    rejectedDocuments: depthRecords.filter((record) => !record.similarityPass).length,
   },
+  gateFailureCounts: [...gateFailureCounts]
+    .sort((left, right) => right[1] - left[1])
+    .map(([reason, count]) => ({ reason, count })),
   formats: formatAudit,
 };
 
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
-
 source.close();
