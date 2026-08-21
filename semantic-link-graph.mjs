@@ -72,6 +72,15 @@ const HARDER_QBANK = Object.freeze({
   "dielectric-slab-in-capacitor": 29,
   "energy-stored-in-capacitor": 23,
 });
+const STATIC_HARDER_QBANK = Object.freeze({
+  "coulombs-law": Object.freeze({ order: 27, type: "numerical", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-027", prompt: "Three-point charges +q, +2q and Q are placed at the three vertices of an equilateral triangle." }),
+  "electric-potential": Object.freeze({ order: 30, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-030", prompt: "Derive an expression for the electric potential due to an electric dipole." }),
+  "gauss-law": Object.freeze({ order: 16, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-016", prompt: "Obtain an expression for the electric field intensity at a point outside a uniformly charged sphere." }),
+  "capacitors-in-series": Object.freeze({ order: 22, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-022", prompt: "Derive an expression for the effective capacitance of three parallel plate capacitors in series." }),
+  "capacitors-in-parallel": Object.freeze({ order: 24, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-024", prompt: "Obtain an expression for the capacitance of a parallel plate capacitor without a dielectric." }),
+  "dielectric-slab-in-capacitor": Object.freeze({ order: 29, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-029", prompt: "Explain the capacitance of a parallel plate capacitor with a dielectric slab between the plates." }),
+  "energy-stored-in-capacitor": Object.freeze({ order: 23, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-023", prompt: "Obtain an expression for the energy stored in a charged condenser and express it in different forms." }),
+});
 
 function clean(value) {
   return contentToText(value).replace(/<[^>]+>/gu, " ").replace(/\*\*|__|`/gu, "").replace(/\s+/gu, " ").trim();
@@ -181,6 +190,7 @@ export function buildQuestionSemanticGraph({ primaryPayload, questionBankPayload
   const similar = nearestQuestion(current, conceptQuestions);
   const easier = easierQuestion(current, conceptQuestions);
   const harder = questionByNumber(questionBankQuestions, HARDER_QBANK[concept.slug])
+    || STATIC_HARDER_QBANK[concept.slug]
     || nearestQuestion(current, questionBankQuestions);
   const links = [
     Object.freeze({

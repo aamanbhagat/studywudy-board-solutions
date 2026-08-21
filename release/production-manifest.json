@@ -6930,8 +6930,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 88961,
-      "sha256": "03fdc274e335901966e66a8d716d86b1292dfe52409bf25b04aeedbefa32ccf7"
+      "bytes": 89932,
+      "sha256": "c84de1f2c6d1311196c4d7208e5267882c82279b06ef0c01c38303be552a3bfb"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -7020,13 +7020,13 @@
     },
     {
       "path": "semantic-link-graph.mjs",
-      "bytes": 18905,
-      "sha256": "493ef653f8cfbaf21cf31690f60daf3931ec1c8226be4bfdeaff046937933afe"
+      "bytes": 20811,
+      "sha256": "d6c4b1b77e50755bbc4d88efb246371c80da83edbadd13aba17b93b9be33b122"
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 27516,
-      "sha256": "889dbcfc2d4b0b3654ac4df1e7314d0881f583543b9f16912aeb3caf37f94c20"
+      "bytes": 27562,
+      "sha256": "420dedba1819bf455cc96ac821d979a72b5151ca2fd2c7e3865bdb3f75fd492d"
     },
     {
       "path": "structured-data.mjs",
@@ -7054,5 +7054,5 @@
       "sha256": "2183d878dd4c5076bbd5804e4d84af07b9037d57f48b02db19ba295a3fd28b02"
     }
   ],
-  "aggregateSha256": "47b7fe625f23444133cc77b3b167a457b49b813fe5ec93d4b2697040a2761197"
+  "aggregateSha256": "08c8f853981e912a2e93d00b2256603c2c9066e9255d9a70e6a792134fe9d53b"
 }

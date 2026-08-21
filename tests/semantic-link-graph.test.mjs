@@ -50,6 +50,15 @@ test("every Electrostatics textbook question has seven supported semantic relati
   }
 });
 
+test("question graphs keep their harder problem without decompressing the question-bank payload at request time", () => {
+  for (const question of primaryQuestions) {
+    const graph = buildQuestionSemanticGraph({ primaryPayload, questionBankPayload: null, questionId: question.id });
+    const harder = graph.links.find((link) => link.relation === "Harder problem");
+    assert.ok(harder?.href.includes("maharashtra-state-board-hsc-question-bank-physics-standard-12"), question.id);
+    assert.ok(databasePaths.has(new URL(harder.href, "https://example.test").pathname), harder.href);
+  }
+});
+
 test("question relationships use database-backed routes and descriptive anchor text", () => {
   const generic = /^(?:view solution|open answer|read more|view full solution|see the mapped worked solution)$/iu;
   for (const question of primaryQuestions) {

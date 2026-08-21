@@ -73,7 +73,7 @@ function superscriptNumber(value) {
 }
 
 export function repairCrawlerFormulaSource(value) {
-  const normalized = String(value || "")
+  const normalized = stripDelimiters(value)
     .replaceAll("\u00a0", " ")
     .replace(/\(\s*₀\s+(?=A\b)/gu, "(ε₀ ")
     .replace(/\b(\d)\s+(\d)\s*[−-]\s*(\d+)\b/gu, (_, first, second, exponent) => `${first}${second}⁻${superscriptNumber(exponent)}`)
@@ -81,7 +81,7 @@ export function repairCrawlerFormulaSource(value) {
     .replace(/\s+/gu, " ")
     .trim();
 
-  if (/^V_equatorial\s*=\s*\\frac\{1\}\{4\\pi\s+_\{0\}\}\\frac\{p\s+90\^\}\{r\^\{2\}\}\s*=\s*0$/u.test(normalized)) {
+  if (/^V_equatorial\s*=\s*(?:\\frac\{1\}\{4\\pi\s+_\{0\}\}\\frac\{p\s+90\^\}\{r\^\{2\}\}|\(1\)\/\(4π₀\)\(p\s+90\^\)\/\(r²\))\s*=\s*0$/u.test(normalized)) {
     return "V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0";
   }
   return normalized;

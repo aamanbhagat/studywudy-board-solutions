@@ -39,6 +39,11 @@ test("canonical formula representations preserve fractions, exponents and subscr
 test("repairs the verified dipole formula lost by the imported crawler label", () => {
   const repaired = repairCrawlerFormulaSource("V_equatorial = \\frac{1}{4\\pi _{0}}\\frac{p 90^}{r^{2}} = 0");
   assert.equal(repaired, "V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0");
+  assert.equal(
+    repairCrawlerFormulaSource("$$V_equatorial = \\frac{1}{4\\pi _{0}}\\frac{p 90^}{r^{2}} = 0$$"),
+    repaired,
+  );
+  assert.equal(repairCrawlerFormulaSource("V_equatorial = (1)/(4π₀)(p 90^)/(r²) = 0"), repaired);
   assert.equal(formulaRepresentations(repaired).plainText, "V₍equatorial₎ = (1/4πε₀)(p cos 90°/r²) = 0");
 });
 
@@ -85,6 +90,8 @@ test("the Worker hides split visual glyphs from snippets and supplies semantic f
   assert.match(source, /X-StudyWudy-Semantic-Math/u);
   assert.match(source, /data-nosnippet/u);
   assert.match(source, /renderSemanticMath\(representation\)/u);
+  assert.match(source, /const original = element\.getAttribute\("data-math-source"\) \|\| ""/u);
+  assert.match(source, /const source = repairCrawlerFormulaSource\(original\)/u);
   assert.match(source, /semantic-math\.js/u);
   assert.match(source, /textChunk\.replace\(repaired, \{ html: true \}\)/u);
 });

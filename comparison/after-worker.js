@@ -99,7 +99,7 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260821-trust-transparency-v29";
+const PHASE_2_VERSION = "20260821-resource-hotfix-v36";
 const MAX_BOOK_COMPRESSED_BYTES = 4 * 1024 * 1024;
 const MAX_BOOK_JSON_CHARACTERS = 20 * 1024 * 1024;
 const BOARD_METADATA_LABELS = Object.freeze({
@@ -351,16 +351,15 @@ async function searchQuestionRows(env, search) {
       WHERE q.prompt_text LIKE ? ESCAPE '\\' OR q.concept_tags LIKE ? ESCAPE '\\'
       ORDER BY q.row_id LIMIT 50`).bind(like, like).all();
   }
-  return env.DB.prepare(`WITH ranked AS (
-      ${projection}, ROW_NUMBER() OVER (
-        PARTITION BY b.board_slug
-        ORDER BY CAST(SUBSTR(b.grade_slug, 7) AS INTEGER) DESC, q.row_id
-      ) AS board_rank
+  const statements = [...BOARD_PAGE_SLUGS].map((boardSlug) => env.DB.prepare(`${projection}
       FROM catalog_questions q
       JOIN catalog_books b ON b.id = q.book_id
       JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-    )
-    SELECT * FROM ranked WHERE board_rank <= 4 ORDER BY board_rank, board_slug`).all();
+      WHERE b.board_slug = ?
+      ORDER BY CAST(SUBSTR(b.grade_slug, 7) AS INTEGER) DESC, q.row_id
+      LIMIT 4`).bind(boardSlug));
+  const batches = await env.DB.batch(statements);
+  return { results: batches.flatMap((batch) => batch.results || []) };
 }
 
 async function searchQuestionBankResponse(request, env, ctx, url) {
@@ -403,7 +402,7 @@ async function searchQuestionBankResponse(request, env, ctx, url) {
         element.setInnerContent(cards, { html: true });
       },
     })
-    .transform(withTransformableHeaders(response, "no-store"));
+    .transform(withTransformableHeaders(response, search ? "no-store" : EDGE_HTML_CACHE));
 }
 
 function subjectRoute(pathname) {
@@ -670,23 +669,13 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
       && route.subject === "physics"
       && route.book === "balbharati-physics-standard-12"
       && route.chapter === "electrostatics";
-    const [payload, catalog, questionBankPayload] = await Promise.all([
+    const [payload, catalog] = await Promise.all([
       loadCatalogBookPayload(env, bookId),
       questionPageCatalogRecord(env, route),
-      semanticGraphEligible
-        ? loadCatalogBookPayload(env, `maharashtra-board::class-12::physics::${STUDY_CLUSTER_QBANK_BOOK}`).catch((error) => {
-            console.error(JSON.stringify({
-              message: "semantic graph question-bank source unavailable",
-              path: url.pathname,
-              error: error instanceof Error ? error.message : String(error),
-            }));
-            return null;
-          })
-        : Promise.resolve(null),
     ]);
     const context = findQuestionPageContext(payload, route.chapter, route.question);
-    const semanticGraph = semanticGraphEligible && questionBankPayload
-      ? buildQuestionSemanticGraph({ primaryPayload: payload, questionBankPayload, questionId: route.question })
+    const semanticGraph = semanticGraphEligible
+      ? buildQuestionSemanticGraph({ primaryPayload: payload, questionBankPayload: null, questionId: route.question })
       : null;
     const model = buildQuestionPageExperience({
       payload,
@@ -1220,8 +1209,8 @@ async function questionCompletenessIndexingResponse(response, env, url, requestM
     headers.set("Cache-Control", EDGE_HTML_CACHE);
     headers.delete("Cloudflare-CDN-Cache-Control");
   } else {
-    headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
-    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+    headers.set("Cache-Control", EDGE_HTML_CACHE);
+    headers.delete("Cloudflare-CDN-Cache-Control");
   }
   response = new Response(response.body, {
     status: response.status,
@@ -1309,10 +1298,11 @@ function completenessPolicyHeaders(response, url) {
   });
 }
 
-function publicHtmlCacheAllowed(response) {
+function publicHtmlCacheAllowed(response, { allowNoindex = false } = {}) {
   const robots = response.headers.get("x-robots-tag") || "";
   const cloudflareCache = response.headers.get("cloudflare-cdn-cache-control") || "";
-  return !robots.toLowerCase().includes("noindex") && !cloudflareCache.toLowerCase().includes("no-store");
+  return (allowNoindex || !robots.toLowerCase().includes("noindex"))
+    && !cloudflareCache.toLowerCase().includes("no-store");
 }
 
 function edgeHtmlCacheKey(request) {
@@ -1320,7 +1310,8 @@ function edgeHtmlCacheKey(request) {
   const accept = request.headers.get("accept") || "";
   if (!accept.includes("text/html")) return null;
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/api/") || url.pathname === "/search") return null;
+  if (url.pathname.startsWith("/api/")) return null;
+  if (url.pathname === "/search" && url.searchParams.get("q")) return null;
   // Tracking, preview, filter, and debug parameters canonicalize to the same
   // document and must not force another expensive SSR pass. Retain only the
   // two parameters that can change real page content.
@@ -1352,12 +1343,12 @@ async function edgeHtmlCacheMatch(request) {
   });
 }
 
-function edgeHtmlCacheStore(request, response, ctx) {
+function edgeHtmlCacheStore(request, response, ctx, options = {}) {
   const key = edgeHtmlCacheKey(request);
   const contentType = response.headers.get("content-type") || "";
   const cacheControl = response.headers.get("cache-control") || "";
   if (!key || typeof caches === "undefined" || !response.ok
-    || !contentType.includes("text/html") || !publicHtmlCacheAllowed(response)
+    || !contentType.includes("text/html") || !publicHtmlCacheAllowed(response, options)
     || !/s-maxage=(?:[1-9]\d*)/.test(cacheControl) || /(?:private|no-store)/i.test(cacheControl)) {
     return response;
   }
@@ -1405,16 +1396,40 @@ function semanticMathResponse(response, requestMethod) {
     })
     .on(".math[aria-label]", {
       element(element) {
-        if (element.hasAttribute("data-math-source")) return;
-        const source = repairCrawlerFormulaSource(element.getAttribute("aria-label"));
+        const existingSource = element.getAttribute("data-math-source") || "";
+        const originalSource = existingSource || element.getAttribute("aria-label");
+        const source = repairCrawlerFormulaSource(originalSource);
         if (!source) return;
+        if (existingSource && source === existingSource) return;
         const representation = formulaRepresentations(source);
         element.setAttribute("data-math-source", representation.source);
         element.setAttribute("data-math-spoken", representation.spokenText);
         element.setAttribute("data-math-plain", representation.plainText);
         element.removeAttribute("aria-label");
         element.removeAttribute("role");
-        element.prepend(renderSemanticMath(representation), { html: true });
+        if (existingSource) {
+          element.setInnerContent(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
+        } else {
+          element.prepend(renderSemanticMath(representation), { html: true });
+        }
+      },
+    })
+    .on(".math > .math-semantic[data-math-source]", {
+      element(element) {
+        const original = element.getAttribute("data-math-source") || "";
+        if (repairCrawlerFormulaSource(original) !== original) element.remove();
+      },
+    })
+    .on(".math[data-math-source]", {
+      element(element) {
+        const original = element.getAttribute("data-math-source") || "";
+        const source = repairCrawlerFormulaSource(original);
+        if (!source || source === original) return;
+        const representation = formulaRepresentations(source);
+        element.setAttribute("data-math-source", representation.source);
+        element.setAttribute("data-math-spoken", representation.spokenText);
+        element.setAttribute("data-math-plain", representation.plainText);
+        element.setInnerContent(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
       },
     })
     .on(".math > .katex, .math > .katex-display", {
@@ -2029,7 +2044,11 @@ const afterWorker = {
     }
     const questionBank = await searchQuestionBankResponse(request, env, ctx, url);
     if (questionBank) {
-      return enhanceResponse(request, withTheme(request, questionBank), env);
+      return edgeHtmlCacheStore(
+        request,
+        enhanceResponse(request, withTheme(request, questionBank), env),
+        ctx,
+      );
     }
     const boardsPage = await boardsPageResponse(request, env, ctx, url);
     if (boardsPage) {
@@ -2094,6 +2113,7 @@ const afterWorker = {
       request,
       enhanceResponse(request, withTheme(request, promotedResponse, cachePublicHtml), env),
       ctx,
+      { allowNoindex: Boolean(routedQuestion) },
     );
   },
   async scheduled(controller, env, ctx) {
