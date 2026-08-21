@@ -1,5 +1,7 @@
 node_modules/
 .wrangler/
+.vercel/
+vercel-dist/
 .lighthouseci/
 comparison/after-persistence/
 .dev.vars

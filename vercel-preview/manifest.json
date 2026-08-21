@@ -1,0 +1,520 @@
+{
+  "format": "studywudy-static-vercel-preview-v1",
+  "branch": "codex/studywudy-quality-overhaul-2026-08-21",
+  "source": "local-workerd-with-backup-d1",
+  "cloudflareProductionBindingsUsed": false,
+  "robotsPolicy": "noindex, nofollow, noarchive",
+  "routeCount": 85,
+  "routes": [
+    {
+      "route": "/",
+      "sha256": "41718bad67d31e576b0c1fce5c1eef089deee62d7284987f268863d506906f9b",
+      "htmlBytes": 38886,
+      "gzipBytes": 9399
+    },
+    {
+      "route": "/about",
+      "sha256": "3de99f77149d5ff40e35e3d6d9ff9daf83673cd90f12780ed238f4419ec6753d",
+      "htmlBytes": 21150,
+      "gzipBytes": 7307
+    },
+    {
+      "route": "/about/methodology",
+      "sha256": "3de99f77149d5ff40e35e3d6d9ff9daf83673cd90f12780ed238f4419ec6753d",
+      "htmlBytes": 21150,
+      "gzipBytes": 7307
+    },
+    {
+      "route": "/boards",
+      "sha256": "d92bbaa545120d9b386a89d1a41e1978c7ca33fa12297157f590468093e301f9",
+      "htmlBytes": 24366,
+      "gzipBytes": 6657
+    },
+    {
+      "route": "/cbse/class-10/science",
+      "sha256": "ebda74af741ad17f087fc5082663a5f3f510a422512b1737c8e69dcc22737b24",
+      "htmlBytes": 40945,
+      "gzipBytes": 8687
+    },
+    {
+      "route": "/cbse/class-12/accountancy/ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12/accounting-for-share-capital/questions/q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-001",
+      "sha256": "8c7fa9645c1137a17f2653ee7cd6c647fe97ecd5a353543c473d8a6443f61186",
+      "htmlBytes": 42335,
+      "gzipBytes": 9321
+    },
+    {
+      "route": "/cbse/class-12/accountancy/ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12/accounting-for-share-capital/questions/q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-002",
+      "sha256": "0f096780a76c99a61a6b40e1dfb4721ae3f19c64ec19b3e9f0f808df0514d772",
+      "htmlBytes": 47122,
+      "gzipBytes": 10370
+    },
+    {
+      "route": "/cbse/class-12/accountancy/ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12/accounting-for-share-capital/questions/q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-003",
+      "sha256": "d401f243b467e069af4960e30d8b7d7d8226f177e9e775239c68c1a8e192974c",
+      "htmlBytes": 48468,
+      "gzipBytes": 10717
+    },
+    {
+      "route": "/cbse/class-12/accountancy/ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12/accounting-for-share-capital/questions/q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-004",
+      "sha256": "a502c9be024149160b9634369dbe5337c4fdc64788f7eec9043383e74ad9d8f3",
+      "htmlBytes": 47143,
+      "gzipBytes": 10355
+    },
+    {
+      "route": "/cisce/class-10/mathematics",
+      "sha256": "5f9ae04902ebb49e75ca96c52e209e7584091aaf88ce420843b9a066fea3159b",
+      "htmlBytes": 58305,
+      "gzipBytes": 9802
+    },
+    {
+      "route": "/cisce/class-12/business-studies/c-b-gupta-business-studies-class-12/introduction-to-human-resource-management/questions/q-cisce-c-b-gupta-business-studies-class-12-1-001",
+      "sha256": "3d5b096a5282e9726682f44607b9c73f67d0fa02e2ae5f0e1f5a27d2c080ebd1",
+      "htmlBytes": 40797,
+      "gzipBytes": 9314
+    },
+    {
+      "route": "/cisce/class-12/business-studies/c-b-gupta-business-studies-class-12/introduction-to-human-resource-management/questions/q-cisce-c-b-gupta-business-studies-class-12-1-002",
+      "sha256": "1b683edbc01f1f814fe37460ac9f1d7782cc4584d073acab480477a4591cddb8",
+      "htmlBytes": 40894,
+      "gzipBytes": 9307
+    },
+    {
+      "route": "/cisce/class-12/business-studies/c-b-gupta-business-studies-class-12/introduction-to-human-resource-management/questions/q-cisce-c-b-gupta-business-studies-class-12-1-003",
+      "sha256": "c2d1586df1164b6bf54870112f4aa9b16a06924f3e4af619fce32f4a5fccc8a3",
+      "htmlBytes": 41373,
+      "gzipBytes": 9467
+    },
+    {
+      "route": "/cisce/class-12/business-studies/c-b-gupta-business-studies-class-12/introduction-to-human-resource-management/questions/q-cisce-c-b-gupta-business-studies-class-12-1-004",
+      "sha256": "21cb3c5858fdfc1faf8f76869b76f215f675165605eaecb61940419e3380c3f2",
+      "htmlBytes": 41649,
+      "gzipBytes": 9418
+    },
+    {
+      "route": "/contact",
+      "sha256": "b92b98f965caf8e77c472bb231fd6f42da4c0c75164c49edb30fbdcd69162148",
+      "htmlBytes": 15931,
+      "gzipBytes": 5287
+    },
+    {
+      "route": "/corrections",
+      "sha256": "ea2dc2501cea3fa32cff336de47c61d8c2f92fa0f8c54278c7849765a9bad720",
+      "htmlBytes": 14409,
+      "gzipBytes": 4701
+    },
+    {
+      "route": "/maharashtra-board",
+      "sha256": "8d10511e80b56dcba443901097a2a7b566b0f73a14ae96e17069fceb5d2ca090",
+      "htmlBytes": 39731,
+      "gzipBytes": 9633
+    },
+    {
+      "route": "/maharashtra-board/class-12",
+      "sha256": "cbfda138422eea7a3882a99cb21c959407fbf9cc3c9a49ec8bcd2b21d68fae56",
+      "htmlBytes": 82032,
+      "gzipBytes": 11325
+    },
+    {
+      "route": "/maharashtra-board/class-12/accountancy/balbharati-book-keeping-and-accountancy-standard-12/introduction-to-partnership-and-partnership-final-accounts/questions/q-msb-balbharati-book-keeping-and-accountancy-standard-12-1-001",
+      "sha256": "a4d95d873c3ff7619028df05ba499d9729712cf2deccb3a941ef19087df2523f",
+      "htmlBytes": 43481,
+      "gzipBytes": 9502
+    },
+    {
+      "route": "/maharashtra-board/class-12/accountancy/balbharati-book-keeping-and-accountancy-standard-12/introduction-to-partnership-and-partnership-final-accounts/questions/q-msb-balbharati-book-keeping-and-accountancy-standard-12-1-002",
+      "sha256": "1197f0471c3b8f0861e564274c09e17554ff94647b8b3c44f51a6473e78d7967",
+      "htmlBytes": 44311,
+      "gzipBytes": 9547
+    },
+    {
+      "route": "/maharashtra-board/class-12/accountancy/balbharati-book-keeping-and-accountancy-standard-12/introduction-to-partnership-and-partnership-final-accounts/questions/q-msb-balbharati-book-keeping-and-accountancy-standard-12-1-003",
+      "sha256": "e0765b97b4552f418d77f5dbb90703aa8e4c9aaa239e8aab1cb3c63359b410a8",
+      "htmlBytes": 44567,
+      "gzipBytes": 9625
+    },
+    {
+      "route": "/maharashtra-board/class-12/accountancy/balbharati-book-keeping-and-accountancy-standard-12/introduction-to-partnership-and-partnership-final-accounts/questions/q-msb-balbharati-book-keeping-and-accountancy-standard-12-1-004",
+      "sha256": "5ad82e1f846cf31a4e760e5a3bac5556df7bb6a922752ae0b44c8e38fe6ecd4b",
+      "htmlBytes": 44900,
+      "gzipBytes": 9589
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics",
+      "sha256": "f4782ba871588e6212ed28eee02ccce527221645dba3344fd44058517429c040",
+      "htmlBytes": 33805,
+      "gzipBytes": 8165
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12",
+      "sha256": "6dd07d9ebb0699a0d25539d97c3e83baaf245f6fa51a6e9b01c3bf3e591a71f0",
+      "htmlBytes": 31785,
+      "gzipBytes": 7454
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/ac-circuits",
+      "sha256": "3359d46696526bfcf5d181595a64f79a12b05d0f412644496787def3f61bcb30",
+      "htmlBytes": 124075,
+      "gzipBytes": 17440
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/current-electricity",
+      "sha256": "d7170f6ac222fa3b723f13c3c84e8f555181c5a7fb8bc88374466f53d812e95e",
+      "htmlBytes": 115600,
+      "gzipBytes": 17399
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/dual-nature-of-radiation-and-matter",
+      "sha256": "4106432bea17155b4c0b7eb3641cddde99ffc85866713c293902c6b4445b8e5a",
+      "htmlBytes": 131538,
+      "gzipBytes": 17951
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electromagnetic-induction",
+      "sha256": "6c80c90a78dc3689593894e46a08e76af5381b446caee04e6aa9d690a7d6e72d",
+      "htmlBytes": 118892,
+      "gzipBytes": 17581
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics",
+      "sha256": "cbf230114ec7ece39bc4b127bdbbf4a5c37c0e02e517169c0a3ab16677af0750",
+      "htmlBytes": 117457,
+      "gzipBytes": 18140
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/answer-writing",
+      "sha256": "11451195b6500ebd50b731163cc88e755ae4a204213fb1a53fb90de9f5162d3c",
+      "htmlBytes": 37593,
+      "gzipBytes": 9797
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/capacitors-in-parallel",
+      "sha256": "2f397b6d45cfe6c856884dea949b267bfc331454cfc602f5cbff932b6ef99af2",
+      "htmlBytes": 42158,
+      "gzipBytes": 10153
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/capacitors-in-series",
+      "sha256": "e2d1fa92c8b16b9c0fea8625a8b00e6862f810b056e20b2453f3299d81c4476f",
+      "htmlBytes": 42301,
+      "gzipBytes": 10222
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/coulombs-law",
+      "sha256": "364b15056dd5ffb676283e24c6a641dd59a130b13616d8d2792706a10c86adae",
+      "htmlBytes": 41209,
+      "gzipBytes": 10215
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/dielectric-slab-in-capacitor",
+      "sha256": "1fd137d7d3af978127b6f62eba71bd28ad11f836728232a1688e0a396a52374f",
+      "htmlBytes": 42725,
+      "gzipBytes": 10245
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/electric-potential",
+      "sha256": "d742929d1e2b03c7af73115aad7cfc8c3adf66b132a9ae6a8c9ca1901b6f0049",
+      "htmlBytes": 45754,
+      "gzipBytes": 10764
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/energy-stored-in-capacitor",
+      "sha256": "272ae8f4528a87ad8dcb4ca922d8876e5330800cf0b61c97f13c0e675ca3604b",
+      "htmlBytes": 43773,
+      "gzipBytes": 10409
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/concepts/gauss-law",
+      "sha256": "9044d66b236b3329f0c5c2f28616f3f78e43e0bfd13ccf1ac458df7d7c75c156",
+      "htmlBytes": 39517,
+      "gzipBytes": 9951
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/important-questions",
+      "sha256": "2638a243b3304fe786ca150b580d026adcc95c04d2c1754fe9617b3ba6978d84",
+      "htmlBytes": 50330,
+      "gzipBytes": 10716
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/practice",
+      "sha256": "94ffd88c4e41eeb3d4912ba43129c03e91f173a2c8b1e155e3863f28c69fe956",
+      "htmlBytes": 68147,
+      "gzipBytes": 13549
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/previous-year-questions",
+      "sha256": "99e20284433c9bb5eadad22cc4347d6d82e328d99be0874a4b9dc8cdc5de4132",
+      "htmlBytes": 34520,
+      "gzipBytes": 8845
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-001",
+      "sha256": "1d30e5d100288c81cb80083463ca1eb4b7f37ade6a331d27709a7ddd52b200cf",
+      "htmlBytes": 55487,
+      "gzipBytes": 12035
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-002",
+      "sha256": "3d4e850bd33d798f66951ae3edde65859bce6f8938a8b4a435ab8c1f69ce4ba7",
+      "htmlBytes": 98497,
+      "gzipBytes": 15373
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-003",
+      "sha256": "28c6a688abd33752c69b9eb092fd87cd9e13e239da5f5a0c644e81bb92689e5b",
+      "htmlBytes": 63066,
+      "gzipBytes": 13097
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-004",
+      "sha256": "328a21af7f72b337206a1ec1fd9066990000a035939f479016a4a0d156bf5a0c",
+      "htmlBytes": 83074,
+      "gzipBytes": 14569
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-005",
+      "sha256": "864f49a0246ebbe369b6b2cb9b8c0804f38f5dd88f2681a8031974ecb55bfaca",
+      "htmlBytes": 92865,
+      "gzipBytes": 15539
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-006",
+      "sha256": "14ba1c7abd0ef322d97cb1e53e6e4e8f9128d231c6f77bb96480e2be870eca06",
+      "htmlBytes": 82721,
+      "gzipBytes": 15042
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-007",
+      "sha256": "62aa8b0e7318308bb27e73e4427d2d264a5cf019168680f6e40eb5db20c09eaf",
+      "htmlBytes": 52737,
+      "gzipBytes": 11699
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-008",
+      "sha256": "24694199be73a1c8c455e8ce69f63d0307e71aca3a275108c31382dfc8a9ef95",
+      "htmlBytes": 61462,
+      "gzipBytes": 12539
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-009",
+      "sha256": "f1726c94a8a2829e037a3c45a3921b48535f24c8c0fc9bedbf20076c0015c889",
+      "htmlBytes": 52640,
+      "gzipBytes": 11830
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-010",
+      "sha256": "d5b07f7710b292a72a426b1eded768b79b6e4a6fe920cdc85e5ed5682a6e8bc3",
+      "htmlBytes": 56914,
+      "gzipBytes": 12317
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-011",
+      "sha256": "e11a8a151777100c80bb4de365da9805e05c2a78fcf7b396249a905b3c176e43",
+      "htmlBytes": 59930,
+      "gzipBytes": 12964
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-012",
+      "sha256": "7d5e25b6a8c8500314af17dcf3c54865fdf840acc93ec53750abec81ff5eaadc",
+      "htmlBytes": 106590,
+      "gzipBytes": 16326
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-013",
+      "sha256": "a8a8d7bacbc06ad89a72bc11b5f7e0a4c76d8886f90e8d5a2a6a44b2fcad365d",
+      "htmlBytes": 93118,
+      "gzipBytes": 14977
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-014",
+      "sha256": "b9f68aff816b2e499fafe214b756faa2d376c8d1806264278d7c563272552b8d",
+      "htmlBytes": 116918,
+      "gzipBytes": 16187
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-015",
+      "sha256": "c371b1a0e346d8f11158199fe58e9565d0ad9915b0f912687ac2cc221b2d5ddd",
+      "htmlBytes": 55596,
+      "gzipBytes": 12175
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-016",
+      "sha256": "8f1de7383bfddd0256aba9398660c5d50575e156c52ba39d0123beb56b9aa8a2",
+      "htmlBytes": 114290,
+      "gzipBytes": 16080
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-017",
+      "sha256": "32980b4ae6e12bd05d7c3eb16fcd8a987c21b58d6e0c54749087931b48b138d5",
+      "htmlBytes": 84383,
+      "gzipBytes": 14654
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-018",
+      "sha256": "5f6a861b94aa0dc63d5f86a6503fac0e29a661fefe956caf94ca667964fa6510",
+      "htmlBytes": 116712,
+      "gzipBytes": 15836
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-019",
+      "sha256": "e8f407bb628662eef35e2d6456a6c85737cbf6fcb2cbeece626d84d403bf66e9",
+      "htmlBytes": 133402,
+      "gzipBytes": 18525
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-020",
+      "sha256": "d43d23d7b5a9eebf3f28fd3d61463c5f32765ccbd8a3b737d22e09cf0e6c8592",
+      "htmlBytes": 101123,
+      "gzipBytes": 15766
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/questions/q-msb-balbharati-physics-standard-12-8-021",
+      "sha256": "d281e596ebc794e4850fa3710343d4424d542daa1cb6a524eabbc36afc0b4b67",
+      "htmlBytes": 144374,
+      "gzipBytes": 17258
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/revision",
+      "sha256": "a5884756ee1591df2c72b7afe12dd75a5a08e85d0ba49463ea9d3f4d1ee9edfa",
+      "htmlBytes": 50310,
+      "gzipBytes": 12156
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/electrostatics/study",
+      "sha256": "6c49796a56d42522704bcc224d363ea9e0fee0bce1a089d1c81828333c3b86aa",
+      "htmlBytes": 38506,
+      "gzipBytes": 9397
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/kinetic-theory-of-gases-and-radiation",
+      "sha256": "0bd15d43000f678d7cb478a8c84477eb7a55ce9f65816189c136964d6765b419",
+      "htmlBytes": 135652,
+      "gzipBytes": 17272
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/magnetic-fields-due-to-electric-current",
+      "sha256": "9e3f87c5e7967664867b0dc3454f3e842c2444d282fee87f8da102885088f2af",
+      "htmlBytes": 136413,
+      "gzipBytes": 18293
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/magnetic-materials",
+      "sha256": "55e2a6202f266e159f43ac27f73a6e7f6716d7cba32c32e50491f972a9966d8f",
+      "htmlBytes": 107849,
+      "gzipBytes": 15687
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/mechanical-properties-of-fluids",
+      "sha256": "16dce486bd402a7d7ebc39b016664aea7c557f5a717679456efad508da53c3b2",
+      "htmlBytes": 148519,
+      "gzipBytes": 17269
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/oscillations",
+      "sha256": "4499fc67d413a745cf6edf839cee84e92237250b02baee3f4584266ec1d946f9",
+      "htmlBytes": 122151,
+      "gzipBytes": 17278
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics",
+      "sha256": "7452ba3aab627f367c217e1112db76047343cc7392d42abf2db510159a5ee1bf",
+      "htmlBytes": 115392,
+      "gzipBytes": 17780
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/semiconductor-devices",
+      "sha256": "5afc50f98be69c207f9d35164eb7d4bcb93887805ba13fc1335ba696f9656f1a",
+      "htmlBytes": 94001,
+      "gzipBytes": 14224
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/structure-of-atoms-and-nuclei",
+      "sha256": "0d217ddb2f216a206cccd7d4d3fdf1d43a6282c0ce3be2824aa6a83f3d3756c5",
+      "htmlBytes": 385651,
+      "gzipBytes": 27779
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/superposition-of-waves",
+      "sha256": "ad66640c5a31e2753e9030e106676d2288bbaa6a08b368d3d1e5ff8a6ad266f1",
+      "htmlBytes": 106324,
+      "gzipBytes": 16646
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/thermodynamics",
+      "sha256": "25bcae20b596227fbaacbc3374fe1d897c0e95afd3238383e0f41e6b83b507b6",
+      "htmlBytes": 99107,
+      "gzipBytes": 15467
+    },
+    {
+      "route": "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/wave-optics",
+      "sha256": "4c89e90759bdc37c37c930aaded050eec360dd3d2a6e5de2753b68be20a286fc",
+      "htmlBytes": 99973,
+      "gzipBytes": 16092
+    },
+    {
+      "route": "/privacy",
+      "sha256": "e389e1fc14f6a0d7194ab7941a5b137576b0f7dc447aa6aca733229f2a260ed2",
+      "htmlBytes": 18641,
+      "gzipBytes": 6396
+    },
+    {
+      "route": "/reviewers",
+      "sha256": "586047fc9c1b9f79f1079a4afa16e9900ed21a0febf07f13a11647971e7c3d92",
+      "htmlBytes": 15154,
+      "gzipBytes": 4918
+    },
+    {
+      "route": "/reviewers/aman-bhagat",
+      "sha256": "1480625eedf2fa86edf457931183faec21febd9f401695822bdcbfbcacb35753",
+      "htmlBytes": 14896,
+      "gzipBytes": 4845
+    },
+    {
+      "route": "/reviewers/studywudy-editorial-process",
+      "sha256": "8c7d7abb4baf4c6190b9f37d6fd2c8a209eed19339572579cc5951e3102cea91",
+      "htmlBytes": 15042,
+      "gzipBytes": 4858
+    },
+    {
+      "route": "/search",
+      "sha256": "976faeb4374b504a1d4eac194fafd5d276034662965d49ddb24ef5d76931b302",
+      "htmlBytes": 24612,
+      "gzipBytes": 6071
+    },
+    {
+      "route": "/tamil-nadu-board",
+      "sha256": "a3c9e5200f2bfd19c63e07a527775ba46ec639171278061a4f4451922b5d21f2",
+      "htmlBytes": 36385,
+      "gzipBytes": 8883
+    },
+    {
+      "route": "/tamil-nadu-board/class-12/accountancy/samacheer-kalvi-accountancy-class-12/accounts-from-incomplete-records/questions/q-tn-samacheer-kalvi-accountancy-class-12-1-001",
+      "sha256": "b8527b7cbe6dee3b9480b0a3c0961182fd061e888013dd5d37a1f94725e0fa1d",
+      "htmlBytes": 41198,
+      "gzipBytes": 9455
+    },
+    {
+      "route": "/tamil-nadu-board/class-12/accountancy/samacheer-kalvi-accountancy-class-12/accounts-from-incomplete-records/questions/q-tn-samacheer-kalvi-accountancy-class-12-1-002",
+      "sha256": "bf29b62eab38dde751b16f542643bcc428d2e39bef66628d899fc74fa4da972d",
+      "htmlBytes": 41449,
+      "gzipBytes": 9438
+    },
+    {
+      "route": "/tamil-nadu-board/class-12/accountancy/samacheer-kalvi-accountancy-class-12/accounts-from-incomplete-records/questions/q-tn-samacheer-kalvi-accountancy-class-12-1-003",
+      "sha256": "e1da7c865cf05bec7cdd051f9a31df8aaf5a6940281606190eaa295e6211c55d",
+      "htmlBytes": 47054,
+      "gzipBytes": 10657
+    },
+    {
+      "route": "/tamil-nadu-board/class-12/accountancy/samacheer-kalvi-accountancy-class-12/accounts-from-incomplete-records/questions/q-tn-samacheer-kalvi-accountancy-class-12-1-004",
+      "sha256": "5e3c8ebf0fa2523a1d76f7272cf2c4a1d7fd9ded054c734f96bbbe4b01e36ec2",
+      "htmlBytes": 45741,
+      "gzipBytes": 10461
+    },
+    {
+      "route": "/terms",
+      "sha256": "1045442f7ed5f112b7d2c73bb77c644955e90c4d7835bd4f83908a8d9ff012db",
+      "htmlBytes": 16230,
+      "gzipBytes": 5602
+    }
+  ]
+}
