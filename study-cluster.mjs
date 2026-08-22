@@ -5,7 +5,7 @@ import {
   renderBreadcrumbNavigation,
 } from "./breadcrumbs.mjs";
 import { getQuestionUrl } from "./question-routes.mjs";
-import { formulaRepresentations, renderSemanticMath } from "./semantic-math.mjs";
+import { formulaRepresentations, renderMathText, renderSemanticMath } from "./semantic-math.mjs";
 import {
   stringifyStructuredData,
   studyResourceStructuredData,
@@ -23,13 +23,15 @@ const PRIMARY_ROUTE = Object.freeze({
 });
 const QBANK_ROUTE = Object.freeze({ ...PRIMARY_ROUTE, textbookSlug: STUDY_CLUSTER_QBANK_BOOK });
 
+const VERIFIED_PRACTICE_EXPLANATIONS = Object.freeze({
+  "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-001": "A zero-thickness conducting foil placed between the plates forms two capacitors in series. Their separations add to the original plate separation, so 1/C = d₁/(ε₀A) + d₂/(ε₀A) = d/(ε₀A). Therefore the equivalent capacitance remains C = ε₀A/d, unchanged from its original value.",
+});
+
 export const STUDY_CLUSTER_CONCEPTS = Object.freeze([
   Object.freeze({
     slug: "coulombs-law",
     name: "Coulomb’s law",
     source: "F=\\frac{1}{4\\pi\\varepsilon_0}\\frac{|q_1q_2|}{r^2}",
-    spokenText: "force equals one over four pi epsilon nought times the magnitude of q one q two over r squared",
-    plainText: "F = (1/4πε₀)|q₁q₂|/r²",
     definition: "Coulomb’s law gives the magnitude and direction of the electrostatic force between two point charges. The force acts along the line joining the charges, varies directly with the product of their magnitudes, and varies inversely with the square of their separation.",
     use: "Use it when the charges can be treated as points and the distance between them is known. Decide attraction or repulsion separately from the magnitude calculation.",
     example: "If the separation doubles while both charges stay fixed, the force becomes one fourth of its original value because the distance is squared.",
@@ -40,8 +42,6 @@ export const STUDY_CLUSTER_CONCEPTS = Object.freeze([
     slug: "electric-potential",
     name: "Electric potential",
     source: "V=\\frac{U}{q_0};\\quad V=\\frac{1}{4\\pi\\varepsilon_0}\\frac{q}{r}",
-    spokenText: "potential equals potential energy per unit test charge; for a point charge, one over four pi epsilon nought times q over r",
-    plainText: "V = U/q₀; V = (1/4πε₀)(q/r)",
     definition: "Electric potential at a point is the work done per unit positive test charge in bringing it from the reference point to that point. It is a scalar, so potentials from several charges add algebraically.",
     use: "Use potential when a question asks about work, potential difference, energy per charge, or a location produced by one or more source charges.",
     example: "At a point equidistant from equal and opposite charges, the two scalar potentials cancel even though the electric field need not be zero.",
@@ -52,8 +52,6 @@ export const STUDY_CLUSTER_CONCEPTS = Object.freeze([
     slug: "gauss-law",
     name: "Gauss’s law",
     source: "\\Phi_E=\\oint\\vec{E}\\cdot d\\vec{A}=\\frac{Q_{\\mathrm{enclosed}}}{\\varepsilon_0}",
-    spokenText: "electric flux through a closed surface equals enclosed charge divided by epsilon nought",
-    plainText: "Φₑ = ∮E⃗·dA⃗ = Q(enclosed)/ε₀",
     definition: "Gauss’s law relates the net electric flux through any closed surface to the net charge enclosed by that surface.",
     use: "Use it to find fields only when symmetry makes the field magnitude constant on a convenient Gaussian surface, or to relate a known flux to enclosed charge.",
     example: "A closed surface enclosing no net charge has zero net flux, even when an external electric field passes through it.",
@@ -61,11 +59,19 @@ export const STUDY_CLUSTER_CONCEPTS = Object.freeze([
     primary: [9, 15], qbank: [16],
   }),
   Object.freeze({
+    slug: "parallel-plate-capacitance",
+    name: "Parallel-plate capacitance",
+    source: "C=\\frac{Q}{V}=\\frac{\\varepsilon_0A}{d}",
+    definition: "The capacitance of a vacuum parallel-plate capacitor depends on its plate area and separation. For fixed plate geometry, capacitance is the charge stored per unit potential difference.",
+    use: "Use C = ε₀A/d for a vacuum or air gap when edge effects are negligible. For an isolated charged capacitor, Q stays fixed; if d increases, C decreases and V = Q/C increases.",
+    example: "A zero-thickness conducting foil divides the gap into two series capacitances whose separations add to d, so the equivalent capacitance remains ε₀A/d.",
+    mistake: "Do not use the energy formula as the governing relation when the question asks how plate area or separation changes capacitance, charge or voltage.",
+    primary: [1, 5, 8], qbank: [1, 24],
+  }),
+  Object.freeze({
     slug: "capacitors-in-series",
     name: "Capacitors in series",
     source: "\\frac{1}{C_s}=\\sum_i\\frac{1}{C_i}",
-    spokenText: "one over equivalent series capacitance equals the sum of one over each capacitance",
-    plainText: "1/Cₛ = Σ(1/Cᵢ)",
     definition: "Capacitors are in series when the same charge magnitude appears on each capacitor and the total potential difference is shared between them.",
     use: "Use the reciprocal rule after confirming there is no branching path between the capacitors. The equivalent capacitance is smaller than the smallest individual capacitance.",
     example: "Two identical capacitors C in series have equivalent capacitance C/2, not 2C.",
@@ -76,37 +82,31 @@ export const STUDY_CLUSTER_CONCEPTS = Object.freeze([
     slug: "capacitors-in-parallel",
     name: "Capacitors in parallel",
     source: "C_p=\\sum_i C_i",
-    spokenText: "equivalent parallel capacitance equals the sum of the individual capacitances",
-    plainText: "Cₚ = ΣCᵢ",
     definition: "Capacitors are in parallel when they share the same pair of nodes, so each has the same potential difference and the stored charges add.",
     use: "Use direct addition after tracing the circuit nodes. The equivalent capacitance must be larger than any individual branch capacitance.",
     example: "Two identical capacitors C in parallel have equivalent capacitance 2C and store twice the charge at the same voltage.",
     mistake: "A drawing that looks side-by-side is not enough. Confirm that both capacitor terminals connect to the same two nodes.",
-    primary: [5, 14, 20, 21], qbank: [19, 24, 25],
+    primary: [14, 20, 21], qbank: [19, 24, 25],
   }),
   Object.freeze({
     slug: "dielectric-slab-in-capacitor",
     name: "Dielectric slab in a capacitor",
     source: "C=\\frac{\\varepsilon_0A}{d-t+\\frac{t}{K}}",
-    spokenText: "capacitance equals epsilon nought A divided by d minus t plus t over K",
-    plainText: "C = ε₀A/(d − t + t/K)",
     definition: "A dielectric polarizes in an electric field and reduces the effective field inside it. A slab that fills only part of the plate separation behaves like dielectric and air regions in series.",
     use: "Use the effective-separation form when a slab of thickness t spans the full plate area but not the full gap. Track whether the battery remains connected before predicting charge, voltage, or energy.",
     example: "If the dielectric fills the entire gap, t = d and the expression reduces to C = Kε₀A/d.",
     mistake: "Do not multiply the original capacitance by K unless the dielectric fills the complete electric-field region.",
-    primary: [2, 8, 13, 20], qbank: [1, 7, 10, 29],
+    primary: [2, 13, 20], qbank: [1, 7, 10, 29],
   }),
   Object.freeze({
     slug: "energy-stored-in-capacitor",
     name: "Energy stored in a capacitor",
     source: "U=\\frac{1}{2}CV^2=\\frac{Q^2}{2C}=\\frac{1}{2}QV",
-    spokenText: "energy equals one half C V squared, equals Q squared over two C, equals one half Q V",
-    plainText: "U = (1/2)CV² = Q²/(2C) = (1/2)QV",
     definition: "The energy stored in a charged capacitor is the work required to move charge onto its plates. Equivalent formula forms let you keep either charge or voltage explicit.",
     use: "Choose the form after deciding what remains constant. An isolated capacitor keeps Q fixed; a capacitor connected to an ideal battery keeps V fixed.",
     example: "At fixed voltage, doubling capacitance doubles stored energy. At fixed charge, doubling capacitance halves stored energy.",
     mistake: "Do not use the fixed-voltage conclusion after the battery has been disconnected; the conserved quantity changes the result.",
-    primary: [1, 3, 10, 13, 14, 16], qbank: [11, 23, 25],
+    primary: [3, 10, 13, 14, 16], qbank: [11, 23, 25],
   }),
 ]);
 
@@ -140,18 +140,22 @@ function escapeHtml(value) {
 
 function flattenQuestion(question, exercise) {
   if (!question || typeof question !== "object") return [];
-  return [{ ...question, exercise }, ...(question.subQuestions || []).flatMap((child) => flattenQuestion(child, exercise))];
+  const subQuestions = Array.isArray(question.subQuestions) ? question.subQuestions : [];
+  return [{ ...question, exercise }, ...subQuestions.flatMap((child) => flattenQuestion(child, exercise))];
 }
 
 function questionsFor(payload) {
-  const chapter = (payload?.chapters || []).find((item) => item.slug === "electrostatics");
-  return (chapter?.exercises || []).flatMap((exercise) =>
-    (exercise.questions || []).flatMap((question) => flattenQuestion(question, exercise))
+  const chapters = Array.isArray(payload?.chapters) ? payload.chapters : [];
+  const chapter = chapters.find((item) => item?.slug === "electrostatics");
+  const exercises = Array.isArray(chapter?.exercises) ? chapter.exercises : [];
+  return exercises.flatMap((exercise) =>
+    (Array.isArray(exercise?.questions) ? exercise.questions : [])
+      .flatMap((question) => flattenQuestion(question, exercise))
   ).filter((question) => question.id);
 }
 
 function byNumber(questions, number) {
-  return questions.find((question) => Number(question.order || question.displayLabel) === number) || questions[number - 1] || null;
+  return questions.find((question) => Number(question.order || question.displayLabel) === number) || null;
 }
 
 function concise(value, maximum = 190) {
@@ -165,6 +169,20 @@ function questionRef(question, source) {
   if (!question) return null;
   const route = source === "question-bank" ? QBANK_ROUTE : PRIMARY_ROUTE;
   const prompt = concise(question.prompt, 220);
+  const choices = (Array.isArray(question.choices) ? question.choices : [])
+    .filter((choice) => choice && typeof choice === "object")
+    .map((choice) => ({ id: clean(choice.id), content: clean(choice.content) }))
+    .filter((choice) => choice.id && choice.content);
+  let answerText = "";
+  try {
+    answerText = renderedAnswerText({ ...question, choices });
+  } catch {
+    // A malformed answer must not take down the whole server-rendered route.
+  }
+  const explanationSource = VERIFIED_PRACTICE_EXPLANATIONS[question.id]
+    || answerText
+    || contentToText(question.explanation)
+    || contentToText(question.answer);
   const anchorVerb = question.type === "numerical" ? "Calculate"
     : /derive|prove|show that/iu.test(prompt) ? "Derive"
       : question.type === "mcq_single" ? "Test your understanding of"
@@ -179,10 +197,11 @@ function questionRef(question, source) {
     prompt,
     anchor,
     href: getQuestionUrl({ ...route, publicQuestionId: question.id }),
-    type: question.type,
-    choices: (question.choices || []).map((choice) => ({ id: clean(choice.id), content: clean(choice.content) })),
+    type: clean(question.type || "question"),
+    choices,
     correctChoiceId: clean(question.correctChoiceId),
-    explanation: concise(renderedAnswerText(question) || question.explanation || question.answer, 420),
+    explanation: concise(explanationSource, 420),
+    explanationMarkup: renderMathText(explanationSource),
     source,
     hasDiagram: Boolean(question.promptMedia?.length || question.solutionMedia?.length || question.type === "diagram"),
     steps: Array.isArray(question.steps) ? question.steps.length : 0,
@@ -212,34 +231,52 @@ export function matchStudyClusterRoute(pathname) {
   return concept ? Object.freeze({ kind: "concept", concept, pathname: normalized, indexable: true }) : null;
 }
 
-export function buildStudyClusterModel({ primaryPayload, questionBankPayload, catalog, reviewedAt }) {
+function completePracticeQuestions(questions, source, limit = Number.POSITIVE_INFINITY) {
+  return questions.filter((question) => question.type === "mcq_single")
+    .map((question) => questionRef(question, source))
+    .filter((question) => question.choices.length >= 2
+      && question.correctChoiceId
+      && question.choices.some((choice) => choice.id === question.correctChoiceId))
+    .slice(0, limit);
+}
+
+export function buildStudyClusterModel({ primaryPayload, questionBankPayload, catalog, reviewedAt, route = null }) {
   if (!catalog) return null;
   const textbookQuestions = questionsFor(primaryPayload);
   const questionBankQuestions = questionsFor(questionBankPayload);
   if (!textbookQuestions.length) return null;
-  const concepts = STUDY_CLUSTER_CONCEPTS.map((concept) => Object.freeze({
-    ...concept,
-    formula: Object.freeze({
-      ...formulaRepresentations(concept.source),
-      spokenText: concept.spokenText,
-      plainText: concept.plainText,
-    }),
-    textbookQuestions: refs(concept.primary, textbookQuestions, "textbook"),
-    questionBankQuestions: refs(concept.qbank, questionBankQuestions, "question-bank"),
-  }));
-  const textbookMcqs = textbookQuestions.filter((question) => question.type === "mcq_single" && question.choices?.length)
-    .map((question) => questionRef(question, "textbook"));
-  const qbankMcqs = questionBankQuestions.filter((question) => question.type === "mcq_single" && question.choices?.length)
-    .slice(0, 7).map((question) => questionRef(question, "question-bank"));
-  const practiceQuestions = [...textbookMcqs, ...qbankMcqs].map((question) => Object.freeze({
-    ...question, difficulty: difficulty(question),
-  }));
-  const important = [
-    ...refs([2, 3, 4, 6, 12, 14, 15, 16, 20, 21], textbookQuestions, "textbook"),
-    ...refs([16, 22, 23, 29], questionBankQuestions, "question-bank"),
-  ];
-  const diagramQuestions = textbookQuestions.filter((question) => question.promptMedia?.length || question.solutionMedia?.length)
-    .map((question) => questionRef(question, "textbook"));
+  const fullModel = !route?.kind;
+  const needsConcepts = fullModel || ["study", "revision", "answer-writing", "concept"].includes(route.kind);
+  const needsPractice = fullModel || route?.kind === "practice";
+  const needsImportant = fullModel || route?.kind === "important-questions";
+  const needsDiagrams = fullModel || route?.kind === "revision";
+  const concepts = needsConcepts ? STUDY_CLUSTER_CONCEPTS.map((concept) => {
+    const needsQuestionReferences = fullModel || route.kind !== "concept" || route.concept?.slug === concept.slug;
+    const formula = formulaRepresentations(concept.source);
+    return Object.freeze({
+      ...concept,
+      source: formula.source,
+      spokenText: formula.spokenText,
+      plainText: formula.plainText,
+      formula,
+      textbookQuestions: needsQuestionReferences ? refs(concept.primary, textbookQuestions, "textbook") : [],
+      questionBankQuestions: needsQuestionReferences ? refs(concept.qbank, questionBankQuestions, "question-bank") : [],
+    });
+  }) : [];
+  const practiceQuestions = needsPractice
+    ? [
+        ...completePracticeQuestions(textbookQuestions, "textbook"),
+        ...completePracticeQuestions(questionBankQuestions, "question-bank", 7),
+      ].map((question) => Object.freeze({ ...question, difficulty: difficulty(question) }))
+    : [];
+  const important = needsImportant ? [
+      ...refs([2, 3, 4, 6, 12, 14, 15, 16, 20, 21], textbookQuestions, "textbook"),
+      ...refs([16, 22, 23, 29], questionBankQuestions, "question-bank"),
+    ] : [];
+  const diagramQuestions = needsDiagrams
+    ? textbookQuestions.filter((question) => question.promptMedia?.length || question.solutionMedia?.length)
+      .map((question) => questionRef(question, "textbook"))
+    : [];
   const publishingGateDate = new Intl.DateTimeFormat("en-IN", {
     day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata",
   }).format(Number(reviewedAt || Date.now() / 1_000) * 1_000);
@@ -251,8 +288,8 @@ export function buildStudyClusterModel({ primaryPayload, questionBankPayload, ca
     textbook: clean(catalog.book_title || "Balbharati Physics Standard 12"),
     chapter: clean(catalog.chapter_title || "Electrostatics"),
     chapterNumber: Number(catalog.chapter_number || 8),
-    textbookQuestions: textbookQuestions.map((question) => questionRef(question, "textbook")),
-    questionBankQuestions: questionBankQuestions.map((question) => questionRef(question, "question-bank")),
+    textbookQuestions: fullModel ? textbookQuestions.map((question) => questionRef(question, "textbook")) : [],
+    questionBankQuestions: fullModel ? questionBankQuestions.map((question) => questionRef(question, "question-bank")) : [],
     concepts,
     important,
     practiceQuestions,
@@ -287,7 +324,7 @@ function trustStrip(model) {
 }
 
 function hero(model, route, eyebrow, title, description) {
-  return `<section class="study-hero"><div class="study-field-art" aria-hidden="true"><b>+</b><i></i><i></i><i></i><b>−</b></div><div><span class="study-eyebrow">${escapeHtml(eyebrow)}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul><li>Maharashtra Board</li><li>Class 12 Physics</li><li>Chapter 8</li></ul></div>${trustStrip(model)}</section>${modeNavigation(route.kind)}`;
+  return `<section class="study-hero"><div class="study-field-art" aria-hidden="true"><b aria-hidden="true">+</b><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><b aria-hidden="true">−</b></div><div><span class="study-eyebrow">${escapeHtml(eyebrow)}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul><li>Maharashtra Board</li><li>Class 12 Physics</li><li>Chapter 8</li></ul></div>${trustStrip(model)}</section>${modeNavigation(route.kind)}`;
 }
 
 function studyHub(model, route) {
@@ -323,18 +360,23 @@ function importantPage(model, route) {
 }
 
 function practiceQuestionMarkup(question, index) {
-  const choices = question.choices.map((choice) => `<label><input type="radio" name="practice-${index}" value="${escapeHtml(choice.id)}"><span><b>${escapeHtml(choice.id.toUpperCase())}</b>${escapeHtml(choice.content)}</span></label>`).join("");
-  return `<article class="practice-card" data-practice-id="${escapeHtml(question.id)}" data-answer="${escapeHtml(question.correctChoiceId)}" data-difficulty="${escapeHtml(question.difficulty)}" data-source="${escapeHtml(question.source)}"><header><span>Question ${index + 1}</span><button type="button" data-save aria-pressed="false">Save</button></header><small>${question.source === "textbook" ? "Balbharati textbook" : "HSC Question Bank source"} · ${escapeHtml(question.difficulty)} practice estimate</small><h2>${escapeHtml(question.prompt)}</h2><fieldset><legend>Choose one answer</legend>${choices}</fieldset><div class="practice-actions"><button type="button" data-check>Check answer</button><a href="${escapeHtml(question.href)}">${escapeHtml(question.anchor)}</a></div><p class="practice-feedback" data-feedback hidden></p><details><summary>Why?</summary><p>${escapeHtml(question.explanation || "Open the worked solution to review the governing relation.")}</p></details></article>`;
+  const choices = (Array.isArray(question.choices) ? question.choices : []).map((choice) => `<label><input type="radio" name="practice-${index}" value="${escapeHtml(choice.id)}"><span><b>${escapeHtml(choice.id.toUpperCase())}</b>${escapeHtml(choice.content)}</span></label>`).join("");
+  const explanation = question.explanationMarkup || escapeHtml(question.explanation || "Open the worked solution to review the governing relation.");
+  return `<article class="practice-card" data-practice-id="${escapeHtml(question.id)}" data-answer="${escapeHtml(question.correctChoiceId)}" data-difficulty="${escapeHtml(question.difficulty)}" data-source="${escapeHtml(question.source)}"><header><span>Question ${index + 1}</span><button type="button" data-save aria-pressed="false">Save</button></header><small>${question.source === "textbook" ? "Balbharati textbook" : "HSC Question Bank source"} · ${escapeHtml(question.difficulty)} practice estimate</small><h2>${escapeHtml(question.prompt)}</h2><fieldset><legend>Choose one answer</legend>${choices}</fieldset><div class="practice-actions"><button type="button" data-check>Check answer</button><a href="${escapeHtml(question.href)}">${escapeHtml(question.anchor)}</a></div><p class="practice-feedback" data-feedback hidden></p><details><summary>Why?</summary><p>${explanation}</p></details></article>`;
 }
 
 function practicePage(model, route) {
   const cards = model.practiceQuestions.map(practiceQuestionMarkup).join("");
-  return `${hero(model, route, "No-login practice", "Electrostatics chapter test and MCQ practice", "Use the timer, filter by difficulty, save questions and retry mistakes. Progress stays in this browser; StudyWudy does not need your name, email or account.")}<section class="study-section practice-dashboard" data-study-practice="local-only-v1"><header><div><span>15-minute chapter test</span><h2>Your private practice desk</h2></div><div class="practice-timer"><output data-timer>15:00</output><button type="button" data-timer-toggle>Start timer</button><button type="button" data-timer-reset>Reset</button></div></header><div class="practice-controls"><label>Difficulty<select data-difficulty-filter><option value="all">All levels</option><option value="foundation">Foundation</option><option value="standard">Standard</option><option value="challenging">Challenging</option></select></label><button type="button" data-filter-saved>Saved only</button><button type="button" data-retry-mistakes>Retry mistakes</button><button type="button" data-show-all>Show all</button></div><div class="practice-progress" aria-live="polite"><span><b data-completed>0</b> checked</span><span><b data-correct>0</b> correct</span><span><b data-mistakes>0</b> to retry</span></div><p class="study-note"><strong>Difficulty note:</strong> foundation, standard and challenging are StudyWudy practice estimates based on question type, wording and solution steps—not official board ratings.</p><div class="practice-list">${cards}</div><noscript><p class="study-note">The questions and solution links remain available without JavaScript. Timer and browser-only progress need JavaScript.</p></noscript></section><section class="study-section"><header><span>Assertion–reason practice</span><h2>Two concept checks</h2></header><div class="study-definition-grid"><article><h3>Assertion: an isolated charged capacitor keeps the same charge when plate separation changes.</h3><p><strong>Reason:</strong> with no conducting path, charge cannot leave the plates. Both statements are true and the reason explains the assertion.</p></article><article><h3>Assertion: zero net flux through a closed surface means the field is zero everywhere.</h3><p><strong>Reason:</strong> flux is a signed surface sum. The assertion is false; inward and outward contributions can cancel while the local field is non-zero.</p></article></div></section><script src="/study-cluster.js?v=1" defer data-studywudy-practice="local-only-v1"></script>`;
+  const questionList = cards || '<p class="study-note" data-practice-empty><strong>Practice set unavailable:</strong> no complete multiple-choice questions passed the content checks. Use the linked chapter solutions while the set is reviewed.</p>';
+  return `${hero(model, route, "No-login practice", "Electrostatics chapter test and MCQ practice", "Use the timer, filter by difficulty, save questions and retry mistakes. Progress stays in this browser; StudyWudy does not need your name, email or account.")}<section class="study-section practice-dashboard" data-study-practice="local-only-v1"><header><div><span>15-minute chapter test</span><h2>Your private practice desk</h2></div><div class="practice-timer"><output data-timer>15:00</output><button type="button" data-timer-toggle>Start timer</button><button type="button" data-timer-reset>Reset</button></div></header><div class="practice-controls"><label>Difficulty<select data-difficulty-filter><option value="all">All levels</option><option value="foundation">Foundation</option><option value="standard">Standard</option><option value="challenging">Challenging</option></select></label><button type="button" data-filter-saved>Saved only</button><button type="button" data-retry-mistakes>Retry mistakes</button><button type="button" data-show-all>Show all</button></div><div class="practice-progress" aria-live="polite"><span><b data-completed>0</b> checked</span><span><b data-correct>0</b> correct</span><span><b data-mistakes>0</b> to retry</span></div><p class="study-note"><strong>Difficulty note:</strong> foundation, standard and challenging are StudyWudy practice estimates based on question type, wording and solution steps—not official board ratings.</p><div class="practice-list">${questionList}</div><noscript><p class="study-note">The questions and solution links remain available without JavaScript. Timer and browser-only progress need JavaScript.</p></noscript></section><section class="study-section"><header><span>Assertion–reason practice</span><h2>Two concept checks</h2></header><div class="study-definition-grid"><article><h3>Assertion: an isolated charged capacitor keeps the same charge when plate separation changes.</h3><p><strong>Reason:</strong> with no conducting path, charge cannot leave the plates. Both statements are true and the reason explains the assertion.</p></article><article><h3>Assertion: zero net flux through a closed surface means the field is zero everywhere.</h3><p><strong>Reason:</strong> flux is a signed surface sum. The assertion is false; inward and outward contributions can cancel while the local field is non-zero.</p></article></div></section><script src="/study-cluster.js?v=1" defer data-studywudy-practice="local-only-v1"></script>`;
 }
 
 function answerWritingPage(model, route) {
-  const dielectricExample = model.concepts.find((concept) => concept.slug === "dielectric-slab-in-capacitor").textbookQuestions[0];
-  return `${hero(model, route, "Board-exam practice structure", "How to write Class 12 Physics answers for 1, 2, 3 and 5 marks", "Match the depth of your response to the demand of the question: direct result first, then the exact principle, working, units, diagram and conclusion that earn clarity.")}<section class="study-section"><header><span>Answer-length ladder</span><h2>What a complete response usually contains</h2></header><div class="study-marks-grid"><article><strong>1 mark</strong><h3>One exact fact</h3><p>State the term, option, formula or result directly. Include the unit where the quantity requires one.</p></article><article><strong>2 marks</strong><h3>Result + governing reason</h3><p>Give the answer, name the principle or relation, and show one decisive reasoning step.</p></article><article><strong>3 marks</strong><h3>Method + working + result</h3><p>Write the formula, substitute clearly, keep signs and units, and finish with a separate final answer.</p></article><article><strong>5 marks</strong><h3>Structured derivation or explanation</h3><p>State assumptions, develop equations or labelled points in order, include the required diagram, and conclude.</p></article></div><p class="study-note"><strong>Evidence boundary:</strong> this is StudyWudy’s practice structure. The current Chapter 8 records do not contain an official marking scheme, so these are not claimed as official mark allocations.</p></section><section class="study-section study-split"><div><span>Numerical self-check</span><h2>Make every step visible</h2><ol class="study-numbered"><li><b>Given / required</b><span>Convert to SI units before substitution.</span></li><li><b>Formula</b><span>Name the relation and the constant quantity.</span></li><li><b>Substitution</b><span>Keep powers of ten and units attached.</span></li><li><b>Arithmetic</b><span>Check sign, exponent and sensible magnitude.</span></li><li><b>Final answer</b><span>Box the value with its unit.</span></li></ol></div><div><span>Keywords and diagrams</span><h2>Use terms that show the physics</h2><ul class="study-checklist"><li><strong>Potential:</strong> scalar, work per unit positive test charge.</li><li><strong>Conductor:</strong> electrostatic equilibrium, internal field zero, equipotential.</li><li><strong>Capacitor:</strong> same charge in series, same voltage in parallel.</li><li><strong>Dielectric:</strong> polarization, reduced effective field, dielectric constant.</li><li><strong>Gauss:</strong> closed surface, outward area vector, enclosed charge.</li><li>Label plate area, separation, dielectric thickness, field direction and circuit nodes where relevant.</li></ul></div></section><section class="study-section"><header><span>Model versus weak answer</span><h2>Example: dielectric slab in a capacitor</h2></header><div class="study-compare"><article><b>Weak</b><p>“The capacitance increases because dielectric is added.”</p><small>It states a trend but does not identify partial filling, the equivalent regions, or the usable relation.</small></article><article><b>Model</b><p>“The slab of thickness t and dielectric constant K leaves an air gap d − t. The two regions act in series, so the effective separation is d − t + t/K. Therefore C = ε₀A/(d − t + t/K), which is greater than ε₀A/d for K &gt; 1.”</p><small>Direct result, physical model, formula and conclusion are all specific to the question.</small></article></div><a class="study-primary-action" href="${dielectricExample.href}">${escapeHtml(dielectricExample.anchor)} →</a></section>`;
+  const dielectricExample = model.concepts.find((concept) => concept.slug === "dielectric-slab-in-capacitor")?.textbookQuestions[0];
+  const exampleAction = dielectricExample
+    ? `<a class="study-primary-action" href="${dielectricExample.href}">${escapeHtml(dielectricExample.anchor)} →</a>`
+    : `<a class="study-primary-action" href="${STUDY_CLUSTER_BASE}/concepts/dielectric-slab-in-capacitor">Review the dielectric-slab concept →</a>`;
+  return `${hero(model, route, "Board-exam practice structure", "How to write Class 12 Physics answers for 1, 2, 3 and 5 marks", "Match the depth of your response to the demand of the question: direct result first, then the exact principle, working, units, diagram and conclusion that earn clarity.")}<section class="study-section"><header><span>Answer-length ladder</span><h2>What a complete response usually contains</h2></header><div class="study-marks-grid"><article><strong>1 mark</strong><h3>One exact fact</h3><p>State the term, option, formula or result directly. Include the unit where the quantity requires one.</p></article><article><strong>2 marks</strong><h3>Result + governing reason</h3><p>Give the answer, name the principle or relation, and show one decisive reasoning step.</p></article><article><strong>3 marks</strong><h3>Method + working + result</h3><p>Write the formula, substitute clearly, keep signs and units, and finish with a separate final answer.</p></article><article><strong>5 marks</strong><h3>Structured derivation or explanation</h3><p>State assumptions, develop equations or labelled points in order, include the required diagram, and conclude.</p></article></div><p class="study-note"><strong>Evidence boundary:</strong> this is StudyWudy’s practice structure. The current Chapter 8 records do not contain an official marking scheme, so these are not claimed as official mark allocations.</p></section><section class="study-section study-split"><div><span>Numerical self-check</span><h2>Make every step visible</h2><ol class="study-numbered"><li><b>Given / required</b><span>Convert to SI units before substitution.</span></li><li><b>Formula</b><span>Name the relation and the constant quantity.</span></li><li><b>Substitution</b><span>Keep powers of ten and units attached.</span></li><li><b>Arithmetic</b><span>Check sign, exponent and sensible magnitude.</span></li><li><b>Final answer</b><span>Box the value with its unit.</span></li></ol></div><div><span>Keywords and diagrams</span><h2>Use terms that show the physics</h2><ul class="study-checklist"><li><strong>Potential:</strong> scalar, work per unit positive test charge.</li><li><strong>Conductor:</strong> electrostatic equilibrium, internal field zero, equipotential.</li><li><strong>Capacitor:</strong> same charge in series, same voltage in parallel.</li><li><strong>Dielectric:</strong> polarization, reduced effective field, dielectric constant.</li><li><strong>Gauss:</strong> closed surface, outward area vector, enclosed charge.</li><li>Label plate area, separation, dielectric thickness, field direction and circuit nodes where relevant.</li></ul></div></section><section class="study-section"><header><span>Model versus weak answer</span><h2>Example: dielectric slab in a capacitor</h2></header><div class="study-compare"><article><b>Weak</b><p>“The capacitance increases because dielectric is added.”</p><small>It states a trend but does not identify partial filling, the equivalent regions, or the usable relation.</small></article><article><b>Model</b><p>“The slab of thickness t and dielectric constant K leaves an air gap d − t. The two regions act in series, so the effective separation is d − t + t/K. Therefore C = ε₀A/(d − t + t/K), which is greater than ε₀A/d for K &gt; 1.”</p><small>Direct result, physical model, formula and conclusion are all specific to the question.</small></article></div>${exampleAction}</section>`;
 }
 
 function conceptPage(model, route) {

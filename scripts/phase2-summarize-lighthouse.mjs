@@ -111,7 +111,7 @@ ${rows.join("\n")}
 - IBM Plex Sans is self-hosted with Latin, Greek, and Devanagari subsets; only the above-the-fold Latin variable font is preloaded.
 - KaTeX markup is present in the server response, no client KaTeX renderer ships, and all KaTeX fonts use font-display: swap.
 - 602 textbook covers are delivered as dimensioned, lazy WebP images (73.6% fewer bytes than the recovered JPEG set). Board marks have WebP and AVIF derivatives.
-- Public HTML uses one-hour edge caching with stale-while-revalidate; hashed/static assets are immutable for one year; conditional HTML requests cannot reuse stale transformed markup.
+- Public HTML uses a versioned one-hour edge cache while browsers must revalidate it on every navigation; hashed/static assets are immutable for one year.
 - Custom scripts are deferred. Search remains a server GET form with no dedicated client bundle, while class, chapter, and question chunks remain route-scoped.
 - Rocket Loader markers are absent on all eight canonical routes.
 

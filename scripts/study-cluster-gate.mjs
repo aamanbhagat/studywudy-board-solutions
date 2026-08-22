@@ -78,7 +78,7 @@ for (const pathname of [...STUDY_CLUSTER_INDEXABLE_PATHS, STUDY_CLUSTER_PYQ_PATH
 if (model.evidence.textbookQuestionCount !== 21) errors.push("Electrostatics textbook question count changed from reviewed 21");
 if (model.evidence.questionBankQuestionCount !== 30) errors.push("Electrostatics question-bank count changed from reviewed 30");
 if (model.evidence.hasVerifiedPaperMetadata || model.evidence.verifiedPaperCount !== 0) errors.push("Unverified PYQ evidence was published");
-if (model.concepts.length !== 7) errors.push("Concept library must contain seven reviewed guides");
+if (model.concepts.length !== 8) errors.push("Concept library must contain eight reviewed guides");
 if (!model.concepts.every((concept) => concept.textbookQuestions.length && concept.questionBankQuestions.length)) {
   errors.push("Every concept guide must link textbook and question-bank practice");
 }

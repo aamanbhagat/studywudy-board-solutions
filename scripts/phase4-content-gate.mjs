@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import {
   SUPPORTED_ANSWER_TYPES,
   contentToText,
+  encodeFlagBitset,
   encodeIndexabilityBitset,
   equationsAreReadable,
   evaluateAnswerCompleteness,
@@ -16,15 +17,22 @@ import {
   renderedAnswerText,
   simpleArithmeticIsAccurate,
 } from "../answer-completeness.mjs";
+import {
+  ANSWER_SEMANTIC_QUALITY_POLICY_VERSION,
+  evaluatePostGenerationAnswerQuality,
+} from "../answer-semantic-quality.mjs";
 import { conciseDirectAnswer } from "../question-page-experience.mjs";
+import { normalizedQuestionType, questionHasRenderedDiagram } from "../question-classification.mjs";
 import { getQuestionUrl, questionRecordFromCatalogRow } from "../question-routes.mjs";
 import { evaluateQuestionFormulaAccessibility } from "../semantic-math.mjs";
 import {
   POLICY_VERSION as MULTILINGUAL_POLICY_VERSION,
+  applyKnownPayloadRepairs,
   isBookQuarantined,
 } from "../multilingual-text-quality.mjs";
+import { sourceMappingReleaseEligibility } from "../source-mapping-quality.mjs";
 
-const POLICY_VERSION = "phase4-v7-language-quality";
+const POLICY_VERSION = "phase4-v11-semantic-operator-equivalence";
 const QUESTION_PAGE_EXPERIENCE_VERSION = "question-specific-trust-v2";
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;
@@ -141,7 +149,10 @@ const seenKeys = new Set();
 
 for (const { book_id: bookId } of bookIds) {
   const chunks = source.prepare("SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index").all(bookId);
-  const payload = JSON.parse(gunzipSync(Buffer.concat(chunks.map((row) => Buffer.from(row.content_chunk)))).toString("utf8"));
+  const payload = applyKnownPayloadRepairs(
+    bookId,
+    JSON.parse(gunzipSync(Buffer.concat(chunks.map((row) => Buffer.from(row.content_chunk)))).toString("utf8")),
+  );
   const sourceRevisionPass = Boolean(String(payload.sourceChecksum || payload.sourceVersion || "").trim());
   const sourceEditionRecorded = Boolean(String(
     payload.catalog?.book?.edition
@@ -160,15 +171,18 @@ for (const { book_id: bookId } of bookIds) {
         const rowId = Number(metadata?.row_id || 0);
         if (!rowId) throw new Error(`Content question is missing catalog metadata: ${key}`);
 
-        const answerBody = renderedAnswerText(question);
+        const normalizedType = normalizedQuestionType(question);
+        const qualityQuestion = normalizedType === question.type ? question : { ...question, type: normalizedType };
+        const answerBody = renderedAnswerText(qualityQuestion);
         const answerTokens = lexicalTokens(answerBody);
         const promptText = contentToText(question.prompt);
         const promptTokens = lexicalTokens(`${promptText} ${(question.choices || []).map((choice) => contentToText(choice.content)).join(" ")}`);
         const promptSet = new Set(promptTokens);
         const renderedUniqueWords = new Set(answerTokens).size;
         const genuineUniqueWords = new Set(answerTokens.filter((token) => !promptSet.has(token))).size;
-        const completeness = evaluateAnswerCompleteness(question);
-        const recognizedFormat = stats.has(question.type);
+        const completeness = evaluateAnswerCompleteness(qualityQuestion);
+        const semanticAnswerQuality = evaluatePostGenerationAnswerQuality(qualityQuestion);
+        const recognizedFormat = stats.has(normalizedType);
         const textbookMappingPass = Boolean(
           metadata
           && metadata.book_id === bookId
@@ -176,6 +190,11 @@ for (const { book_id: bookId } of bookIds) {
           && question.exerciseId
           && (!exercise.id || exercise.id === question.exerciseId),
         );
+        const sourceMapping = sourceMappingReleaseEligibility({
+          bookId,
+          chapterSlug: chapter.slug,
+          internalMappingConsistent: textbookMappingPass,
+        });
         let canonicalPath = null;
         let canonicalPass = false;
         try {
@@ -193,9 +212,11 @@ for (const { book_id: bookId } of bookIds) {
           failures: formulaEvaluation.failures,
         };
         const formulaAccessibilityPass = formulaAccessibility.complete;
+        const equationReviewPending = formulaAccessibility.formulaCount > 0 && (!equationPass || !formulaAccessibilityPass);
+        const renderedDiagramAvailable = questionHasRenderedDiagram(qualityQuestion);
         const usefulContextPass = answerTokens.some((token) => !promptSet.has(token));
         const distinctIntentPass = Boolean(normalizeIntent(promptText));
-        const directAnswerPass = Boolean(conciseDirectAnswer(question));
+        const directAnswerPass = Boolean(conciseDirectAnswer(qualityQuestion));
         const exactQuestionContextPass = Boolean(
           question.displayLabel != null
           && String(question.displayLabel).trim()
@@ -209,7 +230,9 @@ for (const { book_id: bookId } of bookIds) {
         const languageQualityPass = !isBookQuarantined(bookId);
         const eligibleBeforeEquivalence = recognizedFormat
           && completeness.complete
+          && semanticAnswerQuality.complete
           && textbookMappingPass
+          && sourceMapping.indexEligible
           && canonicalPass
           && equationPass
           && formulaAccessibilityPass
@@ -224,17 +247,24 @@ for (const { book_id: bookId } of bookIds) {
           bookId,
           chapterSlug: chapter.slug,
           questionId: question.id,
-          type: question.type,
+          type: normalizedType,
+          importedType: question.type,
           answerKind: completeness.kind,
           completeness,
+          semanticAnswerQuality,
           renderedUniqueWords,
           genuineUniqueWords,
           textbookMappingPass,
+          authoritativeTextbookMappingVerified: sourceMapping.authoritative.authoritativeTextbookMappingVerified,
+          authoritativeMappingStatus: sourceMapping.authoritative.status,
+          authoritativeMappingPass: sourceMapping.indexEligible,
           canonicalPass,
           canonicalPath,
           equationPass,
           formulaAccessibilityPass,
           formulaAccessibility,
+          equationReviewPending,
+          renderedDiagramAvailable,
           usefulContextPass,
           distinctIntentPass,
           directAnswerPass,
@@ -259,7 +289,7 @@ for (const { book_id: bookId } of bookIds) {
         records.push(record);
 
         if (!recognizedFormat) continue;
-        const format = stats.get(question.type);
+        const format = stats.get(normalizedType);
         format.persistedCount += 1;
         format.renderedUniqueWordTotal += renderedUniqueWords;
         format.genuineUniqueWordTotal += genuineUniqueWords;
@@ -330,13 +360,20 @@ const catalogMaxUpdatedAt = metadataRows.reduce((maximum, metadata) => Math.max(
   catalogEpoch(metadata.question_updated_at),
 ), 0);
 const indexabilityBitsetBase64 = encodeIndexabilityBitset(records, maximumRowId);
+const equationReviewBitsetBase64 = encodeFlagBitset(records, maximumRowId, "equationReviewPending");
+const equationReviewPendingCount = records.filter((record) => record.equationReviewPending).length;
+const renderedDiagramBitsetBase64 = encodeFlagBitset(records, maximumRowId, "renderedDiagramAvailable");
+const renderedDiagramCount = records.filter((record) => record.renderedDiagramAvailable).length;
 
 if (manifestPath) {
   const manifest = {
     policyVersion: POLICY_VERSION,
     completenessPolicy: "question-type-aware; no minimum word count",
     questionPageExperienceVersion: QUESTION_PAGE_EXPERIENCE_VERSION,
-    formulaAccessibilityPolicy: "canonical source, spoken text, plain text and semantic MathML must agree",
+    formulaAccessibilityPolicy: "strict canonical parse plus semantic-token preservation across spoken text, plain text and semantic MathML",
+    promptRequirementsPolicy: "draw, working, comparison, reason and derivation instructions must be satisfied by rendered answer structures",
+    semanticAnswerQualityPolicy: ANSWER_SEMANTIC_QUALITY_POLICY_VERSION,
+    sourceMappingPolicy: "internal mapping consistency is separate from authoritative textbook verification; known mismatches fail closed",
     multilingualTextPolicy: `${MULTILINGUAL_POLICY_VERSION}; unresolved Hindi and Tamil imports are quarantined`,
     similarityThreshold: SIMILARITY_THRESHOLD,
     similarityMetric: SIMILARITY_METRIC,
@@ -347,6 +384,10 @@ if (manifestPath) {
     indexableCount: gatePassedCount,
     maximumRowId,
     indexabilityBitsetBase64,
+    equationReviewPendingCount,
+    equationReviewBitsetBase64,
+    renderedDiagramCount,
+    renderedDiagramBitsetBase64,
     catalogMaxUpdatedAt,
     entries: [],
   };
@@ -376,6 +417,7 @@ if (applyPath) {
         record.answerKind,
         JSON.stringify({
           answer: record.completeness.checks,
+          semanticAnswerQuality: record.semanticAnswerQuality,
           formulaAccessibility: record.formulaAccessibility,
         }),
         record.completeness.complete ? 1 : 0,
@@ -439,7 +481,9 @@ const gateFailureCounts = new Map();
 for (const record of records.filter((candidate) => !candidate.gatePassed)) {
   const reasons = [
     ...record.completeness.missing.map((check) => `answer:${check}`),
+    ...(!record.semanticAnswerQuality.complete ? record.semanticAnswerQuality.failures.map((check) => `semanticAnswer:${check}`) : []),
     ...(!record.textbookMappingPass ? ["textbookMapping"] : []),
+    ...(!record.authoritativeMappingPass ? ["authoritativeTextbookMapping"] : []),
     ...(!record.equationPass ? ["equations"] : []),
     ...(!record.formulaAccessibilityPass ? record.formulaAccessibility.missing.map((check) => `formulaAccessibility:${check}`) : []),
     ...(!record.usefulContextPass ? ["usefulContext"] : []),
@@ -471,7 +515,9 @@ const report = {
     indexRequirements: [
       "distinct search intent",
       "complete answer for its type",
-      "verified textbook mapping",
+      "internally consistent catalog/source mapping",
+      "no known authoritative textbook mapping mismatch",
+      "post-generation semantic coherence, selected-answer consistency, grammar and option-specific reasoning",
       "correct and readable equations",
       "matching source, spoken, plain-text and semantic MathML formula representations",
       "useful non-prompt context",
@@ -508,12 +554,32 @@ const report = {
     previousYearMetadataCount: records.filter((record) => record.previousYearMetadataAvailable).length,
     optionalSectionPolicy: "Render only when the current question or mapped exercise contains supporting source data; never synthesize a repeated filler paragraph.",
   },
+  semanticAnswerQuality: {
+    policyVersion: ANSWER_SEMANTIC_QUALITY_POLICY_VERSION,
+    passedCount: records.filter((record) => record.semanticAnswerQuality.complete).length,
+    failedCount: records.filter((record) => !record.semanticAnswerQuality.complete).length,
+    rejectedChecks: [
+      "repeated or accidentally joined clauses",
+      "contradictory predicates",
+      "duplicated answer endings",
+      "basic grammar and readability",
+      "MCQ selected-answer consistency",
+      "minimum option-specific reasoning",
+    ],
+  },
+  sourceMappingQuality: {
+    policy: "Internal mapping consistency and authoritative textbook verification are separate statuses.",
+    internallyConsistentCount: records.filter((record) => record.textbookMappingPass).length,
+    authoritativeVerifiedCount: records.filter((record) => record.authoritativeTextbookMappingVerified).length,
+    knownMismatchCount: records.filter((record) => record.authoritativeMappingStatus === "mismatch").length,
+  },
   formulaAccessibility: {
-    policy: "Every detected formula is derived from one canonical source and checked for coherent MathML, spoken text and crawler-visible plain text.",
+    policy: "Every detected formula is strictly parsed and must preserve canonical semantic identifiers and operators in MathML, spoken text and crawler-visible plain text.",
     questionCountWithFormula: records.filter((record) => record.formulaAccessibility.formulaCount > 0).length,
     formulaCount: records.reduce((total, record) => total + record.formulaAccessibility.formulaCount, 0),
     passedQuestionCount: records.filter((record) => record.formulaAccessibilityPass).length,
     failedQuestionCount: records.filter((record) => !record.formulaAccessibilityPass).length,
+    equationReviewPendingCount,
     sampleFailures: records
       .filter((record) => !record.formulaAccessibilityPass)
       .slice(0, 24)
@@ -525,6 +591,23 @@ const report = {
       "hyphen substituted for a mathematical minus",
       "detached units",
       "Latin I confused with numeral 1",
+      "semantic identifier or operator loss",
+      "empty fraction arguments or equation sides",
+      "scripts or integral limits without a valid base operator",
+      "unmatched delimiters",
+      "raw TeX in crawler-visible plain text",
+    ],
+  },
+  promptRequirements: {
+    policy: "Question verbs are release requirements, not descriptive hints.",
+    failedQuestionCount: records.filter((record) => record.completeness.missing.some((check) => check.startsWith("prompt") || check === "renderedWorkedStepCountMatchesSource")).length,
+    requirements: [
+      "draw or diagram requires rendered diagram media",
+      "show working requires multiple calculation steps",
+      "compare requires both sides across multiple dimensions",
+      "give reason requires a causal explanation",
+      "derive requires ordered equation steps and a conclusion",
+      "displayed worked-step count equals the non-empty rendered step count",
     ],
   },
   multilingualTextQuality: {

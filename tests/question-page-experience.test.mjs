@@ -7,6 +7,7 @@ import {
   findQuestionPageContext,
   renderQuestionPageExperience,
 } from "../question-page-experience.mjs";
+import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
 
 const route = Object.freeze({
   board: "maharashtra-board",
@@ -89,9 +90,10 @@ test("a question page summary uses the exact mapped answer and textbook context"
   assert.match(markup.aboveFold, /Maharashtra State Board/);
   assert.match(markup.aboveFold, /Standard 12/);
   assert.match(markup.aboveFold, /Balbharati Physics Standard 12/);
-  assert.match(markup.aboveFold, /Source mapping verified against Balbharati Physics Standard 12, 2025 revised edition/);
+  assert.match(markup.aboveFold, /Catalog and imported payload are internally consistent; an authoritative textbook comparison is not recorded/);
   assert.match(markup.trust, /Checksum c06b37bbd876/);
-  assert.match(markup.trust, /Source mapping verified/);
+  assert.match(markup.trust, /Internal mapping consistent/);
+  assert.match(markup.trust, /Authoritative textbook comparison not recorded/);
   assert.match(markup.trust, /Editorial review pending/);
   assert.match(markup.trust, /No verified named academic reviewer/);
   assert.doesNotMatch(markup.trust, /StudyWudy Editorial Team/);
@@ -122,16 +124,39 @@ test("a formula-only principle renders semantic math instead of visible TeX deli
   const payload = fixturePayload();
   payload.chapters[0].exercises[0].questions[0].formulaUsed = "$$V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0$$";
   const markup = renderQuestionPageExperience(modelFor(payload));
-  assert.match(markup.solutionSupplement, /data-math-source=/u);
-  assert.match(markup.solutionSupplement, /data-math-plain="V₍equatorial₎ = \(1\/4πε₀\)\(p cos 90°\/r²\) = 0"/u);
+  assert.match(markup.solutionSupplement, /<math[^>]+role="math"[^>]+aria-label="V sub equatorial equals one over four pi epsilon sub zero p cos ninety degrees over r squared equals zero"/u);
+  assert.doesNotMatch(markup.solutionSupplement, /math-plain-text|math-semantic-only/u);
+  assert.doesNotMatch(markup.solutionSupplement, /data-math-(?:source|spoken|plain)=/u);
   assert.doesNotMatch(markup.solutionSupplement, />\$\$/u);
+});
+
+test("a prose principle derives inline formulas instead of exposing raw TeX text", () => {
+  const payload = fixturePayload();
+  payload.chapters[0].exercises[0].questions[0].formulaUsed = "When $t = \\tfrac{3}{4}d$, the air gap is $d - \\tfrac{3}{4}d = \\tfrac{d}{4}$.";
+  const markup = renderQuestionPageExperience(modelFor(payload));
+  assert.equal((markup.solutionSupplement.match(/class="math math-semantic math-visible math-inline"/gu) || []).length, 2);
+  assert.equal((markup.solutionSupplement.match(/<math\b/gu) || []).length, 2);
+  assert.doesNotMatch(markup.solutionSupplement, /math-plain-text|math-semantic-only/u);
+  assert.doesNotMatch(extractCrawlerVisibleText(markup.solutionSupplement), /\$|\\tfrac/u);
+});
+
+test("a direct answer derives semantic equations instead of exposing TeX delimiters", () => {
+  const payload = fixturePayload();
+  const question = payload.chapters[0].exercises[0].questions[0];
+  question.type = "brief";
+  question.correctChoiceId = undefined;
+  question.answer = "The work is $$W=\\frac{Q^2}{8\\pi\\varepsilon_0}\\left(\\frac{1}{b}-\\frac{1}{a}\\right)$$ for $a>b$.";
+  const markup = renderQuestionPageExperience(modelFor(payload));
+  assert.equal((markup.aboveFold.match(/<math\b/gu) || []).length, 2);
+  assert.doesNotMatch(markup.aboveFold, /math-plain-text|math-semantic-only/u);
+  assert.doesNotMatch(extractCrawlerVisibleText(markup.aboveFold), /\$|\\(?:d?frac|varepsilon)/u);
 });
 
 test("missing edition metadata is disclosed instead of inventing verification", () => {
   const model = modelFor(fixturePayload({ edition: null }));
   const markup = renderQuestionPageExperience(model);
   assert.equal(model.edition, null);
-  assert.match(markup.aboveFold, /edition metadata is not present in the source record/);
+  assert.match(markup.aboveFold, /authoritative textbook comparison is not recorded/);
   assert.match(markup.trust, /Not recorded in source data/);
   assert.doesNotMatch(markup.aboveFold, /Verified against/);
 });
@@ -145,7 +170,9 @@ test("direct answers stay type-aware", () => {
 test("the final Worker layer fails indexing closed when the experience is unavailable", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
   assert.match(source, /questionPageExperienceResponse/);
-  assert.match(source, /experienceReady && row && isQuestionRowIndexable/);
+  assert.match(source, /experienceReady[\s\S]{0,80}&& row[\s\S]{0,80}&& isQuestionPubliclyEligible/);
+  assert.match(source, /filterPublicQuestionRecommendations/);
+  assert.match(source, /corpusQuestionIndexEligible/);
   assert.match(source, /X-StudyWudy-Question-Experience/);
   assert.match(source, /Question-Experience/);
 });

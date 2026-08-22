@@ -4,12 +4,13 @@
     if (!selection || selection.isCollapsed || !selection.rangeCount || !event.clipboardData) return;
 
     const fragment = selection.getRangeAt(0).cloneContents();
-    const formulas = [...fragment.querySelectorAll(".math[data-math-plain]")];
+    const formulas = [...fragment.querySelectorAll(".math.math-semantic")];
     if (!formulas.length) return;
 
     for (const formula of formulas) {
       if (!formula.isConnected && formula.parentNode == null) continue;
-      formula.replaceWith(document.createTextNode(formula.getAttribute("data-math-plain") || ""));
+      const plain = formula.querySelector(":scope > .math-plain-text")?.textContent || "";
+      if (plain) formula.replaceWith(document.createTextNode(plain));
     }
 
     const container = document.createElement("div");

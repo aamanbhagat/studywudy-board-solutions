@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   EXEMPLAR_HINDI_BOOK_ID,
   FRANK_MATHEMATICS_BOOK_ID,
+  MAHARASHTRA_PHYSICS_BOOK_ID,
   STANDARD_HINDI_BOOK_ID,
   applyKnownPayloadRepairs,
   equivalenceAlternates,
@@ -11,6 +12,7 @@ import {
   languageForBookId,
   localizationForPathname,
   repairKnownText,
+  repairKnownTextEverywhere,
   validateImportedText,
 } from "../multilingual-text-quality.mjs";
 
@@ -27,6 +29,12 @@ test("repairs a Cyrillic confusable inside a Latin word", () => {
   assert.equal(result.value, "Goods and Services Tax");
   assert.equal(result.complete, true);
   assert.equal(result.repairs[0].code, "mixed-script-confusable");
+});
+
+test("global text repair preserves Greek symbols in scientific notation", () => {
+  assert.equal(repairKnownTextEverywhere("C₂ = kε₀A and μ₀H"), "C₂ = kε₀A and μ₀H");
+  assert.equal(repairKnownTextEverywhere("Since C = εA/d and V = Q/C"), "Since C = ε₀A/d and V = Q/C");
+  assert.equal(repairKnownTextEverywhere("Goods and Services Taх"), "Goods and Services Tax");
 });
 
 test("rejects unresolved mixed-script tokens", () => {
@@ -91,6 +99,37 @@ test("applies the verified Hindi and Tax title repairs to imported payloads", ()
   );
   assert.equal(repairKnownText(STANDARD_HINDI_BOOK_ID, "संlद्रता"), "सांद्रता");
   assert.equal(repairKnownText(FRANK_MATHEMATICS_BOOK_ID, "Goods and Services Taх"), "Goods and Services Tax");
+});
+
+test("repairs the verified numeral-one OCR error in the Electrostatics source", () => {
+  assert.equal(
+    repairKnownText(MAHARASHTRA_PHYSICS_BOOK_ID, "plate separation I mm"),
+    "plate separation 1 mm",
+  );
+});
+
+test("normalizes the verified Class 8 triangle prompt", () => {
+  assert.equal(
+    repairKnownText(
+      "maharashtra-board::class-8::mathematics::balbharati-mathematics-standard-8",
+      "Sides of a triangle are cm 45 cm, 39 cm and 42 cm, find its area.",
+    ),
+    "The sides of a triangle are 45 cm, 39 cm and 42 cm. Find its area.",
+  );
+});
+
+test("repairs the reported physics source-text defects before public rendering", () => {
+  const hcVerma = "cbse::class-12::physics::hc-verma-concepts-of-physics-volume-1-and-2-class-12";
+  const exemplar = "cbse::class-12::physics::ncert-exemplar-physics-exemplar-class-12";
+  assert.equal(repairKnownText(hcVerma, "Gausss Law"), "Gauss’s Law");
+  assert.equal(
+    repairKnownText(hcVerma, "uniform charge distribution of density ρρ"),
+    "uniform charge distribution of density ρ",
+  );
+  assert.equal(
+    repairKnownText(exemplar, "the line joining the two fixed charged as shown"),
+    "the line joining the two fixed charges as shown",
+  );
 });
 
 test("recognizes language editions and quarantines unreviewed imports", () => {

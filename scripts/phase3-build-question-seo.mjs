@@ -8,6 +8,7 @@ import {
   questionDescription,
   questionDocumentTitle,
 } from "../question-seo.mjs";
+import { ACCOUNTANCY_SAMPLE_TITLE } from "../public-title-quality.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -85,20 +86,33 @@ const metadataArtifacts = {
   descriptionTablePipe: 0,
   descriptionLatexBrace: 0,
 };
+const publicTitleQuality = {
+  privateRowIdDisambiguators: 0,
+  catalogueReferences: 0,
+  lowercaseTitleOpenings: 0,
+  overlongTitles: 0,
+  accountancySampleMatches: false,
+};
 
 for (const row of rows) {
   const disambiguate = disambiguatedRows.has(Number(row.row_id));
   const title = questionDocumentTitle(row, disambiguate);
   const description = questionDescription(row, disambiguate);
   const searchTitle = title.replace(/\s+\|\s+StudyWudy$/u, "");
+  const artifactTitle = searchTitle.replace(/\s+\|\s+(?=Class\b)/gu, " ");
   if (/\$/u.test(searchTitle)) metadataArtifacts.titleRawMathDelimiter += 1;
   if (/\\/u.test(searchTitle)) metadataArtifacts.titleLatexBackslash += 1;
-  if (/\|/u.test(searchTitle)) metadataArtifacts.titleTablePipe += 1;
+  if (/\|/u.test(artifactTitle)) metadataArtifacts.titleTablePipe += 1;
   if (/[{}]/u.test(searchTitle)) metadataArtifacts.titleLatexBrace += 1;
   if (/\$/u.test(description)) metadataArtifacts.descriptionRawMathDelimiter += 1;
   if (/\\/u.test(description)) metadataArtifacts.descriptionLatexBackslash += 1;
   if (/\|/u.test(description)) metadataArtifacts.descriptionTablePipe += 1;
   if (/[{}]/u.test(description)) metadataArtifacts.descriptionLatexBrace += 1;
+  if (new RegExp(`·\\s*${String(row.row_id)}(?:\\s|\\||$)`, "u").test(title)) publicTitleQuality.privateRowIdDisambiguators += 1;
+  if (/\bcatalogue reference\b/iu.test(`${title} ${description}`)) publicTitleQuality.catalogueReferences += 1;
+  if (/^[a-z]/u.test(title)) publicTitleQuality.lowercaseTitleOpenings += 1;
+  if ([...title].length > 160) publicTitleQuality.overlongTitles += 1;
+  if (Number(row.row_id) === 39_148) publicTitleQuality.accountancySampleMatches = title === ACCOUNTANCY_SAMPLE_TITLE;
   if (finalTitles.has(title)) throw new Error(`Duplicate final title remains for row ${row.row_id}`);
   if (finalDescriptions.has(description)) throw new Error(`Duplicate final description remains for row ${row.row_id}`);
   const normalizedTitle = normalizeSimilarity(title);
@@ -146,11 +160,17 @@ const report = {
   titleLength: { minimum: minimumTitleLength, maximum: maximumTitleLength },
   descriptionLength: { minimum: minimumDescriptionLength, maximum: maximumDescriptionLength },
   metadataArtifacts,
+  publicTitleQuality,
   pass: finalTitles.size === rows.length
     && finalDescriptions.size === rows.length
     && finalNormalizedTitles.size === rows.length
     && finalNormalizedDescriptions.size === rows.length
-    && Object.values(metadataArtifacts).every((count) => count === 0),
+    && Object.values(metadataArtifacts).every((count) => count === 0)
+    && publicTitleQuality.privateRowIdDisambiguators === 0
+    && publicTitleQuality.catalogueReferences === 0
+    && publicTitleQuality.lowercaseTitleOpenings === 0
+    && publicTitleQuality.overlongTitles === 0
+    && publicTitleQuality.accountancySampleMatches,
 };
 
 mkdirSync(dirname(manifestPath), { recursive: true });

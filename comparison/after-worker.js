@@ -30,8 +30,12 @@ import {
   isLegacyQuestionId,
   questionRecordFromCatalogRow,
 } from "../question-routes.mjs";
-import { isQuestionRowIndexable } from "../answer-completeness.mjs";
+import { isQuestionEquationReviewPending, isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import {
+  isQuestionPubliclyEligible,
+  PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
+} from "../public-question-eligibility.mjs";
 import {
   buildQuestionPageExperience,
   findQuestionPageContext,
@@ -56,19 +60,16 @@ import {
   renderBreadcrumbStructuredData,
 } from "../breadcrumbs.mjs";
 import {
+  buildCanonicalFormulaLookup,
+  canonicalFormulaForLegacyLabel,
   formulaRepresentations,
   repairCrawlerFormulaSource,
+  repairMalformedFormulaText,
   renderSemanticMath,
   SEMANTIC_MATH_STYLES,
+  validateFormulaStructure,
 } from "../semantic-math.mjs";
-import {
-  buildStudyClusterModel,
-  matchStudyClusterRoute,
-  renderStudyClusterPage,
-  STUDY_CLUSTER_BASE,
-  STUDY_CLUSTER_QBANK_BOOK,
-  STUDY_CLUSTER_STYLES,
-} from "../study-cluster.mjs";
+import { STUDY_CLUSTER_BASE } from "../study-cluster.mjs";
 import {
   buildQuestionSemanticGraph,
   descriptiveQuestionAnchor,
@@ -86,12 +87,71 @@ import {
   applyKnownPayloadRepairs,
   bookIdFromPathname,
   isBookQuarantined,
+  languageForBookId,
   localizationForPathname,
   repairKnownText,
   repairKnownTextEverywhere,
   reviewedBookTitle,
   reviewedChapterTitle,
 } from "../multilingual-text-quality.mjs";
+import {
+  BOARD_HUB_SSR_RELEASE,
+  CBSE_SERVER_BOARD_VALUE,
+  CBSE_SERVER_CLASS_NAVIGATION,
+  CBSE_SERVER_RENDERED_STYLES,
+} from "../board-landing-ssr.mjs";
+import {
+  createPlainSearchText,
+  evaluateSearchExcerptSource,
+  SEARCH_EXCERPT_RELEASE,
+  truncateSearchExcerpt,
+} from "../search-excerpt.mjs";
+import {
+  buildQuestionSearchPlan,
+  DIAGRAM_EVIDENCE_SQL,
+  parseQuestionSearchCriteria,
+  questionHasNumericalEvidence,
+  questionSearchHeading,
+  renderActiveSearchFilterInputs,
+  renderPopularQuestionFilters,
+  SEARCH_FILTER_RELEASE,
+  normalizedQuestionType,
+} from "../question-search.mjs";
+import {
+  QUESTION_SHOWCASE_ENTRIES,
+  QUESTION_SHOWCASE_SOURCE_GATE,
+} from "../question-showcase-manifest.mjs";
+import {
+  PUBLIC_BRAND_HYGIENE_RELEASE,
+  PUBLIC_BRAND_REPLACEMENT,
+  publicDocumentUrl,
+  repairPublicBrandCopy,
+  rewritePublicAssetPath,
+  rewritePublicInfrastructureOrigin,
+  rewritePublicMetadataValue,
+} from "../public-brand-hygiene.mjs";
+import { ACCESSIBILITY_TEXT_RELEASE } from "../accessibility-text.mjs";
+import {
+  isLocalLaunchHotPathBuildRequest,
+  LAUNCH_HOT_PATH_RELEASE,
+  launchHotPathDocument,
+} from "../launch-hot-path.mjs";
+import {
+  HOMEPAGE_DOCUMENT_TITLE,
+  PUBLIC_TITLE_QUALITY_RELEASE,
+} from "../public-title-quality.mjs";
+import {
+  corpusQuestionIndexEligible,
+  corpusQuestionSearchEligible,
+  CORPUS_QUALITY_POLICY_VERSION,
+} from "../corpus-quality.mjs";
+import {
+  CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+} from "../corpus-quality-manifest.mjs";
+import {
+  PUBLIC_HTML_CACHE_CONTROL,
+  RENDER_CONSISTENCY_RELEASE,
+} from "../render-consistency.mjs";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -99,7 +159,33 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260821-resource-hotfix-v36";
+const PHASE_2_VERSION = "20260822-semantic-operator-gate-v78";
+const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
+  "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/quadatric-euation": "/pages/corpus-quality/quadratic-equations/",
+  "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031": "/pages/corpus-quality/source-review-61425/",
+  "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/friction/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-6-052": "/pages/corpus-quality/source-review-59639/",
+  "/cisce/class-10/mathematics/frank-mathematics-part-2-class-10/problems-based-on-quadratic-equations/questions/q-cisce-frank-mathematics-part-2-class-10-6-042": "/pages/corpus-quality/source-review-127683/",
+  "/cbse/class-1/mathematics/ncert-math-magic-class-1/money/questions/q-cbse-ncert-math-magic-class-1-12-001": "/pages/corpus-quality/source-review-998/",
+  "/cbse/class-12/chemistry/ncert-exemplar-chemistry-exemplar-class-12/solid-states": "/pages/corpus-quality/chapter-solid-states/",
+  "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential": "/pages/corpus-quality/chapter-electric-field-and-potential/",
+  "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/friction": "/pages/corpus-quality/chapter-friction/",
+});
+const STATIC_STUDY_CLUSTER_SUFFIXES = new Set([
+  "study",
+  "revision",
+  "important-questions",
+  "practice",
+  "answer-writing",
+  "concepts/coulombs-law",
+  "concepts/electric-potential",
+  "concepts/gauss-law",
+  "concepts/parallel-plate-capacitance",
+  "concepts/capacitors-in-series",
+  "concepts/capacitors-in-parallel",
+  "concepts/dielectric-slab-in-capacitor",
+  "concepts/energy-stored-in-capacitor",
+  "previous-year-questions",
+]);
 const MAX_BOOK_COMPRESSED_BYTES = 4 * 1024 * 1024;
 const MAX_BOOK_JSON_CHARACTERS = 20 * 1024 * 1024;
 const BOARD_METADATA_LABELS = Object.freeze({
@@ -107,6 +193,12 @@ const BOARD_METADATA_LABELS = Object.freeze({
   cbse: "CBSE",
   cisce: "CISCE",
   "tamil-nadu-board": "Tamil Nadu",
+});
+const BOARD_BADGE_LABELS = Object.freeze({
+  "maharashtra-board": Object.freeze({ region: "Maharashtra", badge: "Maharashtra" }),
+  cbse: Object.freeze({ region: "India", badge: "CBSE" }),
+  cisce: Object.freeze({ region: "India", badge: "ICSE / ISC" }),
+  "tamil-nadu-board": Object.freeze({ region: "Tamil Nadu", badge: "Tamil Nadu" }),
 });
 const COURSE_METADATA_LABELS = Object.freeze({
   "hsc-science-general": "HSC Science (General)",
@@ -127,7 +219,10 @@ const QUESTION_SEO_DISAMBIGUATED_ROWS = new Set(PHASE3_QUESTION_SEO.disambiguate
 // The recovered RSC payload already references this opaque Next font URL. Its
 // asset is replaced with IBM Plex Sans so the preload and CSS stay byte-identical.
 const FONT_PRELOAD = "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2";
-const EDGE_HTML_CACHE = "public, max-age=0, s-maxage=3600, stale-while-revalidate=2592000";
+// Browsers must revalidate transformed HTML on every navigation. The Worker's
+// versioned Cache API key still supplies the one-hour shared edge cache.
+const EDGE_HTML_CACHE = PUBLIC_HTML_CACHE_CONTROL;
+const DECORATIVE_TEXT_STYLES = '<style data-studywudy-decorative-text="pseudo-v3">.brand-mark::before{content:"S"}.board-card-meta [data-label]::before{content:attr(data-label)}</style>';
 const ARTWORK_STYLESHEET = `<style data-studywudy-catalog-artwork="inline">${CATALOG_ARTWORK_CSS}</style>`;
 const ARTWORK_RUNTIME = `<script src="/catalog-artwork.js?v=${PHASE_2_VERSION}" defer data-studywudy-catalog-artwork="true"></script>`;
 const NAVIGATION_FEEDBACK_STYLES = `<link rel="stylesheet" href="/navigation-feedback.css?v=${PHASE_2_VERSION}" data-studywudy-navigation-feedback="styles"/>`;
@@ -317,60 +412,94 @@ function decodeConceptTags(value) {
 
 function searchQuestionCardMarkup(row) {
   const href = getQuestionUrl(questionRecordFromCatalogRow(row));
-  const type = QUESTION_TYPE_LABELS[row.type] || "Answer";
+  const normalizedType = normalizedQuestionType(row);
+  const type = QUESTION_TYPE_LABELS[normalizedType] || "Answer";
   const tags = decodeConceptTags(row.concept_tags)
-    .map((tag) => tag.replaceAll("-", " "))
+    .map((tag) => repairKnownText(row.book_id, tag.replaceAll("-", " ")))
     .slice(0, 4);
   const context = [
     reviewedBookTitle(row.book_id, repairKnownText(row.book_id, row.book_title)),
     reviewedChapterTitle(row.book_id, row.chapter_slug, repairKnownText(row.book_id, row.chapter_title)),
     ...tags,
   ].filter(Boolean).join(" · ");
-  const prompt = clean(row.prompt_text, 520);
-  const anchorVerb = row.type === "numerical" ? "Calculate"
+  const plainPrompt = createPlainSearchText(repairKnownText(row.book_id, row.prompt_text));
+  const prompt = truncateSearchExcerpt(plainPrompt);
+  const anchorVerb = normalizedType === "numerical" ? "Calculate"
     : /derive|prove|show that/iu.test(prompt) ? "Derive"
-      : row.type === "mcq_single" ? "Test your understanding of"
+      : normalizedType === "mcq_single" ? "Test your understanding of"
         : "Explain";
-  const anchorSubject = clean(prompt.replace(/^(?:choose the correct(?: option)?|calculate|derive|explain|find)\s*:?\s*/iu, ""), 110);
+  const anchorSubject = truncateSearchExcerpt(
+    plainPrompt.replace(/^(?:choose the correct(?: option)?|calculate|derive|explain|find)\s*:?\s*/iu, ""),
+    110,
+  );
   const descriptiveAnchor = `${anchorVerb} ${anchorSubject.charAt(0).toLocaleLowerCase("en-IN")}${anchorSubject.slice(1)}`;
-  return `<a href="${escapeHtmlAttribute(href)}"><div><span>Question ${escapeHtmlAttribute(row.display_label)}</span><i>${escapeHtmlAttribute(type)}</i></div><h2>${escapeHtmlAttribute(prompt)}</h2><p>${escapeHtmlAttribute(context)}</p><b>${escapeHtmlAttribute(descriptiveAnchor)} →</b></a>`;
+  const priority = Number.isFinite(Number(row.search_priority)) ? Number(row.search_priority) : 9;
+  const showcase = row.showcase || null;
+  const language = showcase?.language || languageForBookId(row.book_id) || "en";
+  const hasDiagram = Boolean(row.has_rendered_diagram ?? showcase?.hasDiagram);
+  const verification = showcase
+    ? ` data-showcase-quality-screened="true" data-internal-mapping-consistent="${showcase.internalMappingConsistent}" data-authoritative-textbook-mapping-verified="${showcase.authoritativeTextbookMappingVerified}" data-known-authoritative-mapping-mismatch="${showcase.knownAuthoritativeMappingMismatch}" data-native-script-validation-passed="${showcase.nativeScriptValidationPassed}" data-search-excerpt-clean="${showcase.searchExcerptClean}" data-automated-gate-passed="${showcase.automatedGatePassed}" data-final-publishing-gate-passed="${showcase.finalPublishingGatePassed !== false}" data-unresolved-content="${showcase.unresolvedContent}" data-broken-media="${showcase.brokenMedia}" data-duplicate-options="${showcase.duplicateOptions}" data-runtime-payload-safe="${showcase.runtimePayloadSafe}" data-content-quality-passed="${showcase.contentQualityPassed}"`
+    : "";
+  return `<a href="${escapeHtmlAttribute(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtmlAttribute(row.question_id)}" data-question-type="${escapeHtmlAttribute(normalizedType)}" data-question-board="${escapeHtmlAttribute(row.board_slug)}" data-question-class="${escapeHtmlAttribute(row.grade_slug)}" data-question-subject="${escapeHtmlAttribute(row.subject_slug)}" data-question-book="${escapeHtmlAttribute(row.book_id)}" data-question-language="${escapeHtmlAttribute(language)}" data-has-diagram="${hasDiagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${priority}" data-search-match="${escapeHtmlAttribute(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtmlAttribute(row.display_label)}</span><i>${escapeHtmlAttribute(type)}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtmlAttribute(prompt)}</h2><p>${escapeHtmlAttribute(context)}</p><b data-search-description="plain-v2">${escapeHtmlAttribute(descriptiveAnchor)} →</b></a>`;
 }
 
-async function searchQuestionRows(env, search) {
-  const projection = `SELECT q.question_id, q.display_label, q.type, q.prompt_text, q.concept_tags,
+async function searchQuestionRows(env, criteria) {
+  const projection = `SELECT q.row_id, q.question_id, q.display_label, q.type, q.prompt_text, q.concept_tags,
     b.id AS book_id,
     b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug, b.title AS book_title,
     q.chapter_slug, c.title AS chapter_title`;
-  if (search) {
-    const escaped = search.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
-    const like = `%${escaped}%`;
-    return env.DB.prepare(`${projection}
-      FROM catalog_questions q
-      JOIN catalog_books b ON b.id = q.book_id
-      JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-      WHERE q.prompt_text LIKE ? ESCAPE '\\' OR q.concept_tags LIKE ? ESCAPE '\\'
-      ORDER BY q.row_id LIMIT 50`).bind(like, like).all();
+  if (criteria.hasCriteria) {
+    const plan = buildQuestionSearchPlan(criteria, projection);
+    return env.DB.prepare(plan.sql).bind(...plan.bindings).all();
   }
-  const statements = [...BOARD_PAGE_SLUGS].map((boardSlug) => env.DB.prepare(`${projection}
+  for (const entry of QUESTION_SHOWCASE_ENTRIES) {
+    if (!isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, entry.rowId, {
+      authoritativeMappingConflict: entry.knownAuthoritativeMappingMismatch,
+      unresolvedContent: entry.unresolvedContent,
+    })) throw new Error(`Verified showcase record failed the final publishing gate: ${entry.questionId}`);
+  }
+  const statements = QUESTION_SHOWCASE_ENTRIES.map((entry) => env.DB.prepare(`${projection}
       FROM catalog_questions q
       JOIN catalog_books b ON b.id = q.book_id
       JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
-      WHERE b.board_slug = ?
-      ORDER BY CAST(SUBSTR(b.grade_slug, 7) AS INTEGER) DESC, q.row_id
-      LIMIT 4`).bind(boardSlug));
+      WHERE q.row_id = ?
+      LIMIT 1`).bind(entry.rowId));
   const batches = await env.DB.batch(statements);
-  return { results: batches.flatMap((batch) => batch.results || []) };
+  const results = batches.map((batch, index) => {
+    const entry = QUESTION_SHOWCASE_ENTRIES[index];
+    const rows = batch.results || [];
+    if (rows.length !== 1 || Number(rows[0].row_id) !== entry.rowId || rows[0].question_id !== entry.questionId) {
+      throw new Error(`Verified showcase record is missing or stale: ${entry.questionId}`);
+    }
+    return {
+      ...rows[0],
+      has_diagram: entry.hasDiagram ? 1 : 0,
+      has_rendered_diagram: isQuestionRenderedDiagramAvailable(PHASE4_GATE_MANIFEST, entry.rowId),
+      search_priority: 9,
+      text_priority: 9,
+      search_match: "quality-screened-showcase",
+      showcase: entry,
+    };
+  });
+  return { results };
 }
 
 async function searchQuestionBankResponse(request, env, ctx, url) {
   if (request.method !== "GET" || url.pathname.replace(/\/+$/u, "") !== "/search") return null;
-  const search = clean(url.searchParams.get("q"), 80);
+  const criteria = parseQuestionSearchCriteria(url.searchParams);
+  if (criteria.errors.length) {
+    return new Response(`Unsupported search filter: ${criteria.errors.join(", ")}`, {
+      status: 400,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
   let response;
   let result;
   try {
+    const shellUrl = new URL("/pages/search/", url);
     [response, result] = await Promise.all([
-      baseWorker.fetch(request, env, ctx),
-      searchQuestionRows(env, search),
+      env.ASSETS.fetch(new Request(shellUrl, request)),
+      searchQuestionRows(env, criteria),
     ]);
   } catch (error) {
     console.error(JSON.stringify({ event: "question_bank_query_failed", error: String(error) }));
@@ -381,12 +510,45 @@ async function searchQuestionBankResponse(request, env, ctx, url) {
   }
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/html")) return response;
-  const rows = (result.results || []).filter((row) => !isBookQuarantined(row.book_id));
+  const rows = (result.results || []).map((row) => ({
+    ...row,
+    has_rendered_diagram: isQuestionRenderedDiagramAvailable(PHASE4_GATE_MANIFEST, Number(row.row_id)),
+  })).filter((row) => !isBookQuarantined(row.book_id)
+    && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id), {
+      requiresDiagram: criteria.hasDiagram === true,
+      hasRenderedDiagram: Boolean(row.has_rendered_diagram),
+    })
+    && corpusQuestionSearchEligible(row, CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS)
+    && evaluateSearchExcerptSource(row.prompt_text).pass
+    && (criteria.type !== "numerical" || questionHasNumericalEvidence(row))
+    && (criteria.hasDiagram == null || Boolean(row.has_rendered_diagram) === criteria.hasDiagram))
+    .slice(0, 50);
   const cards = rows.length
     ? rows.map(searchQuestionCardMarkup).join("")
     : '<div class="empty-state"><span>⌕</span><div><h2>No exact match yet.</h2><p>Try a shorter concept name, question type or chapter topic.</p><a href="/search">Clear search →</a></div></div>';
-  const heading = search ? `Results for “${search}”` : "Browse sample questions";
-  return new HTMLRewriter()
+  const classifiedDefectQuery = /^(?:positvely|rfrom|bye\s+the|I\s+mm|4_\{0\}|k_\{0\})$/iu.test(criteria.query.trim());
+  const heading = classifiedDefectQuery
+    ? (rows.length ? "Eligible results for this search" : "No eligible results for these filters")
+    : rows.length || !criteria.hasCriteria
+      ? questionSearchHeading(criteria)
+      : "No eligible results for these filters";
+  const transformed = new HTMLRewriter()
+    .on(".search-form input[name='q']", {
+      element(element) {
+        element.setAttribute("value", criteria.query);
+      },
+    })
+    .on(".search-form", {
+      element(element) {
+        const inputs = renderActiveSearchFilterInputs(criteria);
+        if (inputs) element.append(inputs, { html: true });
+      },
+    })
+    .on(".search-suggestions", {
+      element(element) {
+        element.setInnerContent(renderPopularQuestionFilters(criteria), { html: true });
+      },
+    })
     .on(".section-mini-heading > div > span", {
       element(element) {
         element.setInnerContent(String(rows.length));
@@ -397,12 +559,29 @@ async function searchQuestionBankResponse(request, env, ctx, url) {
         element.setInnerContent(heading);
       },
     })
+    .on(".section-mini-heading > p", {
+      element(element) {
+        if (!criteria.hasCriteria) element.setInnerContent("16 quality-screened questions across boards, classes, subjects, languages and formats.");
+        else element.setInnerContent(`All ${rows.length} eligible matches are rendered below.`);
+      },
+    })
     .on(".search-result-list", {
       element(element) {
+        element.setAttribute("data-search-result-count", String(rows.length));
         element.setInnerContent(cards, { html: true });
       },
     })
-    .transform(withTransformableHeaders(response, search ? "no-store" : EDGE_HTML_CACHE));
+    .transform(withTransformableHeaders(response, criteria.hasCriteria ? "no-store" : EDGE_HTML_CACHE));
+  const headers = new Headers(transformed.headers);
+  headers.set("x-studywudy-search-excerpt", SEARCH_EXCERPT_RELEASE);
+  headers.set("x-studywudy-search-filter", SEARCH_FILTER_RELEASE);
+  headers.set("x-studywudy-corpus-quality", CORPUS_QUALITY_POLICY_VERSION);
+  if (!criteria.hasCriteria) headers.set("x-studywudy-question-showcase", QUESTION_SHOWCASE_SOURCE_GATE.policyVersion);
+  return new Response(transformed.body, {
+    status: transformed.status,
+    statusText: transformed.statusText,
+    headers,
+  });
 }
 
 function subjectRoute(pathname) {
@@ -608,6 +787,57 @@ function questionRoute(pathname) {
   };
 }
 
+async function questionRouteRowId(env, route) {
+  if (!env.DB || !route) return null;
+  return env.DB.prepare(`SELECT q.row_id FROM catalog_questions q
+    JOIN catalog_books b ON b.id = q.book_id
+    WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ?
+      AND q.chapter_slug = ? AND q.question_id = ? LIMIT 1`)
+    .bind(route.board, route.grade, route.subject, route.book, route.chapter, route.question)
+    .first();
+}
+
+async function questionEligibilityHeadResponse(request, env, route) {
+  if (request.method !== "HEAD" || !route) return null;
+  let row = null;
+  try {
+    row = await questionRouteRowId(env, route);
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: "question HEAD eligibility unavailable",
+      path: new URL(request.url).pathname,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    return new Response(null, {
+      status: 503,
+      headers: { "cache-control": "no-store", "content-type": "text/plain; charset=utf-8" },
+    });
+  }
+  if (!row) return null;
+  const rowId = Number(row.row_id);
+  const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+    && corpusQuestionIndexEligible({
+      questionId: route.question,
+      rowId,
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    });
+  const headers = new Headers({
+    "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",
+    "content-type": "text/html; charset=utf-8",
+    "x-robots-tag": indexable
+      ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+      : "noindex, follow",
+    "x-studywudy-breadcrumbs": "canonical-v1",
+    "x-studywudy-corpus-quality": CORPUS_QUALITY_POLICY_VERSION,
+    "x-studywudy-public-eligibility": PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
+    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
+    "x-studywudy-question-experience": indexable ? "question-specific-trust-v2" : "review-required",
+    "x-studywudy-search-metadata": "catalog-data-v1",
+    "x-studywudy-semantic-math": "ast-mathml-authoritative-v5-operator-equivalence",
+  });
+  return new Response(null, { status: 200, headers });
+}
+
 function catalogBlobBytes(value) {
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   if (value instanceof Uint8Array) return value;
@@ -658,10 +888,46 @@ async function questionPageCatalogRecord(env, route) {
   return row;
 }
 
+async function filterPublicQuestionRecommendations(env, model) {
+  if (!model || !env.DB) return model;
+  const questionIds = new Set([
+    ...(model.sameExerciseQuestions || []).map((card) => card.id),
+    ...(model.previousYearQuestions || []).map((card) => card.id),
+    ...(model.semanticGraph?.links || []).map((link) => link.questionId),
+  ].filter(Boolean));
+  if (!questionIds.size) return model;
+  const statements = [...questionIds].map((questionId) => env.DB.prepare(
+    "SELECT row_id, question_id FROM catalog_questions WHERE question_id = ? LIMIT 1",
+  ).bind(questionId));
+  const results = await env.DB.batch(statements);
+  const eligibleQuestionIds = new Set();
+  results.forEach((result) => {
+    const row = result.results?.[0];
+    if (!row) return;
+    if (!isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id))) return;
+    if (!corpusQuestionIndexEligible({
+      questionId: row.question_id,
+      rowId: Number(row.row_id),
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    })) return;
+    eligibleQuestionIds.add(row.question_id);
+  });
+  model.sameExerciseQuestions = (model.sameExerciseQuestions || []).filter((card) => eligibleQuestionIds.has(card.id));
+  model.previousYearQuestions = (model.previousYearQuestions || []).filter((card) => eligibleQuestionIds.has(card.id));
+  if (model.semanticGraph) {
+    model.semanticGraph = Object.freeze({
+      ...model.semanticGraph,
+      links: Object.freeze(model.semanticGraph.links.filter((link) => !link.questionId || eligibleQuestionIds.has(link.questionId))),
+    });
+  }
+  return model;
+}
+
 async function questionPageExperienceResponse(response, env, url, requestMethod, route = questionRoute(url.pathname)) {
   const contentType = response.headers.get("content-type") || "";
   if (!route || !response.ok || !contentType.includes("text/html")) return { response, ready: !route };
   let experience = null;
+  let canonicalFormulaLookup = null;
   try {
     const bookId = `${route.board}::${route.grade}::${route.subject}::${route.book}`;
     const semanticGraphEligible = route.board === "maharashtra-board"
@@ -674,17 +940,18 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
       questionPageCatalogRecord(env, route),
     ]);
     const context = findQuestionPageContext(payload, route.chapter, route.question);
+    canonicalFormulaLookup = buildCanonicalFormulaLookup(context?.question);
     const semanticGraph = semanticGraphEligible
       ? buildQuestionSemanticGraph({ primaryPayload: payload, questionBankPayload: null, questionId: route.question })
       : null;
-    const model = buildQuestionPageExperience({
+    const model = await filterPublicQuestionRecommendations(env, buildQuestionPageExperience({
       payload,
       context,
       route,
       catalog,
       reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
       semanticGraph,
-    });
+    }));
     experience = renderQuestionPageExperience(model);
   } catch (error) {
     console.error(JSON.stringify({
@@ -726,14 +993,32 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
         if (experience.solutionSupplement) element.append(experience.solutionSupplement, { html: true });
       },
     })
+    .on(".math[aria-label]", {
+      element(element) {
+        const canonical = canonicalFormulaForLegacyLabel(canonicalFormulaLookup, element.getAttribute("aria-label") || "");
+        if (canonical) element.replace(renderSemanticMath(canonical, { visiblePlain: true }), { html: true });
+      },
+    })
     .on(".solution-body > .solution-kicker", {
       element(element) {
         element.setInnerContent(solutionHeading);
       },
     })
+    .on(".solution-body > .direct-answer", {
+      element(element) {
+        if (route.question === "q-tn-samacheer-kalvi-science-term-1-class-4-1-001" && experience.canonicalExplanation) {
+          element.replace(experience.canonicalExplanation, { html: true });
+        }
+      },
+    })
     .on(".question-pagination", {
       element(element) {
         element.before(`${experience.semanticLinks || ""}${experience.trust}`, { html: true });
+      },
+    })
+    .on(".question-card, .answer-page-hero h1", {
+      element(element) {
+        if (!experience.snippetEligible) element.setAttribute("data-nosnippet", "");
       },
     })
     .on(".related-questions", {
@@ -792,43 +1077,43 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
   let searchMetadata = null;
   let breadcrumbs = null;
   try {
-    const bookId = `${route.boardSlug}::class-${route.classNumber}::${route.subjectSlug}::${route.textbookSlug}`;
-    const [payloadResult, catalogResult] = await Promise.allSettled([
-      loadCatalogBookPayload(env, bookId),
-      chapterPageCatalogRecord(env, route),
-    ]);
-    const catalog = catalogResult.status === "fulfilled" ? catalogResult.value : null;
-    if (catalog) {
-      breadcrumbs = academicBreadcrumbItems({
-        ...catalog,
-        board_slug: route.boardSlug,
-        grade_slug: `class-${route.classNumber}`,
-        subject_slug: route.subjectSlug,
-        book_slug: route.textbookSlug,
-        chapter_slug: route.chapterSlug,
-      });
-    }
-    const rejected = [payloadResult, catalogResult].find((result) => result.status === "rejected");
-    if (rejected) throw rejected.reason;
-    const payload = payloadResult.value;
-    const chapter = findChapterPageContext(payload, route.chapterSlug);
-    const model = buildChapterPageExperience({
-      payload,
-      chapter,
-      route,
-      catalog,
-      reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
-    });
-    experience = renderChapterPageExperience(model);
-    if (chapter && catalog) {
-      searchMetadata = chapterSearchMetadata({
-        ...catalog,
-        board_slug: route.boardSlug,
-        class_number: route.classNumber,
-        subject_slug: route.subjectSlug,
+      const bookId = `${route.boardSlug}::class-${route.classNumber}::${route.subjectSlug}::${route.textbookSlug}`;
+      const [payloadResult, catalogResult] = await Promise.allSettled([
+        loadCatalogBookPayload(env, bookId),
+        chapterPageCatalogRecord(env, route),
+      ]);
+      const catalog = catalogResult.status === "fulfilled" ? catalogResult.value : null;
+      if (catalog) {
+        breadcrumbs = academicBreadcrumbItems({
+          ...catalog,
+          board_slug: route.boardSlug,
+          grade_slug: `class-${route.classNumber}`,
+          subject_slug: route.subjectSlug,
+          book_slug: route.textbookSlug,
+          chapter_slug: route.chapterSlug,
+        });
+      }
+      const rejected = [payloadResult, catalogResult].find((result) => result.status === "rejected");
+      if (rejected) throw rejected.reason;
+      const payload = payloadResult.value;
+      const chapter = findChapterPageContext(payload, route.chapterSlug);
+      const model = buildChapterPageExperience({
+        payload,
         chapter,
-      }, chapterQuestions(chapter));
-    }
+        route,
+        catalog,
+        reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
+      });
+      experience = renderChapterPageExperience(model);
+      if (chapter && catalog) {
+        searchMetadata = chapterSearchMetadata({
+          ...catalog,
+          board_slug: route.boardSlug,
+          class_number: route.classNumber,
+          subject_slug: route.subjectSlug,
+          chapter,
+        }, chapterQuestions(chapter));
+      }
   } catch (error) {
     console.error(JSON.stringify({
       message: "chapter experience unavailable",
@@ -842,6 +1127,7 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
   headers.delete("content-encoding");
   headers.delete("etag");
   headers.set("X-StudyWudy-Chapter-Experience", experience ? "evidence-v1" : "unavailable");
+  headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
   if (searchMetadata) headers.set("X-StudyWudy-Search-Metadata", "catalog-data-v1");
   if (breadcrumbs) headers.set("X-StudyWudy-Breadcrumbs", "canonical-v1");
   response = new Response(response.body, {
@@ -855,7 +1141,7 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
   if (searchMetadata) rewriter = addSearchMetadataHandlers(rewriter, searchMetadata);
   if (breadcrumbs) rewriter = addCanonicalBreadcrumbHandlers(rewriter, breadcrumbs);
   if (!experience) return rewriter.transform(response);
-  return rewriter.on("head", {
+  rewriter = rewriter.on("head", {
       element(element) {
         element.append(CHAPTER_PAGE_EXPERIENCE_STYLES, { html: true });
       },
@@ -875,79 +1161,15 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
         element.before(experience.hub, { html: true });
         element.after(experience.directory, { html: true });
       },
-    })
-    .transform(response);
-}
-
-async function studyClusterResponse(request, env, url, ctx) {
-  const route = matchStudyClusterRoute(url.pathname);
-  if (!route || (request.method !== "GET" && request.method !== "HEAD")) return null;
-  try {
-    const primaryBookId = "maharashtra-board::class-12::physics::balbharati-physics-standard-12";
-    const questionBankBookId = `maharashtra-board::class-12::physics::${STUDY_CLUSTER_QBANK_BOOK}`;
-    const chapter = chapterRoute(STUDY_CLUSTER_BASE);
-    const [primaryPayload, questionBankPayload, catalog] = await Promise.all([
-      loadCatalogBookPayload(env, primaryBookId),
-      loadCatalogBookPayload(env, questionBankBookId),
-      chapterPageCatalogRecord(env, chapter),
-    ]);
-    const model = buildStudyClusterModel({
-      primaryPayload,
-      questionBankPayload,
-      catalog,
-      reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
     });
-    const page = renderStudyClusterPage(model, route);
-    if (!page) throw new Error("Study cluster model is incomplete");
-
-    const shellUrl = new URL(url);
-    shellUrl.pathname = STUDY_CLUSTER_BASE;
-    shellUrl.search = "";
-    shellUrl.hash = "";
-    const shellRequest = new Request(shellUrl, {
-      method: "GET",
-      headers: request.headers,
-    });
-    const shell = await baseWorker.fetch(shellRequest, env, ctx);
-    if (!shell.ok || !(shell.headers.get("content-type") || "").includes("text/html")) {
-      throw new Error(`Chapter shell returned ${shell.status}`);
-    }
-
-    const transformed = new HTMLRewriter()
-      .on("title", { element(element) { element.setInnerContent(page.title); } })
-      .on('meta[name="description"]', { element(element) { element.setAttribute("content", page.description); } })
-      .on('meta[name="robots"]', { element(element) { element.setAttribute("content", page.robots); } })
-      .on('link[rel="canonical"]', { element(element) { element.setAttribute("href", page.canonical); } })
-      .on('meta[property="og:title"]', { element(element) { element.setAttribute("content", page.title.replace(/ \| StudyWudy$/u, "")); } })
-      .on('meta[property="og:description"]', { element(element) { element.setAttribute("content", page.description); } })
-      .on('meta[property="og:url"]', { element(element) { element.setAttribute("content", page.canonical); } })
-      .on('meta[name="twitter:title"]', { element(element) { element.setAttribute("content", page.title.replace(/ \| StudyWudy$/u, "")); } })
-      .on('meta[name="twitter:description"]', { element(element) { element.setAttribute("content", page.description); } })
-      .on('script[type="application/ld+json"]', { element(element) { element.remove(); } })
-      .on("head", { element(element) { element.append(`${SEMANTIC_MATH_STYLES}${STUDY_CLUSTER_STYLES}`, { html: true }); } })
-      .on("main#main-content", { element(element) { element.setInnerContent(page.body, { html: true }); } })
-      .transform(withTransformableHeaders(shell, route.indexable ? EDGE_HTML_CACHE : "no-store"));
-    const headers = new Headers(transformed.headers);
-    headers.set("X-StudyWudy-Study-Cluster", "electrostatics-v1");
-    headers.set("X-StudyWudy-Study-Evidence", "textbook-and-question-bank-no-pyq-inference");
-    if (!route.indexable) headers.set("X-Robots-Tag", "noindex, follow");
-    const response = new Response(request.method === "HEAD" ? null : transformed.body, {
-      status: transformed.status,
-      statusText: transformed.statusText,
-      headers,
-    });
-    return response;
-  } catch (error) {
-    console.error(JSON.stringify({
-      message: "study cluster unavailable",
-      path: url.pathname,
-      error: error instanceof Error ? error.message : String(error),
-    }));
-    return new Response("Study resource unavailable", {
-      status: 503,
-      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+  for (const questionId of experience.snippetExcludedQuestionIds || []) {
+    rewriter = rewriter.on(`.question-card[id="${escapeCssAttribute(questionId)}"]`, {
+      element(element) {
+        element.setAttribute("data-nosnippet", "");
+      },
     });
   }
+  return rewriter.transform(response);
 }
 
 function chapterSolutionLinksResponse(response, url) {
@@ -1186,16 +1408,19 @@ async function questionCompletenessIndexingResponse(response, env, url, requestM
   if (!route || !response.ok || !contentType.includes("text/html")) return response;
   let row = null;
   try {
-    row = await env.DB?.prepare(`SELECT q.row_id FROM catalog_questions q
-      JOIN catalog_books b ON b.id = q.book_id
-      WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND b.slug = ?
-        AND q.chapter_slug = ? AND q.question_id = ? LIMIT 1`)
-      .bind(route.board, route.grade, route.subject, route.book, route.chapter, route.question)
-      .first();
+    row = await questionRouteRowId(env, route);
   } catch {
     row = null;
   }
-  const indexable = Boolean(experienceReady && row && isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)));
+  const indexable = Boolean(experienceReady
+    && row
+    && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id))
+    && corpusQuestionIndexEligible({
+      questionId: route.question,
+      rowId: Number(row.row_id),
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    }));
+  const equationReviewPending = Boolean(row && isQuestionEquationReviewPending(PHASE4_GATE_MANIFEST, Number(row.row_id)));
   const directive = indexable
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     : "noindex, follow";
@@ -1205,6 +1430,7 @@ async function questionCompletenessIndexingResponse(response, env, url, requestM
   headers.delete("etag");
   headers.set("X-Robots-Tag", directive);
   headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`);
+  headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
   if (indexable) {
     headers.set("Cache-Control", EDGE_HTML_CACHE);
     headers.delete("Cloudflare-CDN-Cache-Control");
@@ -1225,7 +1451,11 @@ async function questionCompletenessIndexingResponse(response, env, url, requestM
     year: "numeric",
     timeZone: "Asia/Kolkata",
   }).format(Number(PHASE4_GATE_MANIFEST.reviewedAt) * 1_000);
-  const panel = `<section class="shell phase4-review-signal" aria-label="Automated solution publishing check"><a class="phase4-review-badge ${indexable ? "is-passed" : "is-queued"}" href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The answer passed type-specific structure, mapping, equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page stays available to students but is not indexable until its type-specific automated requirements are complete."}</span></section>`;
+  const pendingLabel = equationReviewPending ? "Equation review pending" : "Automated answer checks incomplete";
+  const pendingDetail = equationReviewPending
+    ? "This page is noindex and excluded from sitemaps, search results and quality-screened samples because at least one equation failed strict structure or semantic-token preservation."
+    : "This page stays available to students but is not indexable until its type-specific automated requirements are complete.";
+  const panel = `<section class="shell phase4-review-signal" aria-label="Automated solution publishing check"><a class="phase4-review-badge ${indexable ? "is-passed" : "is-queued"}" href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : pendingLabel}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The answer passed type-specific structure, prompt-output, mapping, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : pendingDetail}</span></section>`;
   let foundReviewPanel = false;
   let foundRobots = false;
   return new HTMLRewriter()
@@ -1311,7 +1541,7 @@ function edgeHtmlCacheKey(request) {
   if (!accept.includes("text/html")) return null;
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return null;
-  if (url.pathname === "/search" && url.searchParams.get("q")) return null;
+  if (url.pathname === "/search" && ["q", "type", "hasDiagram", "board"].some((key) => url.searchParams.has(key))) return null;
   // Tracking, preview, filter, and debug parameters canonicalize to the same
   // document and must not force another expensive SSR pass. Retain only the
   // two parameters that can change real page content.
@@ -1330,6 +1560,7 @@ function edgeHtmlCacheKey(request) {
 }
 
 async function edgeHtmlCacheMatch(request) {
+  if (isLocalLaunchHotPathBuildRequest(request)) return null;
   const key = edgeHtmlCacheKey(request);
   if (!key || typeof caches === "undefined") return null;
   const cached = await caches.default.match(key);
@@ -1380,7 +1611,7 @@ function semanticMathResponse(response, requestMethod) {
   headers.delete("content-length");
   headers.delete("content-encoding");
   headers.delete("etag");
-  headers.set("X-StudyWudy-Semantic-Math", "source-mathml-spoken-plain-v1");
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v5-operator-equivalence");
   response = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -1400,42 +1631,35 @@ function semanticMathResponse(response, requestMethod) {
         const originalSource = existingSource || element.getAttribute("aria-label");
         const source = repairCrawlerFormulaSource(originalSource);
         if (!source) return;
-        if (existingSource && source === existingSource) return;
-        const representation = formulaRepresentations(source);
-        element.setAttribute("data-math-source", representation.source);
-        element.setAttribute("data-math-spoken", representation.spokenText);
-        element.setAttribute("data-math-plain", representation.plainText);
-        element.removeAttribute("aria-label");
-        element.removeAttribute("role");
-        if (existingSource) {
-          element.setInnerContent(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
-        } else {
-          element.prepend(renderSemanticMath(representation), { html: true });
+        if (!validateFormulaStructure(source).complete) {
+          element.replace('<span data-nosnippet="" data-studywudy-equation-review="pending">Equation review pending</span>', { html: true });
+          return;
         }
-      },
-    })
-    .on(".math > .math-semantic[data-math-source]", {
-      element(element) {
-        const original = element.getAttribute("data-math-source") || "";
-        if (repairCrawlerFormulaSource(original) !== original) element.remove();
+        const representation = formulaRepresentations(source);
+        element.replace(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
       },
     })
     .on(".math[data-math-source]", {
       element(element) {
         const original = element.getAttribute("data-math-source") || "";
         const source = repairCrawlerFormulaSource(original);
-        if (!source || source === original) return;
+        if (!source) return;
+        if (!validateFormulaStructure(source).complete) {
+          element.replace('<span data-nosnippet="" data-studywudy-equation-review="pending">Equation review pending</span>', { html: true });
+          return;
+        }
         const representation = formulaRepresentations(source);
-        element.setAttribute("data-math-source", representation.source);
-        element.setAttribute("data-math-spoken", representation.spokenText);
-        element.setAttribute("data-math-plain", representation.plainText);
-        element.setInnerContent(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
+        element.replace(renderSemanticMath(representation, { visiblePlain: true }), { html: true });
       },
     })
     .on(".math > .katex, .math > .katex-display", {
       element(element) {
-        element.setAttribute("aria-hidden", "true");
-        element.setAttribute("data-nosnippet", "");
+        element.remove();
+      },
+    })
+    .on(".katex-mathml, annotation", {
+      element(element) {
+        element.remove();
       },
     })
     .transform(response);
@@ -1544,6 +1768,11 @@ function multilingualTextResponse(request, response) {
       },
     })
     .on("body", multilingualTextHandler())
+    .on(".math-plain-text[data-math-plain]", {
+      element(element) {
+        element.setInnerContent(element.getAttribute("data-math-plain") || "");
+      },
+    })
     .on("head", {
       element(element) {
         element.onEndTag((endTag) => {
@@ -1554,6 +1783,15 @@ function multilingualTextResponse(request, response) {
         });
       },
     });
+  for (const [slug, labels] of Object.entries(BOARD_BADGE_LABELS)) {
+    rewriter.on(`.board-card-${slug} .board-card-meta`, {
+      element(element) {
+        element.setAttribute("aria-hidden", "true");
+        element.setAttribute("data-nosnippet", "");
+        element.setInnerContent(`<small data-label="${escapeHtmlAttribute(labels.region)}"></small><span data-label="${escapeHtmlAttribute(labels.badge)}"></span>`, { html: true });
+      },
+    });
+  }
   return rewriter.transform(response);
 }
 
@@ -1581,12 +1819,105 @@ function multilingualQuarantineResponse(request, url) {
   });
 }
 
+function publicAssetAttributeHandler(attribute) {
+  return {
+    element(element) {
+      const value = element.getAttribute(attribute);
+      if (value === null) return;
+      const repaired = rewritePublicAssetPath(value);
+      if (repaired !== value) element.setAttribute(attribute, repaired);
+    },
+  };
+}
+
+function publicBrandTextHandler() {
+  return {
+    text(textChunk) {
+      const repaired = repairPublicBrandCopy(textChunk.text);
+      if (repaired !== textChunk.text) textChunk.replace(repaired);
+    },
+  };
+}
+
+function publicJsonLdHandler(requestUrl) {
+  let buffered = "";
+  return {
+    text(textChunk) {
+      buffered += textChunk.text;
+      if (!textChunk.lastInTextNode) {
+        textChunk.remove();
+        return;
+      }
+      textChunk.replace(rewritePublicMetadataValue(repairMalformedFormulaText(buffered), requestUrl));
+      buffered = "";
+    },
+  };
+}
+
+function publicInfrastructureOriginResponse(request, response) {
+  const url = new URL(request.url);
+  const isPublicDiscoveryText = url.pathname === "/robots.txt" || url.pathname === "/sitemap.xml";
+  if (!isPublicDiscoveryText || request.method === "HEAD" || !response.body) return response;
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  headers.delete("etag");
+  headers.set("X-StudyWudy-Brand-Hygiene", PUBLIC_BRAND_HYGIENE_RELEASE);
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let pending = "";
+  const rewriteStream = new TransformStream({
+    transform(chunk, controller) {
+      pending += decoder.decode(chunk, { stream: true });
+      const newline = pending.lastIndexOf("\n");
+      if (newline < 0) return;
+      controller.enqueue(encoder.encode(rewritePublicInfrastructureOrigin(pending.slice(0, newline + 1), request.url)));
+      pending = pending.slice(newline + 1);
+    },
+    flush(controller) {
+      pending += decoder.decode();
+      if (pending) controller.enqueue(encoder.encode(rewritePublicInfrastructureOrigin(pending, request.url)));
+    },
+  });
+  return new Response(response.body.pipeThrough(rewriteStream), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function publicBrandHygieneResponse(request, response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) return publicInfrastructureOriginResponse(request, response);
+  const headers = new Headers(response.headers);
+  const cacheControl = headers.get("cache-control") || "";
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  headers.delete("etag");
+  // The recovered Next shell can emit a one-year shared-cache lifetime. Any
+  // cacheable transformed HTML must leave the final layer with one policy.
+  if (/s-maxage=/iu.test(cacheControl) && !/(?:private|no-store)/iu.test(cacheControl)) {
+    headers.set("Cache-Control", EDGE_HTML_CACHE);
+  }
+  headers.set("X-StudyWudy-Brand-Hygiene", PUBLIC_BRAND_HYGIENE_RELEASE);
+  headers.set("X-StudyWudy-Accessibility-Text", ACCESSIBILITY_TEXT_RELEASE);
+  headers.set("X-StudyWudy-Public-Title", PUBLIC_TITLE_QUALITY_RELEASE);
+  headers.set("X-StudyWudy-Render-Consistency", RENDER_CONSISTENCY_RELEASE);
+  response = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+  return response;
+}
+
 function withTheme(request, response, addEdgeCacheFallback = false) {
   const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("text/html")) return response;
+  if (!contentType.includes("text/html")) return publicBrandHygieneResponse(request, response);
   const pathname = new URL(request.url).pathname.replace(/\/$/, "") || "/";
   const pathParts = pathname.split("/").filter(Boolean);
   const isHomepage = pathname === "/";
+  const canonical = publicDocumentUrl(request.url);
   const homepageSchema = stringifyStructuredData(homepageStructuredData(request.url));
   const isFinderPage = (pathParts.length === 1 || (pathParts.length === 2 && /^class-\d+$/.test(pathParts[1])))
     && BOARD_PAGE_SLUGS.has(pathParts[0]);
@@ -1600,6 +1931,70 @@ function withTheme(request, response, addEdgeCacheFallback = false) {
   let hasHomepageFinderRuntime = false;
   let siteIdentityHandled = false;
   const rewriter = new HTMLRewriter()
+    .on("title", {
+      element(element) {
+        if (isHomepage) element.setInnerContent(HOMEPAGE_DOCUMENT_TITLE);
+      },
+    })
+    .on('meta[property="og:title"], meta[name="twitter:title"]', {
+      element(element) {
+        if (isHomepage) element.setAttribute("content", HOMEPAGE_DOCUMENT_TITLE);
+      },
+    })
+    .on("a.brand", {
+      element(element) {
+        element.setAttribute("aria-label", "StudyWudy");
+      },
+    })
+    .on(".brand-mark", {
+      element(element) {
+        element.setAttribute("aria-hidden", "true");
+        element.setAttribute("data-nosnippet", "");
+        element.setInnerContent("");
+      },
+    })
+    .on(".board-card-meta, .study-field-art", {
+      element(element) {
+        element.setAttribute("aria-hidden", "true");
+        element.setAttribute("data-nosnippet", "");
+      },
+    })
+    .on(".study-field-art > *", {
+      element(element) {
+        element.setAttribute("aria-hidden", "true");
+      },
+    })
+    .on('link[rel="canonical"]', {
+      element(element) {
+        element.setAttribute("href", canonical);
+      },
+    })
+    .on("meta[content]", {
+      element(element) {
+        const value = element.getAttribute("content") || "";
+        element.setAttribute("content", rewritePublicMetadataValue(value, request.url));
+      },
+    })
+    .on('meta[property="og:url"]', {
+      element(element) {
+        element.setAttribute("content", canonical);
+      },
+    })
+    .on('script[type="application/ld+json"]', publicJsonLdHandler(request.url))
+    .on('[href^="/boardly-media/"]', publicAssetAttributeHandler("href"))
+    .on('[src^="/boardly-media/"]', publicAssetAttributeHandler("src"))
+    .on(".section-heading.centered-heading > p:not(.eyebrow)", {
+      element(element) {
+        if (isHomepage) element.setInnerContent(PUBLIC_BRAND_REPLACEMENT);
+      },
+    })
+    .on(".pattern-code[title]", {
+      element(element) {
+        const title = element.getAttribute("title") || "";
+        element.setAttribute("title", repairPublicBrandCopy(title));
+      },
+    })
+    .on(".empty-state p", publicBrandTextHandler())
     .on('body > script[type="application/ld+json"]:first-child', {
       element(element) {
         siteIdentityHandled = true;
@@ -1726,6 +2121,7 @@ function withTheme(request, response, addEdgeCacheFallback = false) {
             endTag.before(`<link rel="preload" href="${FONT_PRELOAD}" as="font" crossorigin="" type="font/woff2"/>`, { html: true });
           }
           if (!hasMethodologyStyles) endTag.before(METHODOLOGY_STYLES, { html: true });
+          endTag.before(DECORATIVE_TEXT_STYLES, { html: true });
           if (!hasNavigationFeedbackStyles) endTag.before(NAVIGATION_FEEDBACK_STYLES, { html: true });
           if (!hasNavigationFeedbackRuntime) endTag.before(NAVIGATION_FEEDBACK_RUNTIME, { html: true });
           if (isHomepage && !hasHomepageFinderRuntime) endTag.before(HOMEPAGE_FINDER_RUNTIME, { html: true });
@@ -1755,7 +2151,10 @@ function withTheme(request, response, addEdgeCacheFallback = false) {
     && !cacheControl.includes("s-maxage=")
     && (!cacheControl || /private|no-store|must-revalidate/.test(cacheControl));
   const themed = rewriter.transform(withTransformableHeaders(response, needsEdgeCache ? EDGE_HTML_CACHE : null));
-  return multilingualTextResponse(request, semanticMathResponse(themed, request.method));
+  return publicBrandHygieneResponse(
+    request,
+    multilingualTextResponse(request, semanticMathResponse(themed, request.method)),
+  );
 }
 
 function bookCoverMarkup(artwork, eager = false) {
@@ -1986,12 +2385,28 @@ async function boardLandingResponse(request, env, url, board) {
   const response = await env.ASSETS.fetch(new Request(assetUrl, request));
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok || !contentType.includes("text/html")) return response;
+  const isCbse = board === "cbse";
   const rewriter = addCanonicalBreadcrumbHandlers(new HTMLRewriter(), academicBreadcrumbItems({
     board_slug: board,
   }))
     .on("head", {
       element(element) {
-        element.append(artworkHeadMarkup(), { html: true });
+        element.append(`${artworkHeadMarkup()}${isCbse ? CBSE_SERVER_RENDERED_STYLES : ""}`, { html: true });
+      },
+    })
+    .on(".course-finder-header", {
+      element(element) {
+        if (isCbse) element.after(CBSE_SERVER_CLASS_NAVIGATION, { html: true });
+      },
+    })
+    .on('nav[aria-label="CBSE classes"]', {
+      element(element) {
+        if (isCbse) element.setAttribute("aria-label", "Browse CBSE classes");
+      },
+    })
+    .on('input[aria-label="Selected education board"]', {
+      element(element) {
+        if (isCbse) element.replace(CBSE_SERVER_BOARD_VALUE, { html: true });
       },
     })
     .on(".catalog-stat-artwork img", {
@@ -1999,19 +2414,154 @@ async function boardLandingResponse(request, env, url, board) {
         setBoardLogoAttributes(element, board, 180, true);
       },
     });
-  return markCanonicalBreadcrumbResponse(
+  const transformed = markCanonicalBreadcrumbResponse(
     rewriter.transform(withTransformableHeaders(response, EDGE_HTML_CACHE)),
   );
+  const headers = new Headers(transformed.headers);
+  headers.set("X-StudyWudy-Board-SSR", BOARD_HUB_SSR_RELEASE);
+  return new Response(transformed.body, {
+    status: transformed.status,
+    statusText: transformed.statusText,
+    headers,
+  });
+}
+
+async function staticCorpusPageResponse(request, env, url) {
+  const normalizedPath = url.pathname.replace(/\/+$/u, "");
+  const assetPath = STATIC_CORPUS_PAGE_ASSETS[normalizedPath];
+  if (!["GET", "HEAD"].includes(request.method) || !assetPath) return null;
+  const assetUrl = new URL(assetPath, url);
+  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (!asset.ok || !(asset.headers.get("content-type") || "").includes("text/html")) return null;
+  const headers = new Headers(asset.headers);
+  headers.set("cache-control", EDGE_HTML_CACHE);
+  headers.set("X-StudyWudy-Chapter-Experience", "static-corpus-v1");
+  headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
+  if (assetPath.includes("source-review-")) headers.set("X-Robots-Tag", "noindex, follow");
+  return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
+}
+
+async function staticStudyClusterPageResponse(request, env, url) {
+  if (!["GET", "HEAD"].includes(request.method)) return null;
+  const normalizedPath = url.pathname.replace(/\/+$/u, "");
+  const suffix = normalizedPath === STUDY_CLUSTER_BASE
+    ? "chapter"
+    : normalizedPath.startsWith(`${STUDY_CLUSTER_BASE}/`)
+      ? normalizedPath.slice(STUDY_CLUSTER_BASE.length + 1)
+      : "";
+  if (suffix !== "chapter" && !STATIC_STUDY_CLUSTER_SUFFIXES.has(suffix)) return null;
+  const assetUrl = new URL(`/pages/study-cluster/${suffix}/`, url);
+  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (!asset.ok || !(asset.headers.get("content-type") || "").includes("text/html")) return null;
+  const noindex = suffix === "previous-year-questions";
+  const headers = new Headers(asset.headers);
+  headers.set("cache-control", noindex ? "no-store" : EDGE_HTML_CACHE);
+  headers.set("X-StudyWudy-Chapter-Experience", "static-study-cluster-v1");
+  headers.set("X-StudyWudy-Study-Cluster", "electrostatics-v1");
+  headers.set("X-StudyWudy-Study-Evidence", "textbook-and-question-bank-no-pyq-inference");
+  headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
+  if (noindex) headers.set("X-Robots-Tag", "noindex, follow");
+  return new Response(request.method === "HEAD" ? null : asset.body, {
+    status: asset.status,
+    statusText: asset.statusText,
+    headers,
+  });
+}
+
+const LAUNCH_STATIC_HTML_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https://googlesyndication.com https://*.googlesyndication.com https://doubleclick.net https://*.doubleclick.net https://googleadservices.com https://*.googleadservices.com",
+  "font-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://googlesyndication.com https://*.googlesyndication.com https://doubleclick.net https://*.doubleclick.net https://googleadservices.com https://*.googleadservices.com",
+  "connect-src 'self' https://googlesyndication.com https://*.googlesyndication.com https://doubleclick.net https://*.doubleclick.net https://googleadservices.com https://*.googleadservices.com",
+  "manifest-src 'self'",
+  "worker-src 'self' blob:",
+  "frame-src 'self' https://googlesyndication.com https://*.googlesyndication.com https://doubleclick.net https://*.doubleclick.net https://googleadservices.com https://*.googleadservices.com",
+].join("; ");
+
+function launchStaticSecurityHeaders(headers) {
+  headers.set("content-security-policy", LAUNCH_STATIC_HTML_CSP);
+  headers.set("cross-origin-opener-policy", "same-origin");
+  headers.set("cross-origin-resource-policy", "same-origin");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-frame-options", "SAMEORIGIN");
+  headers.set("x-permitted-cross-domain-policies", "none");
+  return headers;
+}
+
+async function launchHotPathStaticResponse(request, env, url) {
+  if (!env.ASSETS || !["GET", "HEAD"].includes(request.method)) return null;
+  if (isLocalLaunchHotPathBuildRequest(request)) return null;
+  const document = launchHotPathDocument(url);
+  if (!document) return null;
+  const assetUrl = new URL(document.assetPath, url);
+  assetUrl.search = "";
+  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (!asset.ok || !(asset.headers.get("content-type") || "").includes("text/html")) {
+    return new Response("Launch-critical static document is unavailable.", {
+      status: 503,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+  const headers = launchStaticSecurityHeaders(new Headers(asset.headers));
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  headers.delete("etag");
+  headers.set("X-StudyWudy-Launch-Hot-Path", `${LAUNCH_HOT_PATH_RELEASE}; ${document.kind}`);
+  headers.set("X-StudyWudy-Accessibility-Text", ACCESSIBILITY_TEXT_RELEASE);
+  headers.set("X-StudyWudy-Brand-Hygiene", PUBLIC_BRAND_HYGIENE_RELEASE);
+  headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
+  headers.set("X-StudyWudy-Public-Title", PUBLIC_TITLE_QUALITY_RELEASE);
+  headers.set("X-StudyWudy-Render-Consistency", RENDER_CONSISTENCY_RELEASE);
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v5-operator-equivalence");
+  if (document.kind === "question-search") {
+    headers.set("cache-control", document.search ? "no-store" : EDGE_HTML_CACHE);
+    headers.set("X-Robots-Tag", "noindex, follow");
+    headers.set("X-StudyWudy-Search-Excerpt", SEARCH_EXCERPT_RELEASE);
+    headers.set("X-StudyWudy-Search-Filter", SEARCH_FILTER_RELEASE);
+    if (!document.search) headers.set("X-StudyWudy-Question-Showcase", QUESTION_SHOWCASE_SOURCE_GATE.policyVersion);
+  } else {
+    const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, document.rowId);
+    headers.set("cache-control", indexable ? EDGE_HTML_CACHE : "no-store");
+    headers.set("X-Robots-Tag", indexable
+      ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+      : "noindex, follow");
+    headers.set("X-StudyWudy-Breadcrumbs", "canonical-v1");
+    headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "incomplete"}`);
+    headers.set("X-StudyWudy-Public-Eligibility", PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION);
+    headers.set("X-StudyWudy-Question-Experience", "question-specific-trust-v2");
+    headers.set("X-StudyWudy-Search-Metadata", "catalog-data-v1");
+  }
+  return new Response(request.method === "HEAD" ? null : asset.body, {
+    status: asset.status,
+    statusText: asset.statusText,
+    headers,
+  });
 }
 
 const afterWorker = {
   async fetch(request, env, ctx) {
     request = withoutConditionalHtmlValidators(request);
     const url = new URL(request.url);
+    if (["GET", "HEAD"].includes(request.method) && url.pathname.startsWith("/studywudy-media/")) {
+      const internalUrl = new URL(url);
+      internalUrl.pathname = `/boardly-media/${url.pathname.slice("/studywudy-media/".length)}`;
+      return baseWorker.fetch(new Request(internalUrl, request), env, ctx);
+    }
     const quarantinedLanguagePage = multilingualQuarantineResponse(request, url);
     if (quarantinedLanguagePage) {
       return enhanceResponse(request, withTheme(request, quarantinedLanguagePage), env);
     }
+    const launchHotPath = await launchHotPathStaticResponse(request, env, url);
+    if (launchHotPath) return launchHotPath;
     const edgeCached = await edgeHtmlCacheMatch(request);
     if (edgeCached) return edgeCached;
     const phase6Response = await handlePhase6Request(request, env);
@@ -2034,11 +2584,21 @@ const afterWorker = {
         headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
       });
     }
-    const studyCluster = await studyClusterResponse(request, env, url, ctx);
-    if (studyCluster) {
+    const questionHead = await questionEligibilityHeadResponse(request, env, routedQuestion);
+    if (questionHead) return enhanceResponse(request, questionHead, env);
+    const staticCorpusPage = await staticCorpusPageResponse(request, env, url);
+    if (staticCorpusPage) {
       return edgeHtmlCacheStore(
         request,
-        enhanceResponse(request, withTheme(request, studyCluster, studyCluster.headers.get("cache-control") !== "no-store"), env),
+        enhanceResponse(request, withTheme(request, staticCorpusPage), env),
+        ctx,
+      );
+    }
+    const staticStudyClusterPage = await staticStudyClusterPageResponse(request, env, url);
+    if (staticStudyClusterPage) {
+      return edgeHtmlCacheStore(
+        request,
+        enhanceResponse(request, withTheme(request, staticStudyClusterPage, staticStudyClusterPage.headers.get("cache-control") !== "no-store"), env),
         ctx,
       );
     }

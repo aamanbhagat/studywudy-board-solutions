@@ -110,6 +110,8 @@ export function buildQuestionTrustRecord({
   question,
   pathname,
   sourceMappingVerified,
+  internalMappingConsistent = sourceMappingVerified,
+  authoritativeSourceMapping = null,
   exercise,
   sourcePages,
   edition,
@@ -144,6 +146,16 @@ export function buildQuestionTrustRecord({
   return Object.freeze({
     policyVersion: TRUST_POLICY_VERSION,
     sourceMappingVerified: Boolean(sourceMappingVerified),
+    internalMappingConsistent: Boolean(internalMappingConsistent),
+    authoritativeSourceMapping: Object.freeze({
+      status: authoritativeSourceMapping?.status || (sourceMappingVerified ? "verified" : "not-reviewed"),
+      verified: Boolean(authoritativeSourceMapping?.authoritativeTextbookMappingVerified ?? sourceMappingVerified),
+      detail: text(authoritativeSourceMapping?.detail) || (sourceMappingVerified
+        ? "An authoritative textbook comparison is recorded."
+        : "No authoritative textbook comparison is recorded."),
+      evidenceUrl: text(authoritativeSourceMapping?.evidenceUrl) || null,
+      evidenceLabel: text(authoritativeSourceMapping?.evidenceLabel) || null,
+    }),
     exercise: text(exercise) || "Exercise not recorded in source data",
     sourcePages: normalizeSourcePages(sourcePages) || "Not recorded in source data",
     edition: text(edition) || null,

@@ -1,13 +1,22 @@
 import {
   contentToText,
   evaluateAnswerCompleteness,
+  renderableWorkedSteps,
   renderedAnswerText,
   simpleArithmeticIsAccurate,
 } from "./answer-completeness.mjs";
 import { getQuestionUrl } from "./question-routes.mjs";
 import { renderQuestionSemanticGraph } from "./semantic-link-graph.mjs";
-import { formulaRepresentations, renderSemanticMath } from "./semantic-math.mjs";
+import { normalizedQuestionType } from "./question-classification.mjs";
+import { sourceMappingReleaseEligibility } from "./source-mapping-quality.mjs";
+import { formulaRepresentations, renderMathText, renderSemanticMath } from "./semantic-math.mjs";
 import { buildQuestionTrustRecord } from "./trust-transparency.mjs";
+import {
+  corpusQualityFindingForQuestion,
+  corpusQuestionSnippetEligible,
+  CORPUS_QUALITY_STYLES,
+  renderCorpusQualityNote,
+} from "./corpus-quality.mjs";
 
 const QUESTION_TYPE_LABELS = Object.freeze({
   one_word: "One-word answer",
@@ -95,7 +104,7 @@ function escapeHtml(value) {
 function principleMarkup(value) {
   const source = String(value || "").trim();
   const isFormulaOnly = /^(?:\$\$[\s\S]+\$\$|\$[^$\n]+\$|\\\([\s\S]+\\\)|\\\[[\s\S]+\\\])$/u.test(source);
-  if (!isFormulaOnly) return `<p>${escapeHtml(source)}</p>`;
+  if (!isFormulaOnly) return `<p>${renderMathText(source)}</p>`;
   return `<p class="question-principle-formula">${renderSemanticMath(formulaRepresentations(source), { visiblePlain: true })}</p>`;
 }
 
@@ -296,7 +305,7 @@ function sharedConceptCount(left, right) {
 function similarExerciseQuestions(context, route) {
   const currentIndex = context.exerciseQuestions.findIndex((candidate) => candidate.id === context.question.id);
   return context.exerciseQuestions
-    .filter((candidate) => candidate.id !== context.question.id && candidate.id)
+    .filter((candidate) => candidate.id !== context.question.id && candidate.id && corpusQuestionSnippetEligible(candidate.id, candidate))
     .map((candidate, index) => ({
       question: candidate,
       overlap: sharedConceptCount(context.question, candidate),
@@ -312,6 +321,7 @@ function relevantPreviousYearQuestions(context, route) {
   for (const exercise of context.chapter.exercises || []) {
     for (const question of (exercise.questions || []).flatMap(flattenQuestions)) {
       if (question.id === context.question.id) continue;
+      if (!corpusQuestionSnippetEligible(question.id, question)) continue;
       const year = questionYear(question);
       if (!year) continue;
       const overlap = sharedConceptCount(context.question, question);
@@ -327,7 +337,7 @@ function relevantPreviousYearQuestions(context, route) {
 
 function solutionChecks(question, directAnswer, principle) {
   const checks = [];
-  const steps = question.steps || [];
+  const steps = renderableWorkedSteps(question);
   if (steps.length) checks.push(`${steps.length} worked ${steps.length === 1 ? "step" : "steps"}`);
   if (cleanText(question.explanation)) checks.push("Method explained");
   if (principle) checks.push("Formula or principle identified");
@@ -351,6 +361,7 @@ export function buildQuestionPageExperience({ payload, context, route, catalog, 
   const resolved = context || findQuestionPageContext(payload, route.chapter, route.question);
   if (!resolved?.question || !catalog) return null;
   const question = resolved.question;
+  const questionType = normalizedQuestionType(question);
   const directAnswer = conciseDirectAnswer(question);
   const principle = formulaOrPrinciple(question);
   const edition = explicitEdition(payload);
@@ -358,14 +369,24 @@ export function buildQuestionPageExperience({ payload, context, route, catalog, 
   const exerciseLabel = cleanText(resolved.exercise.displayLabel || resolved.exercise.id || "Textbook exercise");
   const marks = Number.isFinite(Number(question.marks)) && Number(question.marks) > 0 ? Number(question.marks) : null;
   const pathname = getQuestionUrl(questionRecord(route, resolved.chapter.slug, question.id));
-  const completeness = evaluateAnswerCompleteness(question);
+  const completenessQuestion = questionType === question.type ? question : { ...question, type: questionType };
+  const completeness = evaluateAnswerCompleteness(completenessQuestion);
+  const contentQuality = corpusQualityFindingForQuestion(question.id, question);
+  const internalMappingConsistent = question.id === route.question
+    && resolved.chapter.slug === route.chapter
+    && Boolean(resolved.exercise?.id || resolved.exercise?.displayLabel)
+    && Boolean(catalog.row_id);
+  const sourceMapping = sourceMappingReleaseEligibility({
+    bookId: `${route.board}::${route.grade}::${route.subject}::${route.book}`,
+    chapterSlug: route.chapter,
+    internalMappingConsistent,
+  });
   const trust = buildQuestionTrustRecord({
     question,
     pathname,
-    sourceMappingVerified: question.id === route.question
-      && resolved.chapter.slug === route.chapter
-      && Boolean(resolved.exercise?.id || resolved.exercise?.displayLabel)
-      && Boolean(catalog.row_id),
+    sourceMappingVerified: sourceMapping.authoritative.authoritativeTextbookMappingVerified,
+    internalMappingConsistent,
+    authoritativeSourceMapping: sourceMapping.authoritative,
     exercise: exerciseLabel,
     sourcePages: explicitSourcePages(resolved, catalog),
     edition,
@@ -384,17 +405,20 @@ export function buildQuestionPageExperience({ payload, context, route, catalog, 
     chapterNumber: Number(catalog.chapter_number || resolved.chapter.number || resolved.chapter.order),
     exercise: exerciseLabel,
     questionNumber: cleanText(question.displayLabel || catalog.display_label || question.order),
-    questionType: question.type,
-    questionTypeLabel: QUESTION_TYPE_LABELS[question.type] || "Textbook answer",
+    questionType,
+    questionTypeLabel: QUESTION_TYPE_LABELS[questionType] || "Textbook answer",
     prompt: cleanText(question.prompt),
     directAnswer,
+    canonicalExplanation: cleanText(question.explanation),
     marks,
-    expectedResponse: EXPECTED_RESPONSE[question.type] || "A complete answer using the required textbook terminology",
+    expectedResponse: EXPECTED_RESPONSE[questionType] || "A complete answer using the required textbook terminology",
     edition,
     academicYear,
-    editionStatus: edition
-      ? `Source mapping verified against ${cleanText(catalog.book_title || payload?.catalog?.book?.title)}, ${edition}`
-      : `Textbook mapping verified for ${cleanText(catalog.book_title || payload?.catalog?.book?.title)}; edition metadata is not present in the source record.`,
+    editionStatus: sourceMapping.authoritative.status === "mismatch"
+      ? `Authoritative textbook mapping mismatch: ${sourceMapping.authoritative.detail}`
+      : sourceMapping.authoritative.authoritativeTextbookMappingVerified
+        ? `Authoritative textbook mapping verified against ${cleanText(catalog.book_title || payload?.catalog?.book?.title)}${edition ? `, ${edition}` : ""}.`
+        : `Catalog and imported payload are internally consistent; an authoritative textbook comparison is not recorded.`,
     sourceRevision: sourceRevision(payload),
     sourceVersion: cleanText(payload?.sourceVersion) || null,
     completeness,
@@ -408,6 +432,7 @@ export function buildQuestionPageExperience({ payload, context, route, catalog, 
     previousYearQuestions: relevantPreviousYearQuestions(resolved, route),
     conceptTags: (question.conceptTags || []).map((tag) => cleanText(String(tag).replaceAll("-", " "))).filter(Boolean).slice(0, 6),
     semanticGraph,
+    contentQuality,
     pathname,
   };
   model.ready = Boolean(
@@ -420,7 +445,7 @@ export function buildQuestionPageExperience({ payload, context, route, catalog, 
     && model.questionNumber
     && model.prompt
     && model.directAnswer
-    && model.trust?.sourceMappingVerified,
+    && model.trust?.internalMappingConsistent,
   );
   return model;
 }
@@ -435,6 +460,18 @@ function trustLedgerRow(status, title, detail) {
 
 function renderTrustPanel(model) {
   const trust = model.trust;
+  const internalMapping = trustLedgerRow(
+    trust.internalMappingConsistent ? "passed" : "pending",
+    trust.internalMappingConsistent ? "Internal mapping consistent" : "Internal mapping incomplete",
+    trust.internalMappingConsistent
+      ? "The catalog route and imported payload agree on board, class, subject, textbook, chapter, exercise and question ID."
+      : "One or more catalog and imported-payload identifiers do not agree.",
+  );
+  const authoritativeMapping = trust.authoritativeSourceMapping?.verified
+    ? trustLedgerRow("passed", "Authoritative textbook mapping verified", trust.authoritativeSourceMapping.detail)
+    : trust.authoritativeSourceMapping?.status === "mismatch"
+      ? trustLedgerRow("pending", "Authoritative textbook mapping mismatch", trust.authoritativeSourceMapping.detail)
+      : trustLedgerRow("pending", "Authoritative textbook comparison not recorded", trust.authoritativeSourceMapping?.detail || "No authoritative textbook comparison is recorded.");
   const answerGate = trustLedgerRow(
     trust.automatedAnswerGatePassed ? "passed" : "pending",
     trust.automatedAnswerGatePassed ? "Automated answer checks passed" : "Automated answer checks incomplete",
@@ -462,7 +499,7 @@ function renderTrustPanel(model) {
   const correctionStatus = trust.latestCorrectionDateDisplay
     ? `<p><strong>Answer corrected on ${escapeHtml(trust.latestCorrectionDateDisplay)}</strong><br><a href="/corrections#${escapeHtml(model.pathname.split("/").at(-1))}">Read the correction record →</a></p>`
     : `<p><strong>No dated answer correction is recorded.</strong><br><a href="/corrections">How corrections are logged →</a></p>`;
-  return `<section class="question-trust-panel" aria-labelledby="question-source-review" data-review-status="${trust.manualReview ? "manual" : "pending"}"><header><span>Evidence ledger</span><h2 id="question-source-review">What has—and has not—been checked</h2><p>Source, automated and human checks are kept separate.</p></header><div class="question-trust-ledger">${trustLedgerRow(trust.sourceMappingVerified ? "passed" : "pending", trust.sourceMappingVerified ? "Source mapping verified" : "Source mapping incomplete", trust.sourceMappingVerified ? "The catalog route and source payload agree on board, class, subject, textbook, chapter, exercise and question ID." : "No mapping claim is made until every catalog level agrees.")}${answerGate}${arithmetic}${diagram}</div>${manual}<div class="question-source-record"><h3>Source record</h3><dl><div><dt>Textbook</dt><dd>${escapeHtml(model.textbook)}</dd></div><div><dt>Chapter</dt><dd>${escapeHtml(`Chapter ${model.chapterNumber} · ${model.chapter}`)}</dd></div><div><dt>Exercise</dt><dd>${escapeHtml(trust.exercise)}</dd></div><div><dt>Source page</dt><dd>${escapeHtml(trust.sourcePages)}</dd></div><div><dt>Textbook edition</dt><dd>${escapeHtml(trust.edition || "Not recorded in source data")}</dd></div><div><dt>Academic year</dt><dd>${escapeHtml(trust.academicYear || "Not recorded in source data")}</dd></div><div><dt>Source revision</dt><dd>${escapeHtml(trust.sourceRevision)}</dd></div><div><dt>Automated publishing check</dt><dd>${escapeHtml(trust.publishingGateDate || "Date not recorded")}</dd></div></dl></div><footer>${correctionStatus}<a class="question-report-error" href="${escapeHtml(trust.reportUrl)}">Report an academic error</a></footer></section>`;
+  return `<section class="question-trust-panel" aria-labelledby="question-source-review" data-review-status="${trust.manualReview ? "manual" : "pending"}"><header><span>Evidence ledger</span><h2 id="question-source-review">What has—and has not—been checked</h2><p>Internal, authoritative, automated and human checks are kept separate.</p></header><div class="question-trust-ledger">${internalMapping}${authoritativeMapping}${answerGate}${arithmetic}${diagram}</div>${manual}<div class="question-source-record"><h3>Source record</h3><dl><div><dt>Textbook</dt><dd>${escapeHtml(model.textbook)}</dd></div><div><dt>Chapter</dt><dd>${escapeHtml(`Chapter ${model.chapterNumber} · ${model.chapter}`)}</dd></div><div><dt>Exercise</dt><dd>${escapeHtml(trust.exercise)}</dd></div><div><dt>Source page</dt><dd>${escapeHtml(trust.sourcePages)}</dd></div><div><dt>Textbook edition</dt><dd>${escapeHtml(trust.edition || "Not recorded in source data")}</dd></div><div><dt>Academic year</dt><dd>${escapeHtml(trust.academicYear || "Not recorded in source data")}</dd></div><div><dt>Source revision</dt><dd>${escapeHtml(trust.sourceRevision)}</dd></div><div><dt>Automated publishing check</dt><dd>${escapeHtml(trust.publishingGateDate || "Date not recorded")}</dd></div></dl></div><footer>${correctionStatus}<a class="question-report-error" href="${escapeHtml(trust.reportUrl)}">Report an academic error</a></footer></section>`;
 }
 
 export function renderQuestionPageExperience(model) {
@@ -471,7 +508,7 @@ export function renderQuestionPageExperience(model) {
   const responseMeta = model.marks
     ? `${model.marks} ${model.marks === 1 ? "mark" : "marks"} · ${model.expectedResponse}`
     : model.expectedResponse;
-  const aboveFold = `<section class="question-answer-summary" aria-labelledby="question-direct-answer"><ol aria-label="Question context">${contextItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol><div class="question-answer-summary-grid"><div><span class="question-answer-label">Question ${escapeHtml(model.questionNumber)} · ${escapeHtml(model.questionTypeLabel)}</span><h2 id="question-direct-answer">Direct answer</h2><p>${escapeHtml(model.directAnswer)}</p></div><dl><div><dt>Expected response</dt><dd>${escapeHtml(responseMeta)}</dd></div><div><dt>Exercise</dt><dd>${escapeHtml(model.exercise)}</dd></div></dl></div><p class="question-verification ${model.edition ? "is-edition-verified" : "is-edition-pending"}">${model.edition ? "✓ " : "ⓘ "}${escapeHtml(model.editionStatus)}</p></section>`;
+  const aboveFold = `<section class="question-answer-summary" aria-labelledby="question-direct-answer"><ol aria-label="Question context">${contextItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol><div class="question-answer-summary-grid"><div><span class="question-answer-label">Question ${escapeHtml(model.questionNumber)} · ${escapeHtml(model.questionTypeLabel)}</span><h2 id="question-direct-answer">Direct answer</h2><p>${renderMathText(model.directAnswer)}</p></div><dl><div><dt>Expected response</dt><dd>${escapeHtml(responseMeta)}</dd></div><div><dt>Exercise</dt><dd>${escapeHtml(model.exercise)}</dd></div></dl></div><p class="question-verification ${model.edition ? "is-edition-verified" : "is-edition-pending"}">${model.edition ? "✓ " : "ⓘ "}${escapeHtml(model.editionStatus)}</p></section>`;
   const solutionOverview = `<div class="question-solution-overview" aria-label="What this solution covers"><span>Main solution</span><ul>${model.solutionChecks.map((check) => `<li>✓ ${escapeHtml(check)}</li>`).join("")}</ul></div>`;
   const conceptSection = model.principle || model.conceptTags.length
     ? `<section class="question-specific-panel" aria-labelledby="question-principle"><span>Related concept</span><h3 id="question-principle">Formula or principle used</h3>${model.principle ? principleMarkup(model.principle) : ""}${model.conceptTags.length ? `<ul class="question-concept-tags">${model.conceptTags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join("")}</ul>` : ""}</section>`
@@ -489,6 +526,7 @@ export function renderQuestionPageExperience(model) {
     ? `<div class="question-specific-grid">${conceptSection}${whySection}${alternativeSection}${mistakeSection}</div>`
     : "";
   const trust = renderTrustPanel(model);
+  const contentQuality = renderCorpusQualityNote(model.contentQuality);
   const sameExercise = model.sameExerciseQuestions.length
     ? `<section class="question-exercise-related" aria-labelledby="same-exercise-heading"><header><span>Same exercise</span><h2 id="same-exercise-heading">Similar questions from ${escapeHtml(model.exercise)}</h2></header><div>${cardsMarkup(model.sameExerciseQuestions, "question-exercise-card")}</div></section>`
     : "";
@@ -496,12 +534,25 @@ export function renderQuestionPageExperience(model) {
     ? `<section class="question-exercise-related question-previous-year" aria-labelledby="previous-year-heading"><header><span>Exam practice</span><h2 id="previous-year-heading">Relevant previous-year questions</h2></header><div>${cardsMarkup(model.previousYearQuestions, "question-exercise-card")}</div></section>`
     : "";
   const semanticLinks = renderQuestionSemanticGraph(model.semanticGraph);
-  return { aboveFold, solutionOverview, solutionSupplement, trust, sameExercise, previousYear, semanticLinks };
+  const canonicalExplanation = model.canonicalExplanation
+    ? `<p class="direct-answer canonical-answer-replacement"><strong class="answer-highlight">${renderMathText(model.canonicalExplanation)}</strong></p>`
+    : "";
+  return {
+    aboveFold,
+    solutionOverview,
+    solutionSupplement,
+    trust: `${contentQuality}${trust}`,
+    sameExercise,
+    previousYear,
+    semanticLinks,
+    canonicalExplanation,
+    snippetEligible: model.contentQuality?.snippetEligible !== false,
+  };
 }
 
-export const QUESTION_PAGE_EXPERIENCE_STYLES = `<style id="question-page-experience-styles">
+export const QUESTION_PAGE_EXPERIENCE_STYLES = `${CORPUS_QUALITY_STYLES}<style id="question-page-experience-styles">
 .answer-page-hero{display:grid!important;grid-template-columns:minmax(0,1fr);align-items:start!important;gap:1rem}.answer-page-hero>div:first-child{grid-column:1;grid-row:1}.answer-page-hero>.answer-page-chapter{grid-column:1;grid-row:2}.question-answer-summary{grid-column:1;grid-row:3;width:100%;margin:.25rem 0 0;padding:1.25rem;border:1px solid #b8c9bd;border-radius:20px;background:linear-gradient(145deg,#f7fbf5,#eef7f0);box-shadow:0 14px 34px rgba(21,51,34,.08)}
-.question-answer-summary ol{display:flex;flex-wrap:wrap;gap:.45rem;margin:0 0 1rem;padding:0;list-style:none}.question-answer-summary ol li{padding:.35rem .6rem;border:1px solid #d3ded5;border-radius:999px;background:#fff;font-size:.78rem;font-weight:700}.question-answer-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,.8fr);gap:1.25rem}.question-answer-label,.question-specific-panel>span,.question-exercise-related header>span,.question-solution-overview>span{display:block;color:#21603c;font-size:.76rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.question-answer-summary h2,.question-trust-panel h2,.question-exercise-related h2{margin:.35rem 0 .55rem}.question-answer-summary-grid>div>p{margin:0;font-size:1.05rem;font-weight:720;line-height:1.55}.question-answer-summary dl{margin:0}.question-answer-summary dl div{display:grid;grid-template-columns:130px 1fr;gap:.75rem;padding:.45rem 0;border-bottom:1px solid #dbe5dd}.question-answer-summary dt{color:#5e6c63;font-size:.78rem;font-weight:750}.question-answer-summary dd{margin:0;font-size:.88rem;font-weight:650}.question-verification{margin:1rem 0 0;padding-top:.9rem;border-top:1px solid #d3ded5;font-size:.84rem}.question-verification.is-edition-pending{color:#6a4a12}.question-solution-overview{margin:.5rem 0 1.25rem;padding:1rem;border:1px solid #d7d1c5;border-radius:14px;background:#fbf8f1}.question-solution-overview ul{display:flex;flex-wrap:wrap;gap:.5rem;margin:.7rem 0 0;padding:0;list-style:none}.question-solution-overview li{padding:.35rem .55rem;border-radius:8px;background:#fff;color:#294c35;font-size:.8rem;font-weight:700}.question-specific-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-top:1.4rem}.question-specific-panel{padding:1rem;border:1px solid #ddd6ca;border-radius:14px;background:#fff}.question-specific-panel h3{margin:.3rem 0 .5rem}.question-specific-panel p{margin:.4rem 0;line-height:1.6}.question-principle-formula .math-plain-text{font-weight:750;overflow-wrap:anywhere}.question-mistake{border-color:#dec9ad;background:#fffaf1}.question-concept-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.7rem 0 0;padding:0;list-style:none}.question-concept-tags li{padding:.3rem .5rem;border-radius:999px;background:#edf5ef;font-size:.78rem}
+.question-answer-summary ol{display:flex;flex-wrap:wrap;gap:.45rem;margin:0 0 1rem;padding:0;list-style:none}.question-answer-summary ol li{padding:.35rem .6rem;border:1px solid #d3ded5;border-radius:999px;background:#fff;font-size:.78rem;font-weight:700}.question-answer-summary-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,.8fr);gap:1.25rem}.question-answer-label,.question-specific-panel>span,.question-exercise-related header>span,.question-solution-overview>span{display:block;color:#21603c;font-size:.76rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.question-answer-summary h2,.question-trust-panel h2,.question-exercise-related h2{margin:.35rem 0 .55rem}.question-answer-summary-grid>div>p{margin:0;font-size:1.05rem;font-weight:720;line-height:1.55}.question-answer-summary dl{margin:0}.question-answer-summary dl div{display:grid;grid-template-columns:130px 1fr;gap:.75rem;padding:.45rem 0;border-bottom:1px solid #dbe5dd}.question-answer-summary dt{color:#5e6c63;font-size:.78rem;font-weight:750}.question-answer-summary dd{margin:0;font-size:.88rem;font-weight:650}.question-verification{margin:1rem 0 0;padding-top:.9rem;border-top:1px solid #d3ded5;font-size:.84rem}.question-verification.is-edition-pending{color:#6a4a12}.question-solution-overview{margin:.5rem 0 1.25rem;padding:1rem;border:1px solid #d7d1c5;border-radius:14px;background:#fbf8f1}.question-solution-overview ul{display:flex;flex-wrap:wrap;gap:.5rem;margin:.7rem 0 0;padding:0;list-style:none}.question-solution-overview li{padding:.35rem .55rem;border-radius:8px;background:#fff;color:#294c35;font-size:.8rem;font-weight:700}.question-specific-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-top:1.4rem}.question-specific-panel{padding:1rem;border:1px solid #ddd6ca;border-radius:14px;background:#fff}.question-specific-panel h3{margin:.3rem 0 .5rem}.question-specific-panel p{margin:.4rem 0;line-height:1.6}.question-principle-formula .math-semantic>math{font-weight:750}.question-specific-panel .math-inline,.question-specific-panel .math-inline>math{display:inline-block}.question-mistake{border-color:#dec9ad;background:#fffaf1}.question-concept-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin:.7rem 0 0;padding:0;list-style:none}.question-concept-tags li{padding:.3rem .5rem;border-radius:999px;background:#edf5ef;font-size:.78rem}
 .question-trust-panel{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(270px,.85fr);gap:1rem;align-items:start;margin:1.25rem 0;padding:1.2rem;border:1px solid #bcb4a6;border-left:6px solid #11151a;border-radius:16px;background:#f5f0e6}.question-trust-panel>header{grid-column:1/-1;padding-bottom:.9rem;border-bottom:1px solid #cfc6b8}.question-trust-panel>header>span,.question-human-review>span{display:block;color:#0757d8;font-size:.74rem;font-weight:850;letter-spacing:.09em;text-transform:uppercase}.question-trust-panel>header>p{margin:.25rem 0 0;color:#555d59}.question-trust-ledger{display:grid;gap:.55rem}.question-trust-row{display:grid;grid-template-columns:30px 1fr;gap:.65rem;align-items:start;padding:.7rem;border:1px solid #c8c3b9;border-radius:10px;background:#fff}.question-trust-row>span{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;font-weight:900}.question-trust-row strong,.question-trust-row small{display:block}.question-trust-row small{margin-top:.2rem;color:#5c645f;line-height:1.45}.question-trust-row.is-passed>span{background:#e3f3e8;color:#17603a}.question-trust-row.is-pending>span{background:#fff1cc;color:#8a5a00}.question-human-review{padding:1rem;border:1px solid #d5ad55;border-radius:12px;background:#fff7df}.question-human-review h3{margin:.3rem 0 .5rem;font-size:1.15rem}.question-human-review p{margin:.25rem 0 .65rem}.question-human-review dl,.question-source-record dl{margin:0}.question-human-review dl div,.question-source-record dl div{display:grid;grid-template-columns:135px 1fr;gap:.6rem;padding:.45rem 0;border-bottom:1px solid #d8d1c5}.question-human-review dt,.question-source-record dt{color:#616762;font-size:.78rem;font-weight:750}.question-human-review dd,.question-source-record dd{margin:0;font-size:.87rem;font-weight:650}.question-source-record{grid-column:1/-1;padding:1rem;border-top:1px solid #cfc6b8}.question-source-record h3{margin:0 0 .45rem}.question-source-record dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.4rem}.question-trust-panel>footer{grid-column:1/-1;display:flex;justify-content:space-between;gap:1rem;align-items:center;padding-top:1rem;border-top:1px solid #cfc6b8}.question-trust-panel>footer p{margin:0}.question-report-error{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.65rem .85rem;border:1px solid #b44332;border-radius:10px;color:#8c2e20;font-weight:800;text-decoration:none;background:#fff}.question-report-error:focus-visible,.question-human-review a:focus-visible,.question-trust-panel>footer a:focus-visible{outline:3px solid #0757d8;outline-offset:3px}.question-exercise-related{margin:1.5rem 0}.question-exercise-related>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}.question-exercise-card{display:block;padding:1rem;border:1px solid #d7d1c5;border-radius:14px;background:#fff;color:inherit;text-decoration:none}.question-exercise-card>span{color:#657168;font-size:.75rem}.question-exercise-card strong{display:block;margin:.25rem 0}.question-exercise-card p{display:-webkit-box;margin:.4rem 0;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3}.question-exercise-card b{color:#21603c;font-size:.82rem}
 @media(max-width:1100px){.question-answer-summary-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.question-answer-summary-grid,.question-specific-grid,.question-trust-panel,.question-exercise-related>div,.question-source-record dl{grid-template-columns:1fr}.question-answer-summary dl div,.question-human-review dl div,.question-source-record dl div{grid-template-columns:1fr;gap:.15rem}.question-trust-panel>footer{align-items:stretch;flex-direction:column}.question-report-error{width:100%}}

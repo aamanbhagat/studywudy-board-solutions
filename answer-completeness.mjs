@@ -1,3 +1,5 @@
+import { explicitlyRequiresStudentDiagram, questionHasRenderedDiagram } from "./question-classification.mjs";
+
 const EMPTY_RESULT = Object.freeze({ complete: false, checks: Object.freeze({}), missing: Object.freeze([]) });
 
 export const SUPPORTED_ANSWER_TYPES = Object.freeze([
@@ -255,13 +257,69 @@ function diagramObjects(value, output = []) {
     for (const item of value) diagramObjects(item, output);
     return output;
   }
-  if (value.kind === "image" || value.src || value.imageUrl || value.diagramUrl) output.push(value);
+  if (value.kind === "image" || value.src || value.imageUrl || value.diagramUrl
+    || (value.url && (value.alt || value.caption || value.width || value.height || value.fallbackUrl))) output.push(value);
   for (const nested of Object.values(value)) diagramObjects(nested, output);
   return output;
 }
 
+export function renderableWorkedSteps(question) {
+  return (question?.steps || []).filter((step) => Boolean(contentToText(step?.content).trim()));
+}
+
+function structuredComparisonHasBothSidesAndDimensions(question) {
+  const rows = question?.comparison?.rows || [];
+  if (rows.length >= 2 && rows.every((row) => contentToText(row.left).trim() && contentToText(row.right).trim())) return true;
+  const values = [question?.answer, question?.finalAnswer, question?.explanation];
+  return values.some((value) => value?.kind === "blocks" && (value.blocks || []).some((block) => (
+    block.kind === "table"
+    && (block.headers || []).length >= 2
+    && (block.rows || []).length >= 2
+    && block.rows.every((row) => (row || []).filter((cell) => contentToText(cell).trim()).length >= 2)
+  )));
+}
+
+export function evaluatePromptRequirements(question) {
+  const prompt = contentToText(question?.prompt);
+  const answerText = renderedAnswerText(question);
+  const steps = renderableWorkedSteps(question);
+  const stepTexts = steps.map((step) => contentToText(step.content));
+  const requestsDiagram = explicitlyRequiresStudentDiagram(question);
+  const requestsWorking = /\b(?:show|give|write)\s+(?:all\s+|the\s+|your\s+)?work(?:ing|ings)\b/iu.test(prompt);
+  const requestsComparison = /\b(?:compare|distinguish|differentiate)\b/iu.test(prompt);
+  const requestsReason = question?.type === "give_reason" || /\b(?:give|state|write)\s+(?:a\s+|the\s+)?reasons?\b|^\s*why\b/iu.test(prompt);
+  const requestsDerivation = /\b(?:derive|derivation|prove|show\s+that|deduce)\b/iu.test(prompt);
+  const calculationStepCount = stepTexts.filter((text) => (
+    /(?:=|→|⇒)/u.test(text)
+    && /(?:\d|\\(?:frac|sqrt|int)|[+\-*/×÷^])/u.test(text)
+  )).length;
+  const derivationEquationCount = [...stepTexts, contentToText(question?.finalAnswer)]
+    .filter((text) => /(?:=|→|⇒|\\(?:frac|sqrt|int|sum))/u.test(text)).length;
+  const causal = /\b(?:because|therefore|thereby|thus|hence|owing to|due to|as a result|so that|consequently)\b/iu.test(answerText);
+  const conclusion = Boolean(contentToText(question?.finalAnswer).trim())
+    || /\b(?:therefore|thus|hence|proved|derived|as required|conclusion)\b/iu.test(answerText);
+  const checks = {
+    renderedWorkedStepCountMatchesSource: steps.length === (question?.steps || []).length,
+    promptDiagramRendered: !requestsDiagram || questionHasRenderedDiagram(question),
+    promptWorkingHasMultipleCalculations: !requestsWorking || calculationStepCount >= 2,
+    promptComparisonCoversBothSidesAndDimensions: !requestsComparison || structuredComparisonHasBothSidesAndDimensions(question),
+    promptReasonIsCausal: !requestsReason || causal,
+    promptDerivationIsOrdered: !requestsDerivation || steps.length >= 2,
+    promptDerivationHasEquationSequence: !requestsDerivation || derivationEquationCount >= 2,
+    promptDerivationHasConclusion: !requestsDerivation || conclusion,
+  };
+  const missing = Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name);
+  return Object.freeze({
+    complete: missing.length === 0,
+    checks: Object.freeze(checks),
+    missing: Object.freeze(missing),
+    requested: Object.freeze({ diagram: requestsDiagram, working: requestsWorking, comparison: requestsComparison, reason: requestsReason, derivation: requestsDerivation }),
+    renderedWorkedStepCount: steps.length,
+  });
+}
+
 export function checkDiagramLabelsAltTextAndExplanation(question) {
-  const diagrams = diagramObjects(question);
+  const diagrams = diagramObjects(question?.solutionMedia ?? question?.diagram);
   const labels = question.labels || question.diagram?.labels || question.labelledParts || [];
   return result(question.type, {
     diagram: diagrams.length > 0,
@@ -341,48 +399,62 @@ export function evaluateAnswerCompleteness(question) {
   if (!question || typeof question !== "object") return { kind: "unknown", ...EMPTY_RESULT, missing: ["answerRecord"] };
   const kind = answerKindFor(question);
   const asKind = (gateResult) => ({ ...gateResult, kind });
+  let gateResult;
   switch (kind) {
     case "mcq_single":
     case "mcq_multi":
     case "assertion_reason":
-      return asKind(checkCorrectChoiceReasoningAndDistractors(question));
+      gateResult = asKind(checkCorrectChoiceReasoningAndDistractors(question));
+      break;
     case "one_word":
     case "fill_blank":
-      return asKind(checkDirectAnswerAndShortContext(question));
+      gateResult = asKind(checkDirectAnswerAndShortContext(question));
+      break;
     case "short_answer":
     case "give_reason":
-      return asKind(checkRequiredPointsAndTerminology(question));
+      gateResult = asKind(checkRequiredPointsAndTerminology(question));
+      break;
     case "numerical":
-      return asKind(checkFormulaSubstitutionUnitsArithmeticAndFinal(question));
+      gateResult = asKind(checkFormulaSubstitutionUnitsArithmeticAndFinal(question));
+      break;
     case "derivation":
-      return asKind(checkAssumptionsStepsEquationsAndConclusion(question));
+      gateResult = asKind(checkAssumptionsStepsEquationsAndConclusion(question));
+      break;
     case "diagram":
-      return asKind(checkDiagramLabelsAltTextAndExplanation(question));
+      gateResult = asKind(checkDiagramLabelsAltTextAndExplanation(question));
+      break;
     case "long_answer":
-      return asKind(checkCoverageStructureAccuracyAndExamFit(question));
+      gateResult = asKind(checkCoverageStructureAccuracyAndExamFit(question));
+      break;
     case "true_false":
-      return asKind(checkTrueFalse(question));
+      gateResult = asKind(checkTrueFalse(question));
+      break;
     case "match_column":
-      return asKind(checkMatching(question));
+      gateResult = asKind(checkMatching(question));
+      break;
     case "distinguish":
-      return asKind(checkComparison(question));
+      gateResult = asKind(checkComparison(question));
+      break;
     case "passage": {
       const subResults = (question.subQuestions || []).map(evaluateAnswerCompleteness);
-      return result(kind, {
+      gateResult = result(kind, {
         passageContext: Boolean(contentToText(question.passage || question.prompt)),
         subQuestions: subResults.length > 0 && subResults.every((subResult) => subResult.complete),
         readableEquations: equationsAreReadable(question),
       });
+      break;
     }
     default:
-      return result(kind, { recognizedAnswerType: false });
+      gateResult = result(kind, { recognizedAnswerType: false });
   }
+  const promptRequirements = evaluatePromptRequirements(question);
+  return result(kind, { ...gateResult.checks, ...promptRequirements.checks });
 }
 
-export function encodeIndexabilityBitset(records, maximumRowId) {
+export function encodeFlagBitset(records, maximumRowId, flag = "gatePassed") {
   const bytes = new Uint8Array(Math.ceil(Number(maximumRowId) / 8));
   for (const record of records) {
-    if (!record.gatePassed) continue;
+    if (!record[flag]) continue;
     const index = Number(record.rowId) - 1;
     if (!Number.isSafeInteger(index) || index < 0 || index >= Number(maximumRowId)) throw new Error(`Invalid row id for indexability bitset: ${record.rowId}`);
     bytes[index >> 3] |= 1 << (index & 7);
@@ -392,16 +464,22 @@ export function encodeIndexabilityBitset(records, maximumRowId) {
   return btoa(binary);
 }
 
+export function encodeIndexabilityBitset(records, maximumRowId) {
+  return encodeFlagBitset(records, maximumRowId, "gatePassed");
+}
+
 const BITSET_CACHE = new WeakMap();
 
-function decodedBitset(manifest) {
+function decodedBitset(manifest, property = "indexabilityBitsetBase64") {
   if (!manifest || typeof manifest !== "object") return null;
-  if (BITSET_CACHE.has(manifest)) return BITSET_CACHE.get(manifest);
-  const encoded = manifest.indexabilityBitsetBase64;
+  const cached = BITSET_CACHE.get(manifest) || new Map();
+  if (cached.has(property)) return cached.get(property);
+  const encoded = manifest[property];
   if (typeof encoded !== "string" || !encoded) return null;
   const binary = atob(encoded);
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  BITSET_CACHE.set(manifest, bytes);
+  cached.set(property, bytes);
+  BITSET_CACHE.set(manifest, cached);
   return bytes;
 }
 
@@ -409,5 +487,19 @@ export function isQuestionRowIndexable(manifest, rowId) {
   const index = Number(rowId) - 1;
   if (!Number.isSafeInteger(index) || index < 0 || index >= Number(manifest?.maximumRowId || 0)) return false;
   const bytes = decodedBitset(manifest);
+  return Boolean(bytes && (bytes[index >> 3] & (1 << (index & 7))));
+}
+
+export function isQuestionEquationReviewPending(manifest, rowId) {
+  const index = Number(rowId) - 1;
+  if (!Number.isSafeInteger(index) || index < 0 || index >= Number(manifest?.maximumRowId || 0)) return false;
+  const bytes = decodedBitset(manifest, "equationReviewBitsetBase64");
+  return Boolean(bytes && (bytes[index >> 3] & (1 << (index & 7))));
+}
+
+export function isQuestionRenderedDiagramAvailable(manifest, rowId) {
+  const index = Number(rowId) - 1;
+  if (!Number.isSafeInteger(index) || index < 0 || index >= Number(manifest?.maximumRowId || 0)) return false;
+  const bytes = decodedBitset(manifest, "renderedDiagramBitsetBase64");
   return Boolean(bytes && (bytes[index >> 3] & (1 << (index & 7))));
 }

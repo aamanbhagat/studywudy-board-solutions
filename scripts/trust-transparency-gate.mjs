@@ -64,7 +64,9 @@ const model = buildQuestionPageExperience({
 });
 const markup = renderQuestionPageExperience(model);
 if (!model?.ready || !markup) fail("Question trust experience did not build from the production source record");
-if (!model?.trust?.sourceMappingVerified) fail("Production sample lacks verified source mapping");
+if (!model?.trust?.internalMappingConsistent) fail("Production sample lacks internally consistent source mapping");
+if (model?.trust?.sourceMappingVerified) fail("Production sample makes an authoritative source claim without a recorded textbook comparison");
+if (!markup?.trust.includes("Authoritative textbook comparison not recorded")) fail("Question page does not separate authoritative mapping from internal consistency");
 if (model?.trust?.manualReview) fail("Production sample claims a manual review without registry evidence");
 if (!markup?.trust.includes("Editorial review pending")) fail("Question page does not disclose pending human review");
 if (!markup?.trust.includes("Report an academic error")) fail("Question page lacks the academic-error action");
@@ -118,7 +120,8 @@ const report = {
   },
   productionQuestionSample: {
     questionId: route.question,
-    sourceMappingVerified: model?.trust?.sourceMappingVerified || false,
+    internalMappingConsistent: model?.trust?.internalMappingConsistent || false,
+    authoritativeTextbookMappingVerified: model?.trust?.sourceMappingVerified || false,
     automatedAnswerGatePassed: model?.trust?.automatedAnswerGatePassed || false,
     manualReviewStatus: model?.trust?.manualReview ? "reviewed" : "pending",
     textbookEdition: model?.trust?.edition || null,

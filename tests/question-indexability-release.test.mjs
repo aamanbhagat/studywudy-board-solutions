@@ -21,10 +21,14 @@ function popcountByte(value) {
 }
 
 test("the generated publishing manifest has no word-count threshold", () => {
-  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v7-language-quality");
+  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v11-semantic-operator-equivalence");
   assert.match(PHASE4_GATE_MANIFEST.multilingualTextPolicy, /unresolved Hindi and Tamil imports are quarantined/u);
   assert.equal(PHASE4_GATE_MANIFEST.questionPageExperienceVersion, "question-specific-trust-v2");
-  assert.match(PHASE4_GATE_MANIFEST.formulaAccessibilityPolicy, /semantic MathML must agree/i);
+  assert.match(PHASE4_GATE_MANIFEST.formulaAccessibilityPolicy, /semantic-token preservation.*MathML/i);
+  assert.match(PHASE4_GATE_MANIFEST.promptRequirementsPolicy, /draw, working, comparison, reason and derivation/i);
+  assert.equal(typeof PHASE4_GATE_MANIFEST.equationReviewBitsetBase64, "string");
+  assert.match(PHASE4_GATE_MANIFEST.semanticAnswerQualityPolicy, /post-generation-semantic/u);
+  assert.match(PHASE4_GATE_MANIFEST.sourceMappingPolicy, /internal mapping consistency is separate/u);
   assert.match(PHASE4_GATE_MANIFEST.completenessPolicy, /no minimum word count/i);
   assert.equal(Object.hasOwn(PHASE4_GATE_MANIFEST, "depthFloor"), false);
   const bytes = Uint8Array.from(atob(PHASE4_GATE_MANIFEST.indexabilityBitsetBase64), (character) => character.charCodeAt(0));
@@ -64,9 +68,11 @@ test("the live methodology and final response layer use the completeness policy"
   const methodology = readFileSync(resolve(root, "phase5-compliance.mjs"), "utf8");
   const productionWorker = readFileSync(resolve(root, "comparison/after-worker.js"), "utf8");
   assert.match(methodology, /does not use a minimum word count/i);
-  assert.match(methodology, /complete answer for its question type/i);
+  assert.match(methodology, /complete, semantically coherent answer for its question type/i);
   assert.match(methodology, /no substantially equivalent indexed page/i);
   assert.match(methodology, /semantic mathematics/i);
-  assert.match(productionWorker, /isQuestionRowIndexable\(PHASE4_GATE_MANIFEST/u);
+  assert.match(productionWorker, /isQuestionPubliclyEligible\(PHASE4_GATE_MANIFEST/u);
   assert.match(productionWorker, /questionCompletenessIndexingResponse/u);
+  assert.match(productionWorker, /questionEligibilityHeadResponse/u);
+  assert.match(productionWorker, /questionHead\) return enhanceResponse\(request, questionHead, env\)/u);
 });

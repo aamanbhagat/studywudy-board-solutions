@@ -111,10 +111,11 @@ test("Electrostatics gets a specific overview and a question-linked seven-formul
   assert.match(markup.hub, /Formula sheet/);
   assert.match(markup.hub, /Coulomb’s law/);
   assert.match(markup.hub, /Gauss’s law/);
-  assert.match(markup.hub, /data-math-source=/);
-  assert.match(markup.hub, /data-math-spoken=/);
-  assert.match(markup.hub, /data-math-plain=/);
-  assert.match(markup.hub, /<math[^>]+aria-label=/);
+  assert.doesNotMatch(markup.hub, /data-math-(?:source|spoken|plain)=/);
+  assert.doesNotMatch(markup.hub, /\\(?:frac|varepsilon)|\$\$?/u);
+  assert.equal((markup.hub.match(/<math\b/gu) || []).length, 7);
+  assert.equal((markup.hub.match(/\brole="math"/gu) || []).length, 7);
+  assert.equal((markup.hub.match(/math-plain-text|math-semantic-only/gu) || []).length, 0);
   assert.match(markup.hub, /\/electrostatics\/questions\/q-msb-balbharati-physics-standard-12-8-002/);
   assert.match(markup.hub, /href="#q-msb-balbharati-physics-standard-12-8-001"/);
 });

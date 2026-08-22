@@ -1,5 +1,6 @@
 import { contentToText } from "./answer-completeness.mjs";
 import { getQuestionUrl } from "./question-routes.mjs";
+import { formulaRepresentations } from "./semantic-math.mjs";
 import {
   STUDY_CLUSTER_BASE,
   STUDY_CLUSTER_CONCEPTS,
@@ -39,34 +40,44 @@ const PRIMARY_ANCHORS = Object.freeze({
   21: "Find equivalent capacitance from the plate diagram",
 });
 
-const QUESTION_CONCEPT = Object.freeze({
-  1: "energy-stored-in-capacitor",
-  2: "dielectric-slab-in-capacitor",
-  3: "energy-stored-in-capacitor",
-  4: "coulombs-law",
-  5: "capacitors-in-parallel",
-  6: "electric-potential",
-  7: "electric-potential",
-  8: "dielectric-slab-in-capacitor",
-  9: "gauss-law",
-  10: "electric-potential",
-  11: "electric-potential",
-  12: "coulombs-law",
-  13: "dielectric-slab-in-capacitor",
-  14: "capacitors-in-series",
-  15: "gauss-law",
-  16: "energy-stored-in-capacitor",
-  17: "electric-potential",
-  18: "electric-potential",
-  19: "electric-potential",
-  20: "dielectric-slab-in-capacitor",
-  21: "capacitors-in-series",
+function semanticProfile(primaryConceptId, { prerequisiteConceptIds = [] } = {}) {
+  return Object.freeze({
+    primaryConceptId,
+    formulaIdsUsed: Object.freeze([primaryConceptId]),
+    prerequisiteConceptIds: Object.freeze(prerequisiteConceptIds),
+    source: "verified-question-semantics-v1",
+  });
+}
+
+export const VERIFIED_QUESTION_SEMANTICS = Object.freeze({
+  1: semanticProfile("parallel-plate-capacitance"),
+  2: semanticProfile("dielectric-slab-in-capacitor", { prerequisiteConceptIds: ["parallel-plate-capacitance"] }),
+  3: semanticProfile("energy-stored-in-capacitor", { prerequisiteConceptIds: ["parallel-plate-capacitance"] }),
+  4: semanticProfile("coulombs-law"),
+  5: semanticProfile("parallel-plate-capacitance"),
+  6: semanticProfile("electric-potential"),
+  7: semanticProfile("electric-potential"),
+  8: semanticProfile("parallel-plate-capacitance"),
+  9: semanticProfile("gauss-law"),
+  10: semanticProfile("electric-potential"),
+  11: semanticProfile("electric-potential"),
+  12: semanticProfile("coulombs-law"),
+  13: semanticProfile("dielectric-slab-in-capacitor", { prerequisiteConceptIds: ["parallel-plate-capacitance"] }),
+  14: semanticProfile("capacitors-in-series"),
+  15: semanticProfile("gauss-law"),
+  16: semanticProfile("energy-stored-in-capacitor", { prerequisiteConceptIds: ["capacitors-in-series"] }),
+  17: semanticProfile("electric-potential"),
+  18: semanticProfile("electric-potential"),
+  19: semanticProfile("electric-potential"),
+  20: semanticProfile("dielectric-slab-in-capacitor", { prerequisiteConceptIds: ["parallel-plate-capacitance"] }),
+  21: semanticProfile("capacitors-in-series"),
 });
 
 const HARDER_QBANK = Object.freeze({
   "coulombs-law": 27,
   "electric-potential": 30,
   "gauss-law": 16,
+  "parallel-plate-capacitance": 24,
   "capacitors-in-series": 22,
   "capacitors-in-parallel": 24,
   "dielectric-slab-in-capacitor": 29,
@@ -76,6 +87,7 @@ const STATIC_HARDER_QBANK = Object.freeze({
   "coulombs-law": Object.freeze({ order: 27, type: "numerical", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-027", prompt: "Three-point charges +q, +2q and Q are placed at the three vertices of an equilateral triangle." }),
   "electric-potential": Object.freeze({ order: 30, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-030", prompt: "Derive an expression for the electric potential due to an electric dipole." }),
   "gauss-law": Object.freeze({ order: 16, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-016", prompt: "Obtain an expression for the electric field intensity at a point outside a uniformly charged sphere." }),
+  "parallel-plate-capacitance": Object.freeze({ order: 24, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-024", prompt: "Obtain an expression for the capacitance of a parallel plate capacitor without a dielectric." }),
   "capacitors-in-series": Object.freeze({ order: 22, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-022", prompt: "Derive an expression for the effective capacitance of three parallel plate capacitors in series." }),
   "capacitors-in-parallel": Object.freeze({ order: 24, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-024", prompt: "Obtain an expression for the capacitance of a parallel plate capacitor without a dielectric." }),
   "dielectric-slab-in-capacitor": Object.freeze({ order: 29, type: "detailed", id: "q-msb-maharashtra-state-board-hsc-question-bank-physics-standard-12-8-029", prompt: "Explain the capacitance of a parallel plate capacitor with a dielectric slab between the plates." }),
@@ -148,13 +160,13 @@ function rank(question) {
 }
 
 function conceptForNumber(number) {
-  const slug = QUESTION_CONCEPT[number];
+  const slug = VERIFIED_QUESTION_SEMANTICS[number]?.primaryConceptId;
   return STUDY_CLUSTER_CONCEPTS.find((concept) => concept.slug === slug) || null;
 }
 
 function primaryNumbersForConcept(slug) {
-  const assigned = Object.entries(QUESTION_CONCEPT)
-    .filter(([, conceptSlug]) => conceptSlug === slug)
+  const assigned = Object.entries(VERIFIED_QUESTION_SEMANTICS)
+    .filter(([, profile]) => profile.primaryConceptId === slug)
     .map(([number]) => Number(number));
   const profiled = STUDY_CLUSTER_CONCEPTS.find((concept) => concept.slug === slug)?.primary || [];
   return [...new Set([...assigned, ...profiled])];
@@ -182,8 +194,10 @@ export function buildQuestionSemanticGraph({ primaryPayload, questionBankPayload
   const current = primaryQuestions.find((question) => question.id === questionId);
   if (!current) return null;
   const questionNumber = numberOf(current);
+  const semanticProfile = VERIFIED_QUESTION_SEMANTICS[questionNumber];
   const concept = conceptForNumber(questionNumber);
-  if (!concept) return null;
+  if (!concept || !semanticProfile) return null;
+  const conceptPlainText = formulaRepresentations(concept.source).plainText;
   const conceptUrl = `${STUDY_CLUSTER_BASE}/concepts/${concept.slug}`;
   const conceptQuestions = primaryNumbersForConcept(concept.slug)
     .map((number) => questionByNumber(primaryQuestions, number)).filter(Boolean);
@@ -196,7 +210,7 @@ export function buildQuestionSemanticGraph({ primaryPayload, questionBankPayload
     Object.freeze({
       relation: "Formula used",
       href: `${conceptUrl}#core-relation`,
-      label: `Use ${concept.plainText} for ${concept.name}`,
+      label: `Use ${conceptPlainText} for ${concept.name}`,
       destinationType: "formula",
     }),
     Object.freeze({
@@ -243,6 +257,7 @@ export function buildQuestionSemanticGraph({ primaryPayload, questionBankPayload
     pathname: getQuestionUrl({ ...PRIMARY_ROUTE, publicQuestionId: current.id }),
     questionLabel: descriptiveQuestionAnchor(current, "textbook"),
     concept: concept.name,
+    semanticProfile,
     links: Object.freeze(links),
     previousYear: null,
     previousYearStatus: `No verified paper-year source is mapped to ${concept.name}; the HSC Question Bank is not being relabelled as a previous-year paper.`,

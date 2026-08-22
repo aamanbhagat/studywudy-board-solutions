@@ -3,8 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  questionDescription,
   questionDocumentTitle,
+  questionSocialTitle,
 } from "../question-seo.mjs";
+import { ACCOUNTANCY_SAMPLE_TITLE } from "../public-title-quality.mjs";
 import {
   bookSearchMetadata,
   chapterSearchMetadata,
@@ -63,7 +66,7 @@ test("subject, textbook and chapter titles match real student search language", 
   assert.equal(chapter.description, "Complete Maharashtra Board Class 12 Physics Chapter 8 Electrostatics solutions, including MCQs, brief answers, capacitor numericals and step-by-step textbook answers from Balbharati Physics Standard 12 on pages 212–213.");
 });
 
-test("individual numerical title is compact while the visible question remains exact", () => {
+test("the dielectric-slab title uses its normalized MCQ type rather than a numerical topic keyword", () => {
   const prompt = "A slab of material of dielectric constant k has the same area A as the plates of a parallel plate capacitor and has a thickness (3/4d), where d is the separation of the plates. The change in capacitance when the slab is inserted between the plates is ______.";
   const record = {
     ...academicContext,
@@ -76,9 +79,51 @@ test("individual numerical title is compact while the visible question remains e
     chapter_number: 8,
     chapter_title: "Electrostatics",
   };
-  assert.equal(questionDocumentTitle(record), "Dielectric Slab Capacitor Numerical – Class 12 Physics Chapter 8 | StudyWudy");
+  assert.equal(questionDocumentTitle(record), "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8 | StudyWudy");
   assert.equal(record.prompt_text, prompt);
   assert.ok(questionDocumentTitle(record).length < prompt.length);
+});
+
+test("true-or-false titles use the statement and never expose the private database row ID", () => {
+  const record = {
+    board_slug: "cbse",
+    board_name: "Central Board of Secondary Education",
+    board_short_name: "CBSE",
+    class_number: 12,
+    grade_label: "Class 12",
+    grade_slug: "class-12",
+    subject_name: "Accountancy",
+    subject_slug: "accountancy",
+    row_id: 39_148,
+    question_id: "q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-001",
+    display_label: "1",
+    type: "brief",
+    prompt_text: "**State whether the following statement is True or False.** A company is an artificial person.",
+    book_title: "NCERT Accountancy Company Accounts and Analysis of Financial Statements Class 12",
+    chapter_number: 1,
+    chapter_title: "Accounting for Share Capital",
+  };
+  assert.equal(questionDocumentTitle(record), ACCOUNTANCY_SAMPLE_TITLE);
+  assert.equal(questionSocialTitle(record), ACCOUNTANCY_SAMPLE_TITLE);
+  assert.doesNotMatch(questionDescription(record), /39148|catalogue reference/iu);
+});
+
+test("collision handling uses public textbook context and genuine question labels", () => {
+  const record = {
+    ...academicContext,
+    row_id: 987_654_321,
+    question_id: "q-public-example",
+    display_label: "7(b)",
+    type: "brief",
+    prompt_text: "State Coulomb's law.",
+    book_title: "Balbharati Physics Standard 12",
+    chapter_number: 8,
+    chapter_title: "Electrostatics",
+  };
+  const title = questionDocumentTitle(record, true);
+  const description = questionDescription(record, true);
+  assert.match(title, /Maharashtra Board|Balbharati|Q7\(b\)/u);
+  assert.doesNotMatch(`${title} ${description}`, /987654321|catalogue reference/iu);
 });
 
 test("chapter descriptions change with source textbook and real question mix", () => {

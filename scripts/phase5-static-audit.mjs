@@ -25,8 +25,9 @@ const checks = {
   requiredRoutesImplemented: requiredPages.every((path) => moduleSource.includes(path)),
   aboutReusesMethodology: moduleSource.includes('url.pathname === "/about"') && moduleSource.includes('new URL("/about/methodology"'),
   methodologyUsesQuestionTypeCompleteness: moduleSource.includes("does not use a minimum word count")
-    && moduleSource.includes("complete answer for its question type")
-    && moduleSource.includes("no substantially equivalent indexed page"),
+    && moduleSource.includes("complete, semantically coherent answer for its question type")
+    && moduleSource.includes("no substantially equivalent indexed page")
+    && moduleSource.includes("one labelled semantic MathML tree"),
   footerContainsEveryRequiredLink: footerLinks.every((path) => moduleSource.includes(`href="${path}"`)),
   privacyDisclosesCookiesAndGoogle: /Cookies, Google AdSense and advertising/.test(moduleSource) && moduleSource.includes("https://adssettings.google.com/"),
   privacyNamesContact: moduleSource.includes('PHASE5_CONTACT_NAME = "Aman Bhagat"') && /named business and grievance contact/.test(moduleSource),

@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   encodeIndexabilityBitset,
   evaluateAnswerCompleteness,
+  evaluatePromptRequirements,
+  isQuestionEquationReviewPending,
   isQuestionRowIndexable,
   lexicalTokens,
 } from "../answer-completeness.mjs";
@@ -102,6 +104,60 @@ test("derivations, diagrams and long answers use their own structural checks", (
   }).complete, true);
 });
 
+test("question verbs are enforced as rendered answer requirements", () => {
+  assert.ok(evaluatePromptRequirements({ type: "brief", prompt: "Draw a labelled ray diagram.", answer: "A ray bends." }).missing.includes("promptDiagramRendered"));
+  assert.ok(evaluatePromptRequirements({
+    type: "brief",
+    prompt: "Draw a labelled ray diagram.",
+    promptMedia: [{ url: "/prompt-ray.svg", alt: "Ray diagram shown in the question", width: 640, height: 480 }],
+    answer: "A ray bends.",
+  }).missing.includes("promptDiagramRendered"));
+  assert.equal(evaluatePromptRequirements({
+    type: "diagram",
+    prompt: "Draw a labelled ray diagram.",
+    diagram: { src: "/ray.svg", alt: "Labelled ray diagram" },
+  }).checks.promptDiagramRendered, true);
+  assert.ok(evaluatePromptRequirements({
+    type: "detailed",
+    prompt: "Describe an AC generator with the help of a labelled circuit diagram.",
+    steps: [{ content: "The coil rotates between magnetic poles." }],
+    finalAnswer: "Slip rings deliver alternating current.",
+  }).missing.includes("promptDiagramRendered"));
+
+  assert.ok(evaluatePromptRequirements({
+    type: "numerical",
+    prompt: "Calculate the speed and show your working.",
+    steps: [{ content: "v = 12 m/s" }],
+    finalAnswer: "12 m/s",
+  }).missing.includes("promptWorkingHasMultipleCalculations"));
+
+  assert.ok(evaluatePromptRequirements({
+    type: "brief",
+    prompt: "Compare conduction and convection.",
+    answer: "They transfer heat.",
+  }).missing.includes("promptComparisonCoversBothSidesAndDimensions"));
+
+  assert.ok(evaluatePromptRequirements({
+    type: "give_reason",
+    prompt: "Give a reason why metal feels colder.",
+    answer: "Metal feels colder.",
+  }).missing.includes("promptReasonIsCausal"));
+
+  const derivation = evaluatePromptRequirements({
+    type: "detailed",
+    prompt: "Derive the relation.",
+    steps: [{ content: "Given x." }, { content: "Next y." }],
+  });
+  assert.ok(derivation.missing.includes("promptDerivationHasEquationSequence"));
+  assert.ok(derivation.missing.includes("promptDerivationHasConclusion"));
+
+  assert.ok(evaluatePromptRequirements({
+    type: "detailed",
+    prompt: "Explain the result.",
+    steps: [{ content: "First real step." }, { content: "" }],
+  }).missing.includes("renderedWorkedStepCountMatchesSource"));
+});
+
 test("the compact manifest bitset preserves per-row index decisions", () => {
   const encoded = encodeIndexabilityBitset([
     { rowId: 1, gatePassed: true },
@@ -113,4 +169,17 @@ test("the compact manifest bitset preserves per-row index decisions", () => {
   assert.equal(isQuestionRowIndexable(manifest, 2), false);
   assert.equal(isQuestionRowIndexable(manifest, 9), true);
   assert.equal(isQuestionRowIndexable(manifest, 11), false);
+});
+
+test("the manifest independently marks equation-review rows", async () => {
+  const { encodeFlagBitset } = await import("../answer-completeness.mjs");
+  const manifest = Object.freeze({
+    maximumRowId: 3,
+    equationReviewBitsetBase64: encodeFlagBitset([
+      { rowId: 1, equationReviewPending: false },
+      { rowId: 2, equationReviewPending: true },
+    ], 3, "equationReviewPending"),
+  });
+  assert.equal(isQuestionEquationReviewPending(manifest, 1), false);
+  assert.equal(isQuestionEquationReviewPending(manifest, 2), true);
 });

@@ -62,6 +62,19 @@ The command exits non-zero for unresolved mixed scripts, missing Devanagari
 marks, OCR/encoding damage, broken Tamil signs, transliteration in a principal
 title, or malformed formula symbols and spacing.
 
+`pnpm check:corpus-quality` performs the provenance-aware full-corpus sweep.
+It classifies reviewed occurrences as verified wording, a retained source typo,
+OCR/import corruption, a metadata typo, an answer-generation defect or an
+equation-rendering defect. Duplicate or empty MCQ options are retained for
+source comparison but excluded from search, snippets and indexing. The
+deployment smoke then checks crawler-visible text on atomic answers, chapter
+pages and Question Bank results so supported source markup such as `<br>`,
+Markdown emphasis and TeX delimiters cannot leak into public excerpts.
+The reviewed Quadratic Equations chapter is prebuilt from D1 into a compact
+server-readable asset. This keeps all 56 question links available while
+avoiding a cold-render CPU spike in the recovered SSR bundle; the Worker still
+adds the normal security, theme and edge-cache response layers.
+
 The search-metadata gate derives subject, textbook, chapter and question titles
 from canonical catalogue fields and real question intent. Chapter descriptions
 include the actual question-type mix, source textbook and recorded page range;

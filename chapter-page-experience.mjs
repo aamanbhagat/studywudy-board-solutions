@@ -1,6 +1,7 @@
 import { contentToText, renderedAnswerText } from "./answer-completeness.mjs";
 import { getQuestionUrl } from "./question-routes.mjs";
-import { formulaRepresentations, renderSemanticMath } from "./semantic-math.mjs";
+import { formulaRepresentations, renderSemanticMath, validateFormulaRepresentations } from "./semantic-math.mjs";
+import { corpusQuestionSnippetEligible } from "./corpus-quality.mjs";
 
 const QUESTION_TYPE_LABELS = Object.freeze({
   one_word: "One-word answers",
@@ -190,7 +191,7 @@ function formulaEntries(profile, questions, route, chapterSlug) {
       ...formulaRepresentations(formula.source),
       uses: uses.map((question) => questionLink(question, route, chapterSlug)),
     };
-  }).filter((formula) => formula.uses.length);
+  }).filter((formula) => formula.uses.length && validateFormulaRepresentations(formula).complete);
 }
 
 function readableFormula(value) {
@@ -244,7 +245,8 @@ function automaticFormulaEntries(questions, route, chapterSlug) {
       ...formulaRepresentations(entry.source),
       note: "Taken from the worked solution where it is applied.",
       uses: entry.questions.map((question) => questionLink(question, route, chapterSlug)),
-    }));
+    }))
+    .filter((formula) => validateFormulaRepresentations(formula).complete);
 }
 
 function hasDiagramEvidence(question) {
@@ -492,6 +494,9 @@ export function buildChapterPageExperience({ payload, chapter, route, catalog, r
     studyCluster: route.subjectSlug === "physics" && route.chapterSlug === "electrostatics"
       ? `/${route.boardSlug}/class-${route.classNumber}/${route.subjectSlug}/${route.textbookSlug}/${route.chapterSlug}`
       : null,
+    snippetExcludedQuestionIds: questions
+      .filter((question) => !corpusQuestionSnippetEligible(question.id, question))
+      .map((question) => question.id),
   };
   model.ready = Boolean(
     model.chapter
@@ -603,7 +608,12 @@ export function renderChapterPageExperience(model) {
   ];
   const jumpNav = `<nav class="chapter-hub-jumps" aria-label="Chapter study sections"><span>Study this chapter</span>${jumpLinks.map(([href, label]) => `<a href="#${href}">${escapeHtml(label)}</a>`).join("")}</nav>`;
   const hub = `<div class="shell chapter-learning-hub" data-studywudy-chapter-hub="evidence-v1">${jumpNav}${overviewMarkup(model)}${studyModesMarkup(model)}${formulasMarkup(model)}${groupsMarkup(model)}${examPreparationMarkup(model)}</div>`;
-  return { hub, directory: directoryMarkup(model), headerSummary: model.headerSummary };
+  return {
+    hub,
+    directory: directoryMarkup(model),
+    headerSummary: model.headerSummary,
+    snippetExcludedQuestionIds: model.snippetExcludedQuestionIds,
+  };
 }
 
 export const CHAPTER_PAGE_EXPERIENCE_STYLES = `<style id="chapter-page-experience-styles">

@@ -145,7 +145,7 @@ const exactTemplates = {
   subject: targetSubject?.documentTitle === "Maharashtra Board Class 12 Physics Solutions and Question Bank | StudyWudy",
   textbook: targetBook?.documentTitle === "Balbharati Class 12 Physics Solutions – All 16 Chapters | StudyWudy",
   chapter: targetChapter?.documentTitle === "Maharashtra Board Class 12 Physics Chapter 8 Electrostatics Solutions | StudyWudy",
-  numerical: targetQuestionTitle === "Dielectric Slab Capacitor Numerical – Class 12 Physics Chapter 8 | StudyWudy",
+  normalizedQuestionType: targetQuestionTitle === "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8 | StudyWudy",
 };
 const descriptionEvidence = {
   electrostaticsHasRealTypeMix: /including MCQs, brief answers, capacitor numericals/iu.test(targetChapter?.description || ""),
@@ -171,7 +171,7 @@ const report = {
   questionCorpus: {
     count: PHASE3_QUESTION_SEO.corpusCount,
     disambiguatedCount: PHASE3_QUESTION_SEO.disambiguatedCount,
-    targetNumericalTitle: targetQuestionTitle,
+    targetNormalizedQuestionTitle: targetQuestionTitle,
   },
   targetElectrostatics: {
     title: targetChapter?.documentTitle,

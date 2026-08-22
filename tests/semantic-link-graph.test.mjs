@@ -8,6 +8,7 @@ import {
   renderQuestionSemanticGraph,
   renderSemanticPromotion,
   semanticPromotionForPath,
+  VERIFIED_QUESTION_SEMANTICS,
 } from "../semantic-link-graph.mjs";
 import { STUDY_CLUSTER_BASE, STUDY_CLUSTER_QBANK_BOOK } from "../study-cluster.mjs";
 
@@ -47,6 +48,7 @@ test("every Electrostatics textbook question has seven supported semantic relati
     assert.equal(graph.links.some((link) => link.questionId === question.id), false);
     assert.equal(graph.previousYear, null);
     assert.match(graph.previousYearStatus, /No verified paper-year source/u);
+    assert.doesNotMatch(graph.links.map((link) => link.label).join(" "), /\bundefined\b|\bNaN\b|\[object Object\]/u);
   }
 });
 
@@ -78,6 +80,32 @@ test("question relationships use database-backed routes and descriptive anchor t
   });
   assert.equal(dielectric.questionLabel, "Derive the capacitance with a partial dielectric slab");
   assert.match(renderQuestionSemanticGraph(dielectric), /<a href="[^"]+" data-link-relation="Formula used">/u);
+  const sphericalShell = buildQuestionSemanticGraph({
+    primaryPayload,
+    questionBankPayload,
+    questionId: "q-msb-balbharati-physics-standard-12-8-010",
+  });
+  assert.equal(
+    sphericalShell.links.find((link) => link.relation === "Formula used")?.label,
+    "Use V = (U/q₀); V = (1/4πε₀)(q/r) for Electric potential",
+  );
+});
+
+test("Q1 semantic links come from its verified parallel-plate formula profile", () => {
+  assert.equal(VERIFIED_QUESTION_SEMANTICS[1].primaryConceptId, "parallel-plate-capacitance");
+  assert.deepEqual(VERIFIED_QUESTION_SEMANTICS[1].formulaIdsUsed, ["parallel-plate-capacitance"]);
+  const graph = buildQuestionSemanticGraph({
+    primaryPayload,
+    questionBankPayload,
+    questionId: "q-msb-balbharati-physics-standard-12-8-001",
+  });
+  assert.equal(graph.semanticProfile.source, "verified-question-semantics-v1");
+  assert.equal(graph.concept, "Parallel-plate capacitance");
+  assert.equal(
+    graph.links.find((link) => link.relation === "Formula used")?.label,
+    "Use C = (Q/V) = (ε₀A/d) for Parallel-plate capacitance",
+  );
+  assert.doesNotMatch(graph.links.slice(0, 2).map((link) => link.label).join(" "), /Energy stored/u);
 });
 
 test("strong resources receive crawlable links from hierarchy and related chapter pages", () => {

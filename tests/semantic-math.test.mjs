@@ -3,11 +3,18 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 
 import {
+  assertRepresentationPreservesTokens,
+  buildCanonicalFormulaLookup,
+  canonicalFormulaForLegacyLabel,
   evaluateQuestionFormulaAccessibility,
+  extractSemanticTokens,
   extractFormulaSources,
   formulaRepresentations,
+  invalidRenderedMathFound,
   repairCrawlerFormulaSource,
   renderSemanticMath,
+  renderMathText,
+  validateFormulaStructure,
   validateFormulaRepresentations,
 } from "../semantic-math.mjs";
 
@@ -19,8 +26,8 @@ test("canonical formula representations preserve fractions, exponents and subscr
   );
   assert.match(half.mathml, /<mfrac>/u);
   assert.match(half.mathml, /<msup>/u);
-  assert.match(half.mathml, /encoding="application\/x-tex"/u);
-  assert.match(half.mathml, /encoding="text\/plain"/u);
+  assert.match(half.mathml, /aria-label="one half C V squared"/u);
+  assert.doesNotMatch(half.mathml, /<annotation\b|application\/x-tex|encoding="text\/plain"/iu);
 
   assert.equal(formulaRepresentations("10^{-8}").plainText, "10⁻⁸");
   assert.equal(formulaRepresentations("t=\\frac{3}{4}d").plainText, "t = (3/4)d");
@@ -28,12 +35,128 @@ test("canonical formula representations preserve fractions, exponents and subscr
   assert.equal(capacitors.plainText, "C₁ + C₂");
   assert.equal((capacitors.mathml.match(/<msub>/gu) || []).length, 2);
   assert.equal(formulaRepresentations("2\\,\\mathrm{mm}").plainText, "2 mm");
+  assert.equal(formulaRepresentations("U_B=\\frac12Li^2").plainText, "U₍B₎ = (1/2)Li²");
   const reaction = formulaRepresentations("2PbO(s) + C(s) -&gt; 2Pb(s) + CO_2(g)");
   assert.equal(reaction.plainText, "2PbO(s) + C(s) → 2Pb(s) + CO₂(g)");
   assert.doesNotMatch(reaction.mathml, /&amp;(?:amp;)?gt;/u);
 
   const dipole = formulaRepresentations("V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0");
   assert.equal(dipole.plainText, "V₍equatorial₎ = (1/4πε₀)(p cos 90°/r²) = 0");
+});
+
+test("semantic-token round trips preserve the complete LR identifier and operator set", () => {
+  const canonical = String.raw`Q=\int_0^t i\,dt,\quad \tau=L/R,\quad W=H+U,\quad i=\frac{\varepsilon}{R}(1-e^{-t/\tau})`;
+  const representation = formulaRepresentations(canonical);
+  const requiredTokens = extractSemanticTokens(canonical);
+  for (const token of ["ε", "R", "L", "t", "τ", "i", "Q", "W", "H", "U", "∫", "e"]) {
+    assert.ok(requiredTokens.includes(token), `missing canonical token ${token}`);
+  }
+  assert.equal(assertRepresentationPreservesTokens(representation.plainText, requiredTokens, { representation: "plain" }).complete, true);
+  assert.equal(assertRepresentationPreservesTokens(representation.spokenText, requiredTokens, { representation: "spoken" }).complete, true);
+  assert.equal(assertRepresentationPreservesTokens(representation.mathml, requiredTokens, { representation: "mathml" }).complete, true);
+
+  const lost = validateFormulaRepresentations({
+    ...representation,
+    plainText: representation.plainText.replaceAll("ε", "").replaceAll("∫", ""),
+    spokenText: representation.spokenText.replaceAll("epsilon", "").replaceAll("integral", ""),
+    mathml: representation.mathml.replaceAll("ε", "").replaceAll("∫", ""),
+  });
+  assert.ok(lost.tokenFailures.plain.includes("ε"));
+  assert.ok(lost.tokenFailures.plain.includes("∫"));
+  assert.ok(lost.missing.includes("mathmlSemanticTokensPreserved"));
+});
+
+test("geometry relations preserve intersection, parallel and delimiter semantics in every representation", () => {
+  const sources = [
+    String.raw`AF\cap BD=P`,
+    String.raw`EC\cap BD=Q`,
+    String.raw`AE\parallel FC`,
+    String.raw`EC\parallel AF`,
+    String.raw`EQ\parallel AP`,
+    String.raw`FP\parallel CQ`,
+  ];
+  for (const source of sources) {
+    const representation = formulaRepresentations(source);
+    const validation = validateFormulaRepresentations(representation);
+    assert.equal(validation.complete, true, `${source}: ${validation.missing.join(", ")}`);
+    if (source.includes("\\cap")) {
+      assert.match(representation.plainText, /∩/u);
+      assert.match(representation.spokenText, /intersection/u);
+      assert.match(representation.mathml, /<mo>∩<\/mo>/u);
+    } else {
+      assert.match(representation.plainText, /∥/u);
+      assert.match(representation.spokenText, /is parallel to/u);
+      assert.match(representation.mathml, /<mo>∥<\/mo>/u);
+    }
+  }
+});
+
+test("legacy math labels are reconciled to the canonical formula before MathML rendering", () => {
+  const canonical = String.raw`Q=\int_0^t i\,dt,\qquad W_{B}=\varepsilon Q`;
+  const lookup = buildCanonicalFormulaLookup({ steps: [{ formula: canonical }] });
+  const recovered = canonicalFormulaForLegacyLabel(lookup, "Q = ₀^t i dt, W_B = Q");
+  assert.ok(recovered);
+  assert.equal(recovered.source, canonical);
+  assert.match(recovered.mathml, />∫</u);
+  assert.match(recovered.mathml, />ε</u);
+  assert.match(recovered.spokenText, /integral/u);
+  assert.match(recovered.spokenText, /epsilon/u);
+});
+
+test("legacy transmission labels reconcile to canonical identifiers and ohm units", () => {
+  const source = String.raw`R_{\text{line}}=2R_{\text{one}}=2(2.16)\ \Omega=4.33\ \Omega`;
+  const lookup = buildCanonicalFormulaLookup({ steps: [{ formula: source }] });
+  const recovered = canonicalFormulaForLegacyLabel(lookup, "Rₗine = 2Rₒne = 2(2.16) = 4.33");
+  assert.ok(recovered);
+  assert.equal(
+    recovered.spokenText,
+    "R sub line equals two R sub one equals two ( two point one six ) ohm equals four point three three ohm",
+  );
+  assert.equal(
+    canonicalFormulaForLegacyLabel(lookup, String.raw`{R}_{l}ine=2{R}_{o}ne=2(2.16)=4.33`)?.source,
+    source,
+  );
+});
+
+test("legacy geometry labels recover dropped intersection and parallel operators", () => {
+  const intersection = String.raw`AF\cap BD=P`;
+  const parallel = String.raw`AE\parallel FC`;
+  const lookup = buildCanonicalFormulaLookup({ steps: [{ formula: intersection }, { formula: parallel }] });
+  assert.equal(canonicalFormulaForLegacyLabel(lookup, "A F B D equals P")?.source, intersection);
+  assert.equal(canonicalFormulaForLegacyLabel(lookup, "A E F C")?.source, parallel);
+});
+
+test("strict equation parsing rejects structurally impossible formulae", () => {
+  for (const source of [
+    String.raw`\frac{{}^{2}}`,
+    String.raw`\left(\right`,
+    "E = ",
+    String.raw`_0^t i\,dt`,
+    String.raw`\frac{}{R}`,
+    String.raw`\frac{E}{}`,
+    String.raw`{R}_{o}ne=2.16\ \Omega`,
+    String.raw`{R}_{l}ine=4.33\ \Omega`,
+    String.raw`\left\right`,
+    String.raw`AF\text{cap}BD=P`,
+    String.raw`Q=\left)`,
+    String.raw`Q=\right(`,
+  ]) assert.equal(validateFormulaStructure(source).complete, false, source);
+  assert.equal(validateFormulaStructure(String.raw`E=\int_0^t i\,dt`).complete, true);
+  assert.equal(validateFormulaStructure(String.raw`R_{\text{one}}=2.16\ \Omega`).complete, true);
+  assert.equal(validateFormulaStructure(String.raw`R_{\text{line}}=4.33\ \Omega`).complete, true);
+});
+
+test("invalid rendered-math patterns and altered MathML fail closed", () => {
+  assert.deepEqual(invalidRenderedMathFound(String.raw`AF\text{cap}BD=P`), ["textCommandUsedForIntersection"]);
+  assert.deepEqual(invalidRenderedMathFound(String.raw`Q=\left)`), ["leftCommandBeforeClosingDelimiter"]);
+  assert.deepEqual(invalidRenderedMathFound(String.raw`Q=\right(`), ["rightCommandBeforeOpeningDelimiter"]);
+  assert.deepEqual(invalidRenderedMathFound(String.raw`\frac{}{R}`), ["emptyFractionNumerator"]);
+  assert.deepEqual(invalidRenderedMathFound(String.raw`\frac{E}{}`), ["emptyFractionDenominator"]);
+  const valid = formulaRepresentations(String.raw`AE\parallel FC`);
+  const corrupted = validateFormulaRepresentations({ ...valid, mathml: valid.mathml.replaceAll("∥", "") });
+  assert.equal(corrupted.complete, false);
+  assert.ok(corrupted.missing.includes("sourceDerivedMathml"));
+  assert.ok(corrupted.missing.includes("mathmlSemanticTokensPreserved"));
 });
 
 test("repairs the verified dipole formula lost by the imported crawler label", () => {
@@ -77,21 +200,36 @@ test("formula discovery and the question gate derive all three accessible forms"
   assert.ok(evaluation.formulas.every((formula) => formula.source && formula.spokenText && formula.plainText && formula.mathml));
 });
 
-test("rendered semantic math stores source, spoken and plain forms beside MathML", () => {
+test("rendered semantic math exposes one labelled and visually authoritative MathML object", () => {
   const markup = renderSemanticMath(formulaRepresentations("\\frac{1}{2}CV^2"), { visiblePlain: true });
-  assert.match(markup, /data-math-source="\\frac\{1\}\{2\}CV\^2"/u);
-  assert.match(markup, /data-math-spoken="one half C V squared"/u);
-  assert.match(markup, /data-math-plain="\(1\/2\)CV²"/u);
-  assert.match(markup, /<math[^>]+aria-label="one half C V squared"/u);
+  assert.doesNotMatch(markup, /data-math-(?:source|spoken|plain)=/u);
+  assert.doesNotMatch(markup, /\\frac|\$\$?/u);
+  assert.doesNotMatch(markup, /math-plain-text|math-semantic-only|data-nosnippet/u);
+  assert.match(markup, /<math[^>]+role="math"[^>]+aria-label="one half C V squared"/u);
+  assert.equal((markup.match(/<math\b/gu) || []).length, 1);
+  assert.equal((markup.match(/\baria-label=/gu) || []).length, 1);
+  assert.equal((markup.match(/>\(1\/2\)CV²</gu) || []).length, 0);
 });
 
-test("the Worker hides split visual glyphs from snippets and supplies semantic fallbacks", async () => {
+test("shared rich-text rendering derives every route's equation markup from the semantic renderer", () => {
+  const markup = renderMathText("Use $$C_1=\\frac{\\varepsilon_0A}{d}$$ when $d>0$.");
+  assert.equal((markup.match(/<math\b/gu) || []).length, 2);
+  assert.doesNotMatch(markup, /math-plain-text|math-semantic-only/u);
+  assert.doesNotMatch(markup, /data-math-(?:source|spoken|plain)=/u);
+  assert.doesNotMatch(markup, />\$\$|>\$/u);
+});
+
+test("the Worker replaces legacy glyph trees with one semantic representation", async () => {
   const source = await readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
-  assert.match(source, /X-StudyWudy-Semantic-Math/u);
+  assert.match(source, /ast-mathml-authoritative-v5-operator-equivalence/u);
+  assert.match(source, /canonicalFormulaForLegacyLabel/u);
   assert.match(source, /data-nosnippet/u);
-  assert.match(source, /renderSemanticMath\(representation\)/u);
+  assert.match(source, /element\.replace\(renderSemanticMath\(representation, \{ visiblePlain: true \}\)/u);
   assert.match(source, /const original = element\.getAttribute\("data-math-source"\) \|\| ""/u);
   assert.match(source, /const source = repairCrawlerFormulaSource\(original\)/u);
   assert.match(source, /semantic-math\.js/u);
+  assert.match(source, /\.katex-mathml, annotation/u);
+  assert.match(source, /\.math > \.katex, \.math > \.katex-display[\s\S]+?element\.remove\(\)/u);
+  assert.doesNotMatch(source, /element\.prepend\(renderSemanticMath/u);
   assert.match(source, /textChunk\.replace\(repaired, \{ html: true \}\)/u);
 });

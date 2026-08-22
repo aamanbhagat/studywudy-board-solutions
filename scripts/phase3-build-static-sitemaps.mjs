@@ -4,16 +4,22 @@ import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { isQuestionRowIndexable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
+import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
 import { STUDY_CLUSTER_INDEXABLE_PATHS } from "../study-cluster.mjs";
 import { TRUST_POLICY_UPDATED_AT, TRUST_TRANSPARENCY_PATHS } from "../trust-transparency.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const databasePath = resolve(root, process.argv[2] || "../data/d1/studywudy-content.sqlite3");
 const outputDirectory = resolve(root, process.argv[3] || "comparison/after-assets/sitemaps");
-const origin = "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
+const origin = (() => {
+  const value = process.env.STUDYWUDY_CANONICAL_ORIGIN
+    || "https://studywudy-board-solutions.amanbhagat17089.workers.dev";
+  const parsed = new URL(value);
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("STUDYWUDY_CANONICAL_ORIGIN must use HTTP or HTTPS");
+  return parsed.origin;
+})();
 const blockSize = 10_000;
 const contentPublishedAt = "2026-08-15T03:30:10Z";
 const contentPublishedEpoch = Math.floor(Date.parse(contentPublishedAt) / 1_000);
@@ -116,7 +122,7 @@ const questionStatement = database.prepare(`SELECT q.row_id, q.book_id, q.chapte
 for (let cursor = 1; cursor <= count; cursor += blockSize) {
   const rows = questionStatement.all(cursor, cursor + blockSize)
     .filter((row) => !isBookQuarantined(row.book_id)
-      && isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)));
+      && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id)));
   if (!rows.length) continue;
   const entries = rows.map((row) => urlEntry(`/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`, Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
   const name = `questions-${cursor}.xml.gz`;
@@ -128,6 +134,7 @@ for (let cursor = 1; cursor <= count; cursor += blockSize) {
 
 const indexBody = children.map((child) => `  <sitemap><loc>${xmlEscape(`${origin}${child.pathname}`)}</loc><lastmod>${lastmod(child.updatedAt)}</lastmod></sitemap>`).join("\n");
 writeFileSync(resolve(outputDirectory, "..", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexBody}\n</sitemapindex>\n`);
+writeFileSync(resolve(outputDirectory, "..", "robots.txt"), `User-Agent: *\nAllow: /\nDisallow: /api/\n\nHost: ${origin}\nSitemap: ${origin}/sitemap.xml\n`);
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
 const questionUrlCount = report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0);

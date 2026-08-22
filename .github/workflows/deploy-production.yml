@@ -84,3 +84,53 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke every featured study route
+        run: pnpm smoke:production:study-routes
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify semantic math and crawler text
+        run: pnpm smoke:production:math
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify CBSE server-rendered discovery links
+        run: pnpm smoke:production:board-ssr
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify plain-text Question Bank excerpts
+        run: pnpm smoke:production:search-excerpts
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify structured Question Bank filters
+        run: pnpm smoke:production:question-search
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify the gate-passed Question Bank showcase
+        run: pnpm smoke:production:question-showcase
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify public brand copy and metadata
+        run: pnpm smoke:production:public-brand
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify descriptive public titles
+        run: pnpm smoke:production:public-title
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify accessible names and decorative text
+        run: pnpm smoke:production:accessibility-text
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+
+      - name: Verify classified corpus quality on every public surface
+        run: pnpm smoke:production:corpus-quality
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev

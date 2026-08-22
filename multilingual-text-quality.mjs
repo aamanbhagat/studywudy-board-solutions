@@ -20,6 +20,12 @@ const CONFUSABLES = Object.freeze({ ...CYRILLIC_CONFUSABLES, ...GREEK_CONFUSABLE
 const STANDARD_HINDI_BOOK_ID = "cbse::class-10::science::ncert-vigyaan-hindi-class-10";
 const EXEMPLAR_HINDI_BOOK_ID = "cbse::class-10::science::ncert-exemplar-vigyan-exemplar-hindi-class-10";
 const FRANK_MATHEMATICS_BOOK_ID = "cisce::class-10::mathematics::frank-mathematics-part-2-class-10";
+const MAHARASHTRA_PHYSICS_BOOK_ID = "maharashtra-board::class-12::physics::balbharati-physics-standard-12";
+const MAHARASHTRA_CLASS_8_MATHEMATICS_BOOK_ID = "maharashtra-board::class-8::mathematics::balbharati-mathematics-standard-8";
+const MAHARASHTRA_CLASS_8_INTEGRATED_MATHEMATICS_BOOK_ID = "maharashtra-board::class-8::mathematics::balbharati-mathematics-integrated-standard-8";
+const NCERT_CLASS_10_MATHEMATICS_EXEMPLAR_BOOK_ID = "cbse::class-10::mathematics::ncert-exemplar-mathematics-exemplar-class-10";
+const HC_VERMA_PHYSICS_BOOK_ID = "cbse::class-12::physics::hc-verma-concepts-of-physics-volume-1-and-2-class-12";
+const NCERT_CLASS_12_PHYSICS_EXEMPLAR_BOOK_ID = "cbse::class-12::physics::ncert-exemplar-physics-exemplar-class-12";
 
 const REVIEWED_LOCALIZED_BOOK_TITLES = Object.freeze({
   [STANDARD_HINDI_BOOK_ID]: "एनसीईआरटी विज्ञान — कक्षा 10",
@@ -62,6 +68,7 @@ const REVIEWED_CHAPTER_TITLES = Object.freeze({
   [STANDARD_HINDI_BOOK_ID]: STANDARD_HINDI_CHAPTER_TITLES,
   [EXEMPLAR_HINDI_BOOK_ID]: EXEMPLAR_HINDI_CHAPTER_TITLES,
   [FRANK_MATHEMATICS_BOOK_ID]: Object.freeze({ "goods-and-services-ta": "Goods and Services Tax" }),
+  [NCERT_CLASS_10_MATHEMATICS_EXEMPLAR_BOOK_ID]: Object.freeze({ "quadatric-euation": "Quadratic Equations" }),
 });
 
 const SOURCE_TITLE_REPAIRS = Object.freeze({
@@ -99,9 +106,26 @@ const SOURCE_TITLE_REPAIRS = Object.freeze({
     "परकतक ससधन क परबधन": EXEMPLAR_HINDI_CHAPTER_TITLES["chapter-16"],
   }),
   [FRANK_MATHEMATICS_BOOK_ID]: Object.freeze({ "Goods and Services Taх": "Goods and Services Tax" }),
+  [NCERT_CLASS_10_MATHEMATICS_EXEMPLAR_BOOK_ID]: Object.freeze({
+    "Quadatric Euation": "Quadratic Equations",
+    "Quadatric": "Quadratic",
+    "quadatric euation": "quadratic equations",
+  }),
+  [HC_VERMA_PHYSICS_BOOK_ID]: Object.freeze({
+    "Gausss Law": "Gauss’s Law",
+  }),
 });
 
 const VERIFIED_SOURCE_REPAIRS = Object.freeze({
+  [MAHARASHTRA_PHYSICS_BOOK_ID]: Object.freeze({
+    "plate separation I mm": "plate separation 1 mm",
+  }),
+  [MAHARASHTRA_CLASS_8_MATHEMATICS_BOOK_ID]: Object.freeze({
+    "Sides of a triangle are cm 45 cm, 39 cm and 42 cm, find its area.": "The sides of a triangle are 45 cm, 39 cm and 42 cm. Find its area.",
+  }),
+  [MAHARASHTRA_CLASS_8_INTEGRATED_MATHEMATICS_BOOK_ID]: Object.freeze({
+    "Sides of a triangle are cm 45 cm, 39 cm and 42 cm, find its area.": "The sides of a triangle are 45 cm, 39 cm and 42 cm. Find its area.",
+  }),
   [STANDARD_HINDI_BOOK_ID]: Object.freeze({
     "संlद्रता": "सांद्रता",
   }),
@@ -110,6 +134,12 @@ const VERIFIED_SOURCE_REPAIRS = Object.freeze({
     "Bगरम": "B गरम",
     "देता हैइनको": "देता है। इनको",
     "संबंधित हैI": "संबंधित है।",
+  }),
+  [HC_VERMA_PHYSICS_BOOK_ID]: Object.freeze({
+    "uniform charge distribution of density ρρ": "uniform charge distribution of density ρ",
+  }),
+  [NCERT_CLASS_12_PHYSICS_EXEMPLAR_BOOK_ID]: Object.freeze({
+    "the line joining the two fixed charged": "the line joining the two fixed charges",
   }),
 });
 
@@ -213,7 +243,9 @@ function repairKnownTextEverywhere(value) {
   for (const bookId of bookIds) output = repairKnownText(bookId, output);
   output = output
     .replaceAll("NCERT Vigyaan Hindi Class 10", REVIEWED_LOCALIZED_BOOK_TITLES[STANDARD_HINDI_BOOK_ID])
-    .replaceAll("NCERT Exemplar Vigyan Exemplar Hindi Class 10", REVIEWED_LOCALIZED_BOOK_TITLES[EXEMPLAR_HINDI_BOOK_ID]);
+    .replaceAll("NCERT Exemplar Vigyan Exemplar Hindi Class 10", REVIEWED_LOCALIZED_BOOK_TITLES[EXEMPLAR_HINDI_BOOK_ID])
+    .replaceAll("Since C = εA/d and V = Q/C", "Since C = ε₀A/d and V = Q/C")
+    .replaceAll("Since C = eA/d and V = Q/C", "Since C = ε₀A/d and V = Q/C");
   return repairConfusableTokens(output).value;
 }
 
@@ -248,10 +280,16 @@ function applyKnownPayloadRepairs(bookId, payload) {
 
 function repairConfusableTokens(value) {
   const repairs = [];
-  const repaired = String(value).replace(/[\p{L}\p{M}]+/gu, (token) => {
+  const repaired = String(value).replace(/[\p{L}\p{M}]+/gu, (token, offset, input) => {
     const hasLatin = /\p{Script=Latin}/u.test(token);
     const suspicious = [...token].filter((character) => Object.hasOwn(CONFUSABLES, character));
     if (!hasLatin || suspicious.length === 0) return token;
+    const nextCharacter = input[offset + token.length] || "";
+    const formulaContext = input.slice(Math.max(0, offset - 3), offset + token.length + 4);
+    const hasScientificGreekSymbol = suspicious.some((character) => /[αεμρ]/u.test(character))
+      && (/[^\s][\d₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹_^]/u.test(`${token}${nextCharacter}`)
+        || /[=+−\-*/^_()[\]]/u.test(formulaContext));
+    if (hasScientificGreekSymbol) return token;
     const hasUnmappedCyrillicOrGreek = [...token].some((character) =>
       /[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(character) && !Object.hasOwn(CONFUSABLES, character)
     );
@@ -387,6 +425,10 @@ function localizationForPathname(pathname) {
 export {
   EXEMPLAR_HINDI_BOOK_ID,
   FRANK_MATHEMATICS_BOOK_ID,
+  MAHARASHTRA_PHYSICS_BOOK_ID,
+  MAHARASHTRA_CLASS_8_MATHEMATICS_BOOK_ID,
+  MAHARASHTRA_CLASS_8_INTEGRATED_MATHEMATICS_BOOK_ID,
+  NCERT_CLASS_10_MATHEMATICS_EXEMPLAR_BOOK_ID,
   POLICY_VERSION,
   REVIEWED_CHAPTER_TITLES,
   REVIEWED_LOCALIZED_BOOK_TITLES,

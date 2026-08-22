@@ -24,6 +24,8 @@
       "/ads.txt",
       "/sitemap.xml",
       "/sitemaps/*",
+      "/studywudy-media/*",
+      "/boardly-media/*",
       "/about",
       "/about/*",
       "/privacy",

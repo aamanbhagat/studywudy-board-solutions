@@ -1,4 +1,5 @@
 import { boardSearchName } from "./search-metadata.mjs";
+import { normalizedQuestionType } from "./question-classification.mjs";
 
 const QUESTION_PROMPT_OVERRIDES = Object.freeze({
   "q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-001": {
@@ -104,6 +105,65 @@ function compactText(value, maximum) {
   return `${wordBoundary || clipped.trimEnd()}…`;
 }
 
+function compactDistinctiveText(value, maximum) {
+  const normalized = plainText(value);
+  const characters = [...normalized];
+  if (characters.length <= maximum) return normalized;
+  const available = Math.max(4, maximum - 1);
+  const leadingLength = Math.ceil(available * 0.56);
+  const trailingLength = available - leadingLength;
+  const leading = characters.slice(0, leadingLength).join("").replace(/\s+\S*$/u, "").trimEnd()
+    || characters.slice(0, leadingLength).join("").trimEnd();
+  const trailing = characters.slice(-trailingLength).join("").replace(/^\S*\s+/u, "").trimStart()
+    || characters.slice(-trailingLength).join("").trimStart();
+  return `${leading}…${trailing}`;
+}
+
+function compactBookTitle(value, maximum) {
+  const academicTitle = plainText(value)
+    .replace(/^Balbharati\s+/iu, "")
+    .replace(/^Samacheer Kalvi\s+/iu, "")
+    .replace(/\bInformation Technology\b/giu, "IT")
+    .replace(/\bMathematics and Statistics\b/giu, "Maths-Stats")
+    .replace(/\bArts and Science\b/giu, "Arts-Science")
+    .replace(/\bCompany Accounts and Analysis of Financial Statements\b/giu, "Company Accounts Analysis")
+    .replace(/\bStandard\b/giu, "Std")
+    .replace(/\bPart\b/giu, "Pt");
+  return compactDistinctiveText(academicTitle, maximum);
+}
+
+const TITLE_SMALL_WORDS = new Set([
+  "a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of",
+  "on", "or", "per", "the", "to", "via", "with",
+]);
+
+function titleCase(value) {
+  const words = plainText(value).split(/\s+/u).filter(Boolean);
+  return words.map((word, index) => {
+    const trailing = word.match(/[.,;:!?]+$/u)?.[0] || "";
+    const core = trailing ? word.slice(0, -trailing.length) : word;
+    if (!core) return word;
+    if (/^[A-Z\d][A-Z\d&/()+.-]*$/u.test(core)) return `${core}${trailing}`;
+    const lower = core.toLocaleLowerCase("en-IN");
+    if (index > 0 && index < words.length - 1 && TITLE_SMALL_WORDS.has(lower)) return `${lower}${trailing}`;
+    return `${lower.charAt(0).toLocaleUpperCase("en-IN")}${lower.slice(1)}${trailing}`;
+  }).join(" ");
+}
+
+function trueFalseTopic(prompt) {
+  const instruction = /^(?:state|say|write)\s+whether\s+(?:the\s+following\s+)?statements?\s+(?:is|are)\s+(?:true(?:\s+or\s+false)?|false(?:\s+or\s+true)?)\s*[.:;!?-]*\s*/iu;
+  if (!instruction.test(prompt)) return null;
+  const statement = prompt.replace(instruction, "")
+    .replace(/^["“”'‘’\s]+|["“”'‘’\s]+$/gu, "")
+    .trim();
+  if (!statement) return null;
+  return Object.freeze({
+    label: titleCase(compactText(statement, 82)),
+    forceType: "True or False",
+    layout: "true-false",
+  });
+}
+
 function questionPrompt(record) {
   return QUESTION_PROMPT_OVERRIDES[record.question_id]?.prompt || plainText(record.prompt_text) || `Textbook Question ${record.display_label}`;
 }
@@ -113,8 +173,8 @@ function questionAnswerOverride(record) {
 }
 
 const QUESTION_TOPIC_PATTERNS = Object.freeze([
-  Object.freeze({ pattern: /\bslab\b[\s\S]{0,140}\bsame area\b[\s\S]{0,160}\bthickness\b|\bsame area\b[\s\S]{0,100}\bslab\b[\s\S]{0,160}\bthickness\b/iu, label: "Dielectric Slab Capacitor", forceType: "Numerical" }),
-  Object.freeze({ pattern: /\bdielectric\b[\s\S]{0,100}\bslab\b|\bslab\b[\s\S]{0,100}\bdielectric\b/iu, label: "Parallel Plate Capacitor with Dielectric Slab", forceType: "Numerical" }),
+  Object.freeze({ pattern: /\bslab\b[\s\S]{0,140}\bsame area\b[\s\S]{0,160}\bthickness\b|\bsame area\b[\s\S]{0,100}\bslab\b[\s\S]{0,160}\bthickness\b/iu, label: "Dielectric Slab Capacitor" }),
+  Object.freeze({ pattern: /\bdielectric\b[\s\S]{0,100}\bslab\b|\bslab\b[\s\S]{0,100}\bdielectric\b/iu, label: "Parallel Plate Capacitor with Dielectric Slab" }),
   Object.freeze({ pattern: /\bequivalent capacitance\b/iu, label: "Equivalent Capacitance" }),
   Object.freeze({ pattern: /\bparallel[- ]plate capacitor\b/iu, label: "Parallel Plate Capacitor" }),
   Object.freeze({ pattern: /\benergy (?:stored|lost)[\s\S]{0,80}\bcapacitor\b|\bcapacitor\b[\s\S]{0,80}\benergy\b/iu, label: "Capacitor Energy" }),
@@ -182,6 +242,8 @@ function questionSubject(record) {
 
 function questionTopic(record) {
   const prompt = questionPrompt(record);
+  const truthStatement = trueFalseTopic(prompt);
+  if (truthStatement) return truthStatement;
   const match = QUESTION_TOPIC_PATTERNS.find((candidate) => candidate.pattern.test(prompt));
   if (match) return match;
   const withoutInstruction = prompt
@@ -189,32 +251,47 @@ function questionTopic(record) {
     .replace(/^(?:A|An|The)\s+/iu, "")
     .replace(/[.?!].*$/u, "")
     .trim();
-  return { label: compactText(withoutInstruction || prompt, 44), forceType: null };
+  const label = compactText(withoutInstruction || prompt, 44);
+  return {
+    label: `${label.charAt(0).toLocaleUpperCase("en-IN")}${label.slice(1)}`,
+    forceType: null,
+    layout: null,
+  };
 }
 
 function questionSearchType(record, topic) {
-  return topic.forceType || QUESTION_TYPE_SEARCH_LABELS[record.type] || "Textbook Answer";
+  return topic.forceType || QUESTION_TYPE_SEARCH_LABELS[normalizedQuestionType(record)] || "Textbook Answer";
 }
 
 function questionSocialTitle(record, disambiguate = false) {
   const topic = questionTopic(record);
-  const type = topic.forceType || QUESTION_TITLE_TYPE_LABELS[record.type] || "Answer";
+  const type = topic.forceType || QUESTION_TITLE_TYPE_LABELS[normalizedQuestionType(record)] || "Answer";
   const grade = questionClassNumber(record);
   const subject = questionSubject(record);
+  if (topic.layout === "true-false") {
+    const context = grade && subject ? `Class ${grade} ${subject}` : compactText(record.book_title, 44);
+    const qualifier = disambiguate
+      ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
+      : "";
+    const fixed = ` – ${type} | ${context}${qualifier}`;
+    const topicBudget = Math.max(18, 154 - [...fixed].length);
+    return `${compactText(topic.label, topicBudget)}${fixed}`;
+  }
   const titleSubject = compactText(subject, disambiguate ? 12 : 25);
   const context = grade && subject
     ? `Class ${grade} ${titleSubject} ${disambiguate ? "Ch" : "Chapter"} ${record.chapter_number}`
     : `Chapter ${record.chapter_number}`;
   const qualifier = disambiguate
-    ? ` · Q${compactText(record.display_label, 6)} · ${record.row_id}`
+    ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
     : "";
   const fixed = `${type} – ${context}${qualifier}`;
-  const topicBudget = Math.max(6, 72 - [...fixed].length - 1);
+  const topicBudget = Math.max(8, 146 - [...fixed].length - 1);
   return `${compactText(topic.label, topicBudget)} ${fixed}`;
 }
 
 function questionDocumentTitle(record, disambiguate = false) {
-  return `${questionSocialTitle(record, disambiguate)} | StudyWudy`;
+  const title = questionSocialTitle(record, disambiguate);
+  return questionTopic(record).layout === "true-false" ? title : `${title} | StudyWudy`;
 }
 
 function questionDescription(record, disambiguate = false) {
@@ -224,8 +301,11 @@ function questionDescription(record, disambiguate = false) {
   const subject = questionSubject(record);
   const board = boardSearchName(record);
   const context = grade && subject ? `${board} Class ${grade} ${subject}` : compactText(record.book_title, 48);
-  const reference = disambiguate ? ` Question ${record.display_label}, catalogue reference ${record.row_id}.` : "";
-  const lead = `Step-by-step ${type} for ${topic.label}.${reference} From ${compactText(record.book_title, 40)} in ${context}, Chapter ${record.chapter_number} ${compactText(record.chapter_title, 32)}.`;
+  if (disambiguate) {
+    const publicContext = `${compactText(board, 12)} Class ${grade || plainText(record.grade_label)} ${compactText(subject, 12)}; ${compactText(topic.label, 24)}; ${compactBookTitle(record.book_title, 36)}; Ch ${record.chapter_number} ${compactDistinctiveText(record.chapter_title, 18)}; Q${compactText(record.display_label, 8)}`;
+    return compactText(`${publicContext}: ${type} solution.`, 158);
+  }
+  const lead = `Step-by-step ${type} for ${topic.label}. From ${compactText(record.book_title, 40)} in ${context}, Chapter ${record.chapter_number} ${compactText(record.chapter_title, 32)}.`;
   const candidate = [...plainText(lead)].length >= 130 ? lead : `${lead} ${questionPrompt(record)}`;
   return compactText(candidate, 158);
 }
