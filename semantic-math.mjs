@@ -31,6 +31,8 @@ const OPERATORS = Object.freeze({
   sum: ["Σ", "sum"], int: ["∫", "integral"], oint: ["∮", "closed surface integral"],
   cap: ["∩", "intersection"], parallel: ["∥", "is parallel to"],
   to: ["→", "to"], rightarrow: ["→", "to"], leftarrow: ["←", "from"],
+  Rightarrow: ["⇒", "implies"], implies: ["⇒", "implies"], Leftarrow: ["⇐", "is implied by"],
+  Leftrightarrow: ["⇔", "is equivalent to"],
   rightleftharpoons: ["⇌", "is in equilibrium with"],
 });
 const IGNORED_COMMANDS = new Set(["left", "right", "big", "Big", "bigg", "Bigg", "displaystyle", "textstyle"]);
@@ -50,6 +52,8 @@ const INVALID_RENDERED_MATH_PATTERNS = Object.freeze([
   Object.freeze(["emptyFractionNumerator", /\\frac\s*\{\s*\}\s*\{/u]),
   Object.freeze(["emptyFractionDenominator", /\\frac\s*\{[^{}]+\}\s*\{\s*\}/u]),
   Object.freeze(["invalidRuntimeToken", /\b(?:undefined|NaN)\b|\[object Object\]/u]),
+  Object.freeze(["proseAndSplitIntoIdentifiers", /<mi>a<\/mi>\s*<mi>n<\/mi>\s*<mi>d<\/mi>/iu]),
+  Object.freeze(["proseParallelogramSplitIntoIdentifiers", /<mi>i<\/mi>\s*<mi>s<\/mi>\s*<mi>a<\/mi>(?:\s*<mi>[a-z]<\/mi>){13}/iu]),
 ]);
 
 export function invalidRenderedMathFound(value) {
@@ -273,6 +277,26 @@ class TexParser {
     return this.parse("]");
   }
 
+  readTextGroup() {
+    while (/\s/u.test(this.source[this.index] || "")) this.index += 1;
+    if (this.source[this.index] !== "{") return plainFromNode(this.readGroup());
+    this.index += 1;
+    const start = this.index;
+    let depth = 1;
+    while (this.index < this.source.length && depth > 0) {
+      const character = this.source[this.index++];
+      if (character === "{") depth += 1;
+      else if (character === "}") depth -= 1;
+    }
+    if (depth > 0) this.errors.push("unmatchedOpeningDelimiter:{");
+    const end = depth === 0 ? this.index - 1 : this.index;
+    return this.source.slice(start, end)
+      .replace(/\\(?:text|mathrm|textrm|operatorname)\s*\{([^{}]*)\}/gu, "$1")
+      .replace(/\\[ ,;:!]/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim();
+  }
+
   parseAtom() {
     const character = this.source[this.index];
     if (character == null) return null;
@@ -310,10 +334,7 @@ class TexParser {
       if (["vec", "hat", "bar", "overline"].includes(command)) {
         return node("accent", { accent: command, base: this.readGroup() });
       }
-      if (command === "text") {
-        const group = this.readGroup();
-        return node("text", { value: plainFromNode(group), word: true });
-      }
+      if (command === "text") return node("text", { value: this.readTextGroup(), word: true });
       if (ROMAN_COMMANDS.has(command)) return node("roman", { base: this.readGroup() });
       if (SYMBOLS[command]) return node("identifier", { value: SYMBOLS[command][0], spoken: SYMBOLS[command][1] });
       if (OPERATORS[command]) return node("operator", { value: OPERATORS[command][0], spoken: OPERATORS[command][1] });
@@ -641,7 +662,7 @@ export function semanticEquationTokens(value) {
     .replaceAll("−", "-")
     .replaceAll("·", "×")
     .replace(/\s+/gu, " ");
-  const raw = normalized.match(/[A-Za-z]+|[\p{L}\p{M}]+|\d+(?:\.\d+)?|[=+\-×÷∫∮∑∩∥→←⇌≈≤≥≠±√/()[\]<>|,;:^_]/gu) || [];
+  const raw = normalized.match(/[A-Za-z]+|[\p{L}\p{M}]+|\d+(?:\.\d+)?|[=+\-×÷∫∮∑∩∥→←⇒⇐⇔⇌≈≤≥≠±√/()[\]<>|,;:^_]/gu) || [];
   return Object.freeze(raw.flatMap((token) => /^[\p{L}\p{M}]{2,}$/u.test(token)
     ? [...token.normalize("NFD")].filter((character) => /\p{L}/u.test(character))
     : [token]));
@@ -649,7 +670,7 @@ export function semanticEquationTokens(value) {
 
 const SEMANTIC_OPERATOR_TOKENS = new Set([
   "=", "+", "-", "×", "÷", "/", "^", "_", "∫", "∮", "∑", "∩", "∥",
-  "→", "←", "⇌", "≈", "≤", "≥", "≠", "±", "√", "<", ">", "|",
+  "→", "←", "⇒", "⇐", "⇔", "⇌", "≈", "≤", "≥", "≠", "±", "√", "<", ">", "|",
 ]);
 
 function requiredSourceCommandTokens(source) {
@@ -855,12 +876,17 @@ export function evaluateQuestionFormulaAccessibility(question, { includeRepresen
   });
 }
 
-const LEGACY_RENDERER_DROPPED_TOKENS = new Set(["ε", "∫", "∮", "Σ", "∞", "Ω", "∩", "∥", "→", "←"]);
+const LEGACY_RENDERER_DROPPED_TOKENS = new Set(["ε", "∫", "∮", "Σ", "∞", "Ω", "∩", "∥", "→", "←", "⇒", "⇐", "⇔"]);
 
 function formulaLookupKey(value, { tolerateLegacyTokenLoss = false } = {}) {
-  const repairedLegacyLabel = repairMalformedFormulaText(value)
+  let repairedLegacyLabel = repairMalformedFormulaText(value)
     .replace(/(?:\{R\}|R)_\{o\}ne/gu, "Rₒₙₑ")
     .replace(/(?:\{R\}|R)_\{l\}ine/gu, "Rₗᵢₙₑ");
+  if (tolerateLegacyTokenLoss) {
+    repairedLegacyLabel = repairedLegacyLabel
+      .replace(/\bangle\b|angle(?=[A-Z])/gu, "")
+      .replace(/\^(?=\s*(?:$|[,+\-−=)]))/gu, "");
+  }
   return semanticEquationTokens(repairedLegacyLabel)
     .filter((token) => !tolerateLegacyTokenLoss || (
       !LEGACY_RENDERER_DROPPED_TOKENS.has(token)

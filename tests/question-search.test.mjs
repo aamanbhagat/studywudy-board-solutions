@@ -82,7 +82,7 @@ test("type and board filters compile to exact bound predicates", () => {
   assert.deepEqual(plan.bindings, ["numerical", "maharashtra-board"]);
   assert.match(plan.sql, /1 AS search_priority/u);
   assert.doesNotMatch(plan.sql, /content_publish_gate|reviewed search exception/iu);
-  assert.match(plan.sql, /LIMIT 2000/u);
+  assert.match(plan.sql, /LIMIT 1536/u);
 });
 
 test("numerical classification requires quantitative evidence, not a bad imported type label", () => {
@@ -119,6 +119,11 @@ test("text search ranks concept, question phrase, textbook and body in order", (
   assert.ok(concept > 0 && concept < question && question < textbook && textbook < body);
   assert.match(plan.sql, /ORDER BY search_priority, q\.row_id/u);
   assert.match(plan.sql, /json_each\(CASE WHEN json_valid\(q\.concept_tags\)/u);
+  assert.match(plan.sql, /LIMIT 256/u);
+});
+
+test("diagram-only search uses the bounded static-build candidate window", () => {
+  assert.match(buildQuestionSearchPlan(criteria("hasDiagram=true"), projection).sql, /LIMIT 512/u);
 });
 
 test("active filters survive a keyword form submission and receive a specific heading", () => {
@@ -150,8 +155,9 @@ test("production smoke covers every structured filter and relevance ranking", as
   const fetchImpl = async (url, init) => {
     requests.push({ url: url.toString(), init });
     const parsed = new URL(url);
+    if (parsed.pathname === "/__studywudy_missing_route_probe_20260823__") return new Response("not found", { status: 404 });
     if (parsed.pathname !== "/search") {
-      return new Response(null, {
+      return new Response("<html><body>Complete equation-safe answer</body></html>", {
         status: 200,
         headers: {
           "x-studywudy-publish-gate": "phase4-test; complete",
@@ -176,14 +182,16 @@ test("production smoke covers every structured filter and relevance ranking", as
   };
   const results = await smokeQuestionSearch({ deploymentUrl: "https://deployment.example/ignored", fetchImpl });
   assert.equal(results.length, QUESTION_SEARCH_SMOKE_CASES.length);
-  assert.equal(requests.length, QUESTION_SEARCH_SMOKE_CASES.length + 1);
-  assert.equal(requests.at(-1).init.method, "HEAD");
+  assert.equal(requests.length, QUESTION_SEARCH_SMOKE_CASES.length + 3);
+  assert.equal(requests.at(-2).init.method, "GET");
+  assert.equal(new URL(requests.at(-1).url).pathname, "/__studywudy_missing_route_probe_20260823__");
 });
 
 test("production smoke rejects a search card whose individual page is noindex", async () => {
   const searchCase = QUESTION_SEARCH_SMOKE_CASES.find(({ expected }) => expected.type === "mcq_single");
   const fetchImpl = async (url) => {
     const parsed = new URL(url);
+    if (parsed.pathname === "/__studywudy_missing_route_probe_20260823__") return new Response("not found", { status: 404 });
     if (parsed.pathname === "/search") {
       return new Response(`<div class="search-suggestions"><a href="/search?type=numerical">Numericals</a><a href="/search?hasDiagram=true">Diagrams</a><a href="/search?type=mcq_single">MCQs</a><a href="/search?board=maharashtra-board">Maharashtra</a></div><p>All 1 eligible matches are rendered below.</p><div class="search-result-list" data-search-result-count="1"><a href="/cbse/class-12/physics/book/chapter/questions/q-incomplete" data-question-row-id="2" data-question-type="mcq_single" data-question-board="cbse" data-has-diagram="false" data-public-search-eligible="true" data-search-priority="1" data-search-match="structured-filter"></a></div>`, {
         status: 200,

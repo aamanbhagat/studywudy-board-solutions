@@ -24,6 +24,7 @@ export const QUESTION_SEARCH_SMOKE_CASES = Object.freeze([
   Object.freeze({ name: "single-choice type", pathname: "/search?type=mcq_single", expected: Object.freeze({ type: "mcq_single" }) }),
   Object.freeze({ name: "Maharashtra board", pathname: "/search?board=maharashtra-board", expected: Object.freeze({ board: "maharashtra-board" }) }),
   Object.freeze({ name: "ranked exact-chapter query", pathname: "/search?q=climate", expected: Object.freeze({ ranked: true }) }),
+  Object.freeze({ name: "electric-field runtime regression", pathname: "/search?q=electric%20field", expected: Object.freeze({}) }),
 ]);
 
 function normalizeDeploymentUrl(value) {
@@ -109,6 +110,7 @@ export async function smokeQuestionSearch({
   const origin = normalizeDeploymentUrl(deploymentUrl);
   const results = [];
   const questionPaths = new Set();
+  const sampledQuestionPaths = new Set();
   for (const entry of cases) {
     const response = await fetchImpl(new URL(entry.pathname, `${origin}/`), {
       method: "GET",
@@ -130,6 +132,7 @@ export async function smokeQuestionSearch({
     const inspection = inspectQuestionSearchHtml(entry, await response.text());
     if (inspection.failures.length) throw new Error(`${entry.pathname}: ${inspection.failures.join("; ")}`);
     for (const card of inspection.cards) questionPaths.add(card.href);
+    for (const card of inspection.cards.slice(0, 5)) sampledQuestionPaths.add(card.href);
     results.push(inspection);
   }
   const pendingPaths = [...questionPaths];
@@ -154,6 +157,42 @@ export async function smokeQuestionSearch({
       }
     }));
   }
+  const sampledPaths = [...sampledQuestionPaths];
+  for (let offset = 0; offset < sampledPaths.length; offset += 5) {
+    await Promise.all(sampledPaths.slice(offset, offset + 5).map(async (pathname) => {
+      const response = await fetchImpl(new URL(pathname, `${origin}/`), {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          accept: "text/html",
+          "cache-control": "no-cache",
+          "user-agent": "StudyWudy eligible-destination concurrent GET gate/1.0",
+        },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      const html = await response.text();
+      if (response.status !== 200) throw new Error(`${pathname} GET returned ${response.status}`);
+      if (!/; complete$/u.test(response.headers.get("x-studywudy-publish-gate") || "")) {
+        throw new Error(`${pathname} GET did not pass its page publishing gate`);
+      }
+      if (!/^index,\s*follow\b/iu.test(response.headers.get("x-robots-tag") || "")) {
+        throw new Error(`${pathname} GET is listed in search but is not indexable`);
+      }
+      if (/Equation review pending|data-studywudy-equation-review=["']pending/iu.test(html)) {
+        throw new Error(`${pathname} GET contains an equation-review placeholder despite passing`);
+      }
+      if (/AEFCandAE=FCAECFisaparallelogram|BQ=QPandDP=PQBQ=QP=PD/iu.test(html.replace(/\s+/gu, ""))) {
+        throw new Error(`${pathname} GET contains collapsed prose in MathML`);
+      }
+    }));
+  }
+  const missingResponse = await fetchImpl(new URL("/__studywudy_missing_route_probe_20260823__", `${origin}/`), {
+    method: "GET",
+    redirect: "manual",
+    headers: { accept: "text/html", "cache-control": "no-cache", "user-agent": "StudyWudy early-404 deployment gate/1.0" },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (missingResponse.status !== 404) throw new Error(`nonexistent route returned ${missingResponse.status} instead of 404`);
   return Object.freeze(results);
 }
 
@@ -161,7 +200,7 @@ async function main() {
   const deploymentUrl = process.env.STUDYWUDY_DEPLOYMENT_URL || process.argv[2] || PRODUCTION_ORIGIN;
   const results = await smokeQuestionSearch({ deploymentUrl });
   for (const result of results) console.log(`PASS ${result.pathname} (${result.cards.length} questions)`);
-  console.log("Checked structured filters, normalized classifications, page-level publishing gates, cache isolation and relevance ordering");
+  console.log("Checked structured filters, concurrent eligible-page GETs, rendered equation gates, early 404s, cache isolation and relevance ordering");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

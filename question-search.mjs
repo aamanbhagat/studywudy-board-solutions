@@ -31,7 +31,7 @@ const BOARD_LABELS = Object.freeze({
   "tamil-nadu-board": "Tamil Nadu Board",
 });
 
-export const SEARCH_FILTER_RELEASE = "structured-ranking-v7-page-gate-consistency";
+export const SEARCH_FILTER_RELEASE = "structured-ranking-v9-adaptive-candidate-cpu";
 
 const NORMALIZED_PROMPT_SQL = `lower(' ' || replace(replace(replace(replace(replace(replace(q.prompt_text, '<br>', ' '), '<br/>', ' '), '.', ' '), ',', ' '), ':', ' '), ';', ' ') || ' ')`;
 
@@ -292,6 +292,14 @@ export function buildQuestionSearchPlan(criteria, projection) {
   const order = criteria.type && criteria.query
     ? "search_priority, text_priority, q.row_id"
     : "search_priority, q.row_id";
+  // Keyword searches are the public dynamic path and stay tightly bounded.
+  // The broader structured filters are captured as static launch documents;
+  // their larger build-only windows prevent a sparse final publishing bitset
+  // from producing an empty page before the Worker applies that final gate.
+  const candidateLimit = criteria.query ? 256
+    : criteria.type ? 1536
+      : criteria.hasDiagram != null ? 512
+        : 256;
   const sql = `${cte ? `${cte}\n` : ""}${projection},
     ${DIAGRAM_EVIDENCE_SQL} AS has_diagram,
     ${searchPriority} AS search_priority,
@@ -303,7 +311,7 @@ export function buildQuestionSearchPlan(criteria, projection) {
     ${criteria.query ? "CROSS JOIN search_input" : ""}
     WHERE ${where.length ? where.join(" AND ") : "1 = 1"}
     ORDER BY ${order}
-    LIMIT 2000`;
+    LIMIT ${candidateLimit}`;
   return Object.freeze({ sql, bindings: Object.freeze([...inputBindings, ...bindings]) });
 }
 

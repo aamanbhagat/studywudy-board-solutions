@@ -99681,7 +99681,7 @@ __name(phase3QuestionSitemap, "phase3QuestionSitemap");
 __name2(phase3QuestionSitemap, "phase3QuestionSitemap");
 function phase3RobotsResponse(request) {
   let siteUrl = new URL(request.url).origin;
-  let body = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /preview/\nDisallow: /search?\nDisallow: /*?*preview=\nDisallow: /*?*draft=\nSitemap: ${siteUrl}/sitemap.xml\nHost: ${siteUrl}\n`;
+  let body = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /preview/\nDisallow: /*?*preview=\nDisallow: /*?*draft=\nSitemap: ${siteUrl}/sitemap.xml\nHost: ${siteUrl}\n`;
   return new Response(request.method === "HEAD" ? null : body, { headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400", "Content-Type": "text/plain; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
 }
 __name(phase3RobotsResponse, "phase3RobotsResponse");

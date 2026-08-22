@@ -6734,6 +6734,11 @@
       "sha256": "e9c92f35538dec7a0c0d74343e60a6aa37c3a14dd25f5f5234109c08311624df"
     },
     {
+      "path": "comparison/after-assets/pages/corpus-quality/chapter-gausss-law/index.html",
+      "bytes": 28622,
+      "sha256": "81ebb49e5ad450845800460c942b5ef583520d4b9d19b0a110ed06298f2728d8"
+    },
+    {
       "path": "comparison/after-assets/pages/corpus-quality/chapter-solid-states/index.html",
       "bytes": 38119,
       "sha256": "7d2d1c4c770a28ebc73f140799d11d6c0d45c7edb22cdc80485776c8b63fd6e4"
@@ -6765,163 +6770,163 @@
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/fixed-charges-grammar-repair/index.html",
-      "bytes": 64392,
-      "sha256": "54a15268935b83783a15a82ff38e6f7291d2dd125c906c3e97155c038e322f56"
+      "bytes": 41890,
+      "sha256": "a9687f5012b97feb31792162249b421f1df320df15018e77648a27db800cc0dc"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/gauss-law-density-repair/index.html",
-      "bytes": 51355,
-      "sha256": "cb757a30f836d22a142a062cc760ecee752a63a709739bbeac84ebdbd664ba94"
+      "bytes": 42304,
+      "sha256": "c73ba0422446a935b89f5cc64875290b6bc9daffd34a963eb55a0517545e4435"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/marathi-chapter-11-source-mismatch/index.html",
-      "bytes": 43613,
-      "sha256": "2754fa087ca45036e93d9991fc48afc048fa8640ac956de7260c33faa2f6f9a7"
+      "bytes": 23218,
+      "sha256": "9bef83f067eeb3e029be6e1dca8af98a2a583c93421d150f3a498d1412c3bcc0"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/ncert-chemistry-source-typo/index.html",
-      "bytes": 48085,
-      "sha256": "d16d9e97fdd7c8aa79ef16be57d259ea954ab827b828996aa947633af2cf5af7"
+      "bytes": 26861,
+      "sha256": "2a1ce61ec02e3ea223dba35c31606a3bb3aea97f42c6325f8565ddab8196564d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/tamil-class-4-internal-organ/index.html",
-      "bytes": 37979,
-      "sha256": "6d6f3ec9f542d4374969eb10b18fbd9f37b1a5b4ce446b056e516266361d9f4e"
+      "bytes": 21589,
+      "sha256": "75182c14f527fa125b0ca692fafa2c65a7b4da3aa8836bd01a583800db70a95d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-001/index.html",
-      "bytes": 48683,
-      "sha256": "c64e24aaebafc1bc65c86980c55db36cefe39cd8e0affd5671d590514d793401"
+      "bytes": 22036,
+      "sha256": "78d6def77fdfd73b081adc7a0e92388c77c5ab6e762edac2f8e5155951780667"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-002/index.html",
-      "bytes": 59428,
-      "sha256": "adbc794505c66af28500d13ae39ee8d5429df5cf65df6388288578dac88c4c58"
+      "bytes": 28203,
+      "sha256": "56f7c66b5c1e22708d68a5eceeb11283bcc699da472a19ec1018b2f441e5181f"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-003/index.html",
-      "bytes": 51588,
-      "sha256": "7b51f8b660dd0bba208f39f0c8e601f63e8676331559fb3be5b3ad194bcf5cf9"
+      "bytes": 23526,
+      "sha256": "5020f4e10a97b23402c74dec264aa040012c565397affe7b15428745b633c4bc"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-004/index.html",
-      "bytes": 54895,
-      "sha256": "3354476c6b417b7cf5655c50b94d2b62c7e1937b21d87489b062018b531209e8"
+      "bytes": 26883,
+      "sha256": "61030ee93ec3b2fbc02185ca41362e7e30386002238a574328573276adb6189d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-005/index.html",
-      "bytes": 58975,
-      "sha256": "b214bb9ac6296629bd851bc18507de4846edfb49c11eeb2a1685f3f742b3e1e5"
+      "bytes": 28482,
+      "sha256": "131026be36c76f66844661272387895ac92ebaa15429c0429baabf0e26514783"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-006/index.html",
-      "bytes": 57810,
-      "sha256": "c6be8acab4a783cd198444a17da414f3ea707756eb50d515707020f3acdf1d73"
+      "bytes": 28089,
+      "sha256": "db82ddd1b7d7ad3988ab002b752a5d94c7a7c26969940e681bcb0bbb9b633865"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-007/index.html",
-      "bytes": 47689,
-      "sha256": "9c1b036e9d818923a25a06dc747a542d7e757ab0968c4d7f4dd91acb7962220f"
+      "bytes": 22428,
+      "sha256": "dfd06cba0178f85a56eb49f3317bcc7ed41d6abf1183017f58d5a49e1ca7ebda"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-008/index.html",
-      "bytes": 50330,
-      "sha256": "53ab60c439e2a0d50d51d27a8f1de62bbc5f1a9c173bc3100446621d9aa56d0e"
+      "bytes": 25571,
+      "sha256": "8f9253dc6cbfd55d3516ab063ab87d280dabe666715c4a6e5741839eea1a59d5"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-009/index.html",
-      "bytes": 47592,
-      "sha256": "245376164e6be47980d7a53111df6a4448572688a4993aaf142c3114f6a0529d"
+      "bytes": 21323,
+      "sha256": "ffb7ac6c4ff0e0fab2f5e112cfcb9240644b0487ad64db15643d7ff93a1d84fb"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-010/index.html",
-      "bytes": 49042,
-      "sha256": "91eab5b5af605359620fad31ca660cd43456732ad93fa9beca6791bee02b0d71"
+      "bytes": 31705,
+      "sha256": "5851f0179900fe80e72a56864a998736b27d285a33702e70dfd9f3cf4277c84c"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-011/index.html",
-      "bytes": 54601,
-      "sha256": "ad9cadb69975d8927abc224ce6269eac9300bf6686358215149c3ee3342a0c0c"
+      "bytes": 29880,
+      "sha256": "054f218159bbb18061e2527e259e674965cbe534b02974e79c169cd2a6352f3c"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-012/index.html",
-      "bytes": 59819,
-      "sha256": "0cc4b9d92849afeef57443ea25b3f919d207fcb0f7ebcf339f425ca0b3f9e238"
+      "bytes": 33646,
+      "sha256": "7420dad67f8be172942f2f1cf2fc53a1ac0c4021dc9c42b2f707d53525f4820d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-013/index.html",
-      "bytes": 55308,
-      "sha256": "851549f67055543f110481dd6d31411cad0b9088921e42a7c50d8a03591d8c6d"
+      "bytes": 28328,
+      "sha256": "b83c42b1701e0229cf785e42529c502bfd57fdf178a2d23d9e0f1ad05a5513bd"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-014/index.html",
-      "bytes": 58293,
-      "sha256": "95649b8935e3e5312396aaf92f54c48eb52a4ec745132cec41a0485d7fe5b2f2"
+      "bytes": 30307,
+      "sha256": "4bc39c3680c5566737df7c78ea6dffb6c692c6b28f288c6e8bb37867155186bd"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-015/index.html",
-      "bytes": 48481,
-      "sha256": "5c52b2355fc4771ee01d0741ae2b05d464e51d3c446ea0d834babfee1196146f"
+      "bytes": 28689,
+      "sha256": "1afd1646da1673d0fb4e08a34e506b70921d124f1c390d58a151d25717103365"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-016/index.html",
-      "bytes": 57988,
-      "sha256": "caf8e9440918d3d8c520fda64b0d2aeffa3e5f2128dbaa8af434e88c2baa1a3d"
+      "bytes": 30740,
+      "sha256": "c9a41a6ca16c3a8f63fc9b302e2be18a1b5a3dcd119792d57f0e1897564bbf01"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-017/index.html",
-      "bytes": 53909,
-      "sha256": "de5749845ab2a5d43d5e13f0e9dc66a17c7016517510a52999743ffc6372d2e2"
+      "bytes": 26778,
+      "sha256": "d5add06522c8f08ee4ade4a9469126fedfb30e5b4b0f64a37b0a81183c886cad"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-018/index.html",
-      "bytes": 62043,
-      "sha256": "b27f2c55208aa83b8911503da3b09d3b3ecd836f053244b42dd6983bad1c96c5"
+      "bytes": 34262,
+      "sha256": "954c39229b23533950085d6320497749360cc7efdc0a040d0add82c76a0af8b8"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-019/index.html",
-      "bytes": 65721,
-      "sha256": "668149c277c3fdd281baee9c285feb3387c717669c995350d366b93559125a1b"
+      "bytes": 36948,
+      "sha256": "aa5fd0dae31ae2ee48b5eb1bf99f6fc945f69a2b3a2ea6f65280a717e0e91cbf"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-020/index.html",
-      "bytes": 58084,
-      "sha256": "ac74763ad93d2a7c7421d97cb735c0aaafd2e4dc87af9501d62c804d7f23d392"
+      "bytes": 31362,
+      "sha256": "8289daa7a91ccc6c8b753f442801728e06df3f65f1199c58884627bd9ec3f901"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-021/index.html",
-      "bytes": 64368,
-      "sha256": "ab74d1e8a40c2446ca8dfbbabe892e26f72ca3e02ae8f93a6d44933eacbd6443"
+      "bytes": 33932,
+      "sha256": "0e0f90af3460b045a404aa432346b62821af6b3a048b0e8595395f3a2a28043d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/math/lr-circuit-question-120/index.html",
-      "bytes": 75664,
-      "sha256": "bb2cf0b9a286cce33826e9220c1c1863dd4467b14fc485c4d20f5cc076327025"
+      "bytes": 49721,
+      "sha256": "e6b84708fbdbcbda8dc9df3612a6e6f7433f32fc527a162b1cb3c784eebd5dfc"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/board-maharashtra/index.html",
-      "bytes": 68750,
-      "sha256": "b10e93e04d1be8c7f60fd4068dee3c8f9b2d0523c7ec618954e46b8185beef64"
+      "bytes": 68753,
+      "sha256": "b55a82aa3b97253e4a98cf658ac602bc14e1dbc0bcf7e6e98caa37434584dbf5"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/default/index.html",
-      "bytes": 38557,
-      "sha256": "0ef73af15655a07f28d62906576be8fe61a0d881750a443c9fac951bc4310a58"
+      "bytes": 38560,
+      "sha256": "cd836dde2e2ad33a29745a85a63625b72dddcebcd0d9e7811f8ce8d3aec816ff"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/has-diagram/index.html",
-      "bytes": 67544,
-      "sha256": "3e1c1eedd03aef2c7d08d0a5e1c8d9a0088e23187a7a4b0a66803eb9196e91f3"
+      "bytes": 67547,
+      "sha256": "7d2db72246f32bf30834e6cfea7cd3c164e620f9118556432c14b1c12e3a6944"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-mcq-single/index.html",
-      "bytes": 66411,
-      "sha256": "bde3e5be530bbe66e86e2b9b207a8760240ddfad5e95bbf1a151df74476b1704"
+      "bytes": 66414,
+      "sha256": "99a3919d225cc28e030046370a7c690c41c04a969818467b4db481b19d6f55db"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-numerical/index.html",
-      "bytes": 68775,
-      "sha256": "b2c56ac700725ed27ddf2d7eebe0d8becc0e8aa09129347ad58e2efe4df904f1"
+      "bytes": 68778,
+      "sha256": "57b50e00788c5391707cb0e0e45672827bbd79f77c420878d61d835120733efe"
     },
     {
       "path": "comparison/after-assets/pages/maharashtra-board/class-12/index.html",
@@ -6946,77 +6951,77 @@
     {
       "path": "comparison/after-assets/pages/study-cluster/answer-writing/index.html",
       "bytes": 26311,
-      "sha256": "4cf879d179de3b3d1bb4f8a85a883b0b93be2b2d1aa94a2ebc99875431f07fdb"
+      "sha256": "5348b8d07ad79a172d16002f2595760350cf0ae017b3819881ff1ebcc75bc01f"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
       "bytes": 45238,
-      "sha256": "484dcba5712807e59d20ff475a1087b814e879673f5e5e4e2443aca8a5f44aed"
+      "sha256": "1086e45d86071b022df26a7d59849d09eaeea8c4b3c9067067530b1cf212b022"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
       "bytes": 26327,
-      "sha256": "a5c82d7c9d286f1aa59818cee48b808793cef6c7648161b35f53dc8de2d03cd5"
+      "sha256": "20070fa864a5a79f259d06be3c9b75aeffe83680022f371f0c73defb3d33a58a"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-series/index.html",
       "bytes": 26435,
-      "sha256": "2e4bed60f856bfa869f74ed49a44c56a9429920630a341f637672dc57ba7435e"
+      "sha256": "18bd38ff48bcea86f21ed9cc38aba6e192ab63deff9ea99f073390d7c852f2ac"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/coulombs-law/index.html",
       "bytes": 26480,
-      "sha256": "ea9c97564118f5af35fa8ed58271e79e8d90ecf2db229408f8e93654c37f1836"
+      "sha256": "54d75340ff217279daff5663f2111ae60c757bb2fa17beb68f9fbff22896bcce"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/dielectric-slab-in-capacitor/index.html",
       "bytes": 25920,
-      "sha256": "83430dba6bb4f20b89af28efcabb4831054dda026b82b185109e777f717161ab"
+      "sha256": "79a1dbee3d8b9dad421da1532aa51940acdfebd1cfc6768858a22a18c6b896e1"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/electric-potential/index.html",
       "bytes": 28763,
-      "sha256": "786caa16d8e3679dc46bb899b2686a4fc627f73a480a0f57fac5f9bf011b08c0"
+      "sha256": "98c0a97fff1e7c415f8798866c4c00eb62105021abd2f8b210f789c5cab5f76d"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/energy-stored-in-capacitor/index.html",
       "bytes": 26625,
-      "sha256": "d4ac1464313d619c165cec6c8466c484b18bdcee7730c4fd7c6702a2929304c9"
+      "sha256": "b63c4bff5ab4a4ed4e50e44f84639a2db5989bd31590c50f1d05eff51aa8acd1"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/gauss-law/index.html",
       "bytes": 26997,
-      "sha256": "1df63aa6c41ceeb55d92fc26b67223534e347f7b2e54f30b8180ba0157495d1f"
+      "sha256": "8ba51d7c5c9b134298c4f90e9e55dc306a8fe4247c6f490ab2ed55689488928f"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/parallel-plate-capacitance/index.html",
       "bytes": 25899,
-      "sha256": "8067a1aac9012bd06f73616f49d46f4574aa6f91a9cd49634fafa5d20991f417"
+      "sha256": "8229c58a8bf71371aea48faf622ecf5f42c9c10d698057f3bfdc68c2506e0f23"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/important-questions/index.html",
       "bytes": 25480,
-      "sha256": "5e0dbc51f4b9d6e24483f0376f3762357c397b6bf02f865def0e8e84b5c2498b"
+      "sha256": "b155f2dc24eb515de13b130caf56cc820ab2f4d3cec2e0d9e99c0f68266575d1"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/practice/index.html",
       "bytes": 29687,
-      "sha256": "14593bb997759ebbb01894701ae935a54037fe86f6e615a3fe247c6329856647"
+      "sha256": "c23733f341618b2f1d8eea55eb0c9a695af1d6cdc23b076b6a491bb0d4ca4287"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/previous-year-questions/index.html",
       "bytes": 23520,
-      "sha256": "469769c53e00c93cb1d67440811757830221e3ae1bc41edfa3689e3aaf8125b2"
+      "sha256": "a9e0b0461260676b79d4f579225a050e0b0154775b677d84e910a1d49be79e5d"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/revision/index.html",
       "bytes": 32631,
-      "sha256": "c7a2217a24be202cb27f6ac3b7fc64e7de4753a71360451a5a88f18e9f7a1ce1"
+      "sha256": "85d5ba79c22762b97ce40377d6c721c7bd7fc947d826a71d01227272b9d85c13"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/study/index.html",
       "bytes": 27482,
-      "sha256": "97c493f55b65e686af9c2217d4ddcadc8fb2ea7c38667461550b36d8b35045a9"
+      "sha256": "d474aff528b761c756a4204b176fc6e6b968e78dd8e889594484734723d71fa0"
     },
     {
       "path": "comparison/after-assets/pages/tamil-nadu-board/index.html",
@@ -7046,12 +7051,12 @@
     {
       "path": "comparison/after-assets/sitemap.xml",
       "bytes": 5247,
-      "sha256": "b8db1b34c79f3e36492390d2418b14ab28bdb9fe6e4652ed55ad53639ca8b13b"
+      "sha256": "3ca65709168b1a324e85d21c1d67d443d1e93eba4b2f3fc4414f75ba4d574fba"
     },
     {
       "path": "comparison/after-assets/sitemaps/hierarchy.xml.gz",
       "bytes": 84192,
-      "sha256": "3db9298aab080cbf74dd4134846c21810db50d6eb3a29d6d8a98e2a419b1fc8a"
+      "sha256": "0ad0013e9a9c431b8a520754d0387c5de2676972eca089af1644948a2134396d"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-1.xml.gz",
@@ -7060,148 +7065,148 @@
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-100001.xml.gz",
-      "bytes": 13759,
-      "sha256": "2e0667fca6b395ba619b6c33ef72c442c0eba924d5ca0f8597457a1b9dec6dc5"
+      "bytes": 13702,
+      "sha256": "321d6d1939503bb412a3bb51919734b06e861d4ec52ececb2b2f785904fa0198"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-10001.xml.gz",
-      "bytes": 10617,
-      "sha256": "947b70d77273205045215290ad91b5e0bd49102fa05e9248c09a30c1975f4364"
+      "bytes": 10563,
+      "sha256": "b6cdcb246077c16f47c4a5f586d18ec8bd1e767ba6fb86408bac4eae786fbfc3"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-110001.xml.gz",
-      "bytes": 20598,
-      "sha256": "f87e94939d5fa86b96f748daafbf8ee00175b280fdc767e18ce8264d9cfa0796"
+      "bytes": 20586,
+      "sha256": "43f1d7846336571ef3fb14b5158ded330179018eec5a0e9056a76627fb4a9b02"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-120001.xml.gz",
-      "bytes": 21431,
-      "sha256": "98c0cc3c4af1f1ba4734dbb3e73652d507cf55b29762c41d77ea23e3ad4a9702"
+      "bytes": 21375,
+      "sha256": "4d77349bb8531a70e70fdf74d99686e4781fdf80b37af11ad38c9a6e7ae9235b"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-130001.xml.gz",
-      "bytes": 17350,
-      "sha256": "eff7863989477082a472090f785440db9edeefde95f6391dc47665f9f9689614"
+      "bytes": 17301,
+      "sha256": "780a3d3d8c3d71a0629f7ee0c867837f35c47bfb3c86bc96e358f64b853838e7"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-140001.xml.gz",
-      "bytes": 25068,
-      "sha256": "e8b000be252eccf2cff3063e9375afe73c91386ff9004886018fe7ca48c21b8a"
+      "bytes": 24985,
+      "sha256": "3c084dd3ee818bd757a167a44bfd8474dd272f47d3b5fd8259930a837fa14f21"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-150001.xml.gz",
-      "bytes": 19949,
-      "sha256": "8fd371c5ebec6daa0c06abc13dd9d9b182fea7930c1e1038fe6654157bb5f9e1"
+      "bytes": 19944,
+      "sha256": "b662e78ab39d2b7b3a79e46e7026541b1d5b4a0bb5ae871d99f701c7a02fafaa"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-160001.xml.gz",
-      "bytes": 21922,
-      "sha256": "77803098253d9fd7f9fbf29736e9d2fa030df304b9561ab62767a2784cc78906"
+      "bytes": 21895,
+      "sha256": "e6c6acf29454697d4e12dcaaab5ce122402097fe8fa614aaa2a126bd3d799e0b"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-170001.xml.gz",
-      "bytes": 15376,
-      "sha256": "007ba61f431c8123e5ef906dab239e784cee5ac48da1dd22487d79bd99bb67ed"
+      "bytes": 15251,
+      "sha256": "5b471562d226fe9c01e839035e16308304c84fd56c1f512716fe2f45b5b7bdad"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-180001.xml.gz",
-      "bytes": 24197,
-      "sha256": "9f95cee4aef7604c6e3ed0f1b004b4932755b0a7257339f6d0807a0dd521fe76"
+      "bytes": 24186,
+      "sha256": "c29d20ffbeab22f6ca4e749cca10aa667165d24830288874568586ba368241bd"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-190001.xml.gz",
-      "bytes": 14815,
-      "sha256": "1f096c4f28610e22cb2e2aeed2829bcc2dc285ad50f5953fed1ff82289e0354b"
+      "bytes": 14778,
+      "sha256": "3535c619a4c7771ce0c18f8876d7ee606510f9e71fa5dbdb928081e1a8cdb8f9"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-200001.xml.gz",
-      "bytes": 16633,
-      "sha256": "7fb2e19f3495e5ca830b4f5d87569229a9622de6da6ad76827725eecf264fad2"
+      "bytes": 16628,
+      "sha256": "f4fe691cb1e4a55577c9b1d742286a1b9a8a34536cf62bc04ba7ac4cd4f640ca"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-20001.xml.gz",
-      "bytes": 16456,
-      "sha256": "026ef684c6afa4e0d261444cfb499ea2c1b1823a1d831fa7d4f1530fc6118e3f"
+      "bytes": 16408,
+      "sha256": "d0f3ac1cd480dbae53935483926e8ed9765cd34325773a506d0e3926be24d9ac"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-210001.xml.gz",
-      "bytes": 19260,
-      "sha256": "cb4d26aab72d0b466d7e7a93d3627fcabe09c8dbb5bba8637b00feb4d0747c6a"
+      "bytes": 19231,
+      "sha256": "6eea5ec53449ab01663bf252c01c99c32c869e57fc3196a2dc199cfccbc28656"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-220001.xml.gz",
-      "bytes": 9337,
-      "sha256": "422fff15ec9dbdf546d231935f8e60740aba20c51f6989f20ef68adfb3bde8ee"
+      "bytes": 9292,
+      "sha256": "de3e5efb7262ac53428ea05360c8c0ad585305b1e3e8a381d45c5bda8b505a76"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-230001.xml.gz",
-      "bytes": 26834,
-      "sha256": "79e7550c6889986c18a0a13d4bf7c8a4ba7b6948e3497b9bc00c6f1043cb0af5"
+      "bytes": 26816,
+      "sha256": "4cc73d1bd19b9bd1afdcb93b2d0ada4d936fb5c6f6b66a84e4733a8e015c866a"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-240001.xml.gz",
-      "bytes": 21601,
-      "sha256": "638c8d087e7c3d83cd8f76b0f28d11533da41c877b027baf77e1582d2c979ac8"
+      "bytes": 21592,
+      "sha256": "aa1269f40faa6d0bb2a4e372fd7bde34e7a0d0560212e791cb5facb383381e7d"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-250001.xml.gz",
-      "bytes": 19115,
-      "sha256": "c559a08a795c665507eaf2562fc60f73420a6a8f290f691914c3100ded5df36e"
+      "bytes": 19103,
+      "sha256": "6cc958622b5201e1999f255a4c66cfc9d07aa21d36ca9c20595826e3cf60794d"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-260001.xml.gz",
-      "bytes": 17687,
-      "sha256": "228c3929c6dd59da45a885ce72ef638ff48dd7a1e1dafe6b7a14e3b65418e1bb"
+      "bytes": 17675,
+      "sha256": "8007478871dbd898281674fd1329f88e81114f3824e4c38224a75b6092c88016"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-270001.xml.gz",
-      "bytes": 20860,
-      "sha256": "0ee7d11f94deeb2ff945e33f19a0f1a56e7daa1c6873fbd80a450a2b75cc8e96"
+      "bytes": 20809,
+      "sha256": "a8174a0e943d9aa979efb405884342826374192dc35bf4f7d01ee13c78e64215"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-280001.xml.gz",
-      "bytes": 18978,
-      "sha256": "6b936a171a304a4d9da581a4ad183b72711e434d6edeaccfa2e4bbd6c7c9f3c1"
+      "bytes": 18969,
+      "sha256": "4617b73e3c5dd38add574668f3f425e07fb3dbe017eaae0e72f770ce06435e2f"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-290001.xml.gz",
-      "bytes": 18861,
-      "sha256": "fa3a7328d8fefae4c135def6d1b02ea35f10af5e1cde88b4b91475f40f8d872c"
+      "bytes": 18849,
+      "sha256": "3ef0c3557acce1e25aa4f2d4b48f4c048c911c0fd2b0c69adae1df6bd0cae1b8"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-30001.xml.gz",
-      "bytes": 9771,
-      "sha256": "c6c14114aafc6ce461848eedc60c93c3d1d3d8afaa17316b05640d58d0e04e6a"
+      "bytes": 9701,
+      "sha256": "43245514ac5e57b9ee90702abb118b95ddbdd7615a6277c7edbc6712a77290a1"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-40001.xml.gz",
-      "bytes": 16316,
-      "sha256": "1e67cfdee3f103a202912bc26cc41ac999a69bc821f35b0a4f445a9b3568f67a"
+      "bytes": 16276,
+      "sha256": "185db5107a91d2a11f4db3e9edd98f8fded60f16ef7d0c373164c48076399c93"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-50001.xml.gz",
-      "bytes": 7482,
-      "sha256": "8c6edad0096c0fdd3afb5865b451d235a0b1ae354206b2a195ae1169b9258aa4"
+      "bytes": 7451,
+      "sha256": "175ecdab13dd8454232b840d13d9ae31f871801cd326bb259ea0df619d24da24"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-60001.xml.gz",
-      "bytes": 12462,
-      "sha256": "8ed23cc552540daaf786d34271be2ce7a8ed6ee8428c947738d4a5a295729824"
+      "bytes": 12448,
+      "sha256": "f6b016e599161efa5c1dcd065f19ad633251f509dbfbc90296c1b8f8ebf122ab"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-70001.xml.gz",
-      "bytes": 12504,
-      "sha256": "26656999a63537f512b53ee7c179b953590a68caf727733971860879e10f4918"
+      "bytes": 12486,
+      "sha256": "cf78324a6d961f1ed321828e3c014c8a0bbf8a452ca84cc9aa6bb0c4deedf22e"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-80001.xml.gz",
-      "bytes": 10758,
-      "sha256": "30ff81beaee295b77d92fc7369b2c200ac3d8e9ae9ca314b9deda2737d74c058"
+      "bytes": 10741,
+      "sha256": "cf3cdf153f446b9ca4b5288a98db64ea46170ac772ad4e195a1f37076aacc839"
     },
     {
       "path": "comparison/after-assets/sitemaps/questions-90001.xml.gz",
-      "bytes": 10255,
-      "sha256": "13505082c92ca1e71c7e39cb8a8f5d2cb061c57546a5ab24eee764d3eac95659"
+      "bytes": 10170,
+      "sha256": "daaf27c5ada2fe5861519ba41d5bfd7c7d6a8776228a802a04b554aa9811f300"
     },
     {
       "path": "comparison/after-assets/study-cluster.js",
@@ -7220,8 +7225,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 116117,
-      "sha256": "8cb5a6722f891c8ffe0bda6954480b2571de27d4c12fdabad185eb2318145b17"
+      "bytes": 140549,
+      "sha256": "631ccb89daaa5e5e2f77c1c72ef6096931893ebbc8d82499fa07fd60771f851b"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -7245,8 +7250,8 @@
     },
     {
       "path": "corpus-quality-manifest.mjs",
-      "bytes": 1873,
-      "sha256": "815397555f85b4689fb746ee65a6d925e1cc0758fac7e1605b0e4e96e6c82390"
+      "bytes": 1880,
+      "sha256": "e8a7f0c501d229f5dfdaeb4e7838d2b420b432baec550463eb7fd0e34b3d2244"
     },
     {
       "path": "corpus-quality.mjs",
@@ -7276,12 +7281,12 @@
     {
       "path": "phase3-question-seo-manifest.mjs",
       "bytes": 731731,
-      "sha256": "e09ed2cd311c58c38e0c679b54e8715d5d407778220d2a6cc77a1dc2450fa046"
+      "sha256": "def908d791d2c0ae9c58b8db4b93d2aad2bec9565c3674a51d2f256777193bf4"
     },
     {
       "path": "phase4-publish-manifest.mjs",
       "bytes": 151094,
-      "sha256": "b4e54bb272f8d14fa18c88e7a5d236c1035f868b28aadaeccf4b0f153885390e"
+      "sha256": "fcb3d1aaf791e61c2b3b22a9eb00a10cc6a3062421a3526a1fcee06dad3318fd"
     },
     {
       "path": "phase5-compliance.mjs",
@@ -7340,8 +7345,8 @@
     },
     {
       "path": "question-search.mjs",
-      "bytes": 14415,
-      "sha256": "cece5c1b33145d9750952a5c22e985b496104f70c90b0e9f3423e654265a1140"
+      "bytes": 14867,
+      "sha256": "6b0ddb1753744124e40e575eb551f41218967fdf011cb974b3c250d27ec2384c"
     },
     {
       "path": "question-seo.mjs",
@@ -7351,7 +7356,7 @@
     {
       "path": "question-showcase-manifest.mjs",
       "bytes": 11672,
-      "sha256": "aa7144019fb19c54ef137157e31281540f99241513816c87378128f1cd5eba2b"
+      "sha256": "070443018ad24eb5668eb18d812a06024902f5b003f1b901e9cb187f961ac0f5"
     },
     {
       "path": "render-consistency.mjs",
@@ -7375,13 +7380,13 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 46780,
-      "sha256": "fa6fd73785422811b9f565390ccc8b9b67648ce47a7f964649fa3de0cd6aac59"
+      "bytes": 48106,
+      "sha256": "fbd304a16b20077e04665aa8680cad7f2aea287bc6731ce0e6c552c71ee8a788"
     },
     {
       "path": "source-mapping-quality.mjs",
-      "bytes": 2290,
-      "sha256": "7a862022c2bba662aa0ad60c80d59e5601646a0e9b545decb3356fe5f6a5a000"
+      "bytes": 2288,
+      "sha256": "56b92974f2c7d815fb6bcc43bc039e76905fd587920e5623011ae943b8c29288"
     },
     {
       "path": "structured-data.mjs",
@@ -7400,8 +7405,8 @@
     },
     {
       "path": "worker.js",
-      "bytes": 6740747,
-      "sha256": "788c4a785f47c83c8d6b66f4171d57fd7154879ecbfff57397fe941214f5d056"
+      "bytes": 6740727,
+      "sha256": "2d3908ff13c98e61fd51177d1aa8e3f3018b6c0b24534bbb99cfde482e63e8a5"
     },
     {
       "path": "wrangler.production.jsonc",
@@ -7409,5 +7414,5 @@
       "sha256": "68e837a2ddeacce959922b4fc801a24f161f81bcd528a22e075eff2626c3368a"
     }
   ],
-  "aggregateSha256": "3c6d9b37516c6e6aedc86b7f8e01a0963338ac06b13df423431a1210622202a1"
+  "aggregateSha256": "0f01bb084297ecd11475c0fd33db0110f94a4564fe66a365a0271f144f5b2fa6"
 }

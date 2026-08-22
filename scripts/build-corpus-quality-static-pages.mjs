@@ -74,6 +74,14 @@ const compactChapterPages = Object.freeze([
     title: "Friction",
     context: "CBSE · Class 12 · Physics · HC Verma",
   }),
+  Object.freeze({
+    bookId: "cbse::class-12::physics::hc-verma-concepts-of-physics-volume-1-and-2-class-12",
+    chapterSlug: "gausss-law",
+    publicPath: "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/gausss-law",
+    output: "chapter-gausss-law",
+    title: "Gauss’s Law",
+    context: "CBSE · Class 12 · Physics · HC Verma",
+  }),
 ]);
 
 function escapeHtml(value) {

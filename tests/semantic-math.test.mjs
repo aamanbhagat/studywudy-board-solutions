@@ -126,6 +126,33 @@ test("legacy geometry labels recover dropped intersection and parallel operators
   assert.equal(canonicalFormulaForLegacyLabel(lookup, "A E F C")?.source, parallel);
 });
 
+test("combined geometry proof statements keep logical operators and prose as MathML text", () => {
+  const statements = [
+    [
+      String.raw`AE\parallel FC\ \text{and}\ AE=FC\Rightarrow AECF\ \text{is a parallelogram}`,
+      "AEFCandAE=FCAECFisaparallelogram",
+    ],
+    [
+      String.raw`BQ=QP\ \text{and}\ DP=PQ\implies BQ=QP=PD`,
+      "BQ=QPandDP=PQBQ=QP=PD",
+    ],
+  ];
+  for (const [source, lossyLegacyLabel] of statements) {
+    const representation = formulaRepresentations(source);
+    assert.equal(validateFormulaRepresentations(representation).complete, true);
+    assert.match(representation.mathml, /<mtext>and<\/mtext>/u);
+    assert.match(representation.mathml, /<mo>⇒<\/mo>/u);
+    assert.doesNotMatch(representation.mathml, /<mi>a<\/mi><mi>n<\/mi><mi>d<\/mi>/u);
+    assert.equal(canonicalFormulaForLegacyLabel(buildCanonicalFormulaLookup({ formula: source }), lossyLegacyLabel)?.source, source);
+  }
+});
+
+test("legacy degree labels map back to canonical angle formulae instead of placeholders", () => {
+  const source = String.raw`\angle RQS=180^\circ-\angle QRS-\angle QSR=180^\circ-75^\circ-75^\circ=30^\circ`;
+  const lookup = buildCanonicalFormulaLookup({ formula: source });
+  assert.equal(canonicalFormulaForLegacyLabel(lookup, "RQS=180^- QRS- QSR=180^-75^-75^=30^")?.source, source);
+});
+
 test("strict equation parsing rejects structurally impossible formulae", () => {
   for (const source of [
     String.raw`\frac{{}^{2}}`,
@@ -221,7 +248,7 @@ test("shared rich-text rendering derives every route's equation markup from the 
 
 test("the Worker replaces legacy glyph trees with one semantic representation", async () => {
   const source = await readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
-  assert.match(source, /ast-mathml-authoritative-v5-operator-equivalence/u);
+  assert.match(source, /ast-mathml-authoritative-v6-rendered-output-gate/u);
   assert.match(source, /canonicalFormulaForLegacyLabel/u);
   assert.match(source, /data-nosnippet/u);
   assert.match(source, /element\.replace\(renderSemanticMath\(representation, \{ visiblePlain: true \}\)/u);

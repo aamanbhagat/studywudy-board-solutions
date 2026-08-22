@@ -38,6 +38,7 @@ import {
 } from "../public-question-eligibility.mjs";
 import {
   buildQuestionPageExperience,
+  conciseDirectAnswer,
   findQuestionPageContext,
   QUESTION_PAGE_EXPERIENCE_STYLES,
   renderQuestionPageExperience,
@@ -62,9 +63,12 @@ import {
 import {
   buildCanonicalFormulaLookup,
   canonicalFormulaForLegacyLabel,
+  evaluateQuestionFormulaAccessibility,
   formulaRepresentations,
+  invalidRenderedMathFound,
   repairCrawlerFormulaSource,
   repairMalformedFormulaText,
+  renderMathText,
   renderSemanticMath,
   SEMANTIC_MATH_STYLES,
   validateFormulaStructure,
@@ -159,7 +163,7 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260822-semantic-operator-gate-v78";
+const PHASE_2_VERSION = "20260823-single-pass-render-gate-v81";
 const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
   "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/quadatric-euation": "/pages/corpus-quality/quadratic-equations/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031": "/pages/corpus-quality/source-review-61425/",
@@ -169,6 +173,7 @@ const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
   "/cbse/class-12/chemistry/ncert-exemplar-chemistry-exemplar-class-12/solid-states": "/pages/corpus-quality/chapter-solid-states/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential": "/pages/corpus-quality/chapter-electric-field-and-potential/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/friction": "/pages/corpus-quality/chapter-friction/",
+  "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/gausss-law": "/pages/corpus-quality/chapter-gausss-law/",
 });
 const STATIC_STUDY_CLUSTER_SUFFIXES = new Set([
   "study",
@@ -188,6 +193,7 @@ const STATIC_STUDY_CLUSTER_SUFFIXES = new Set([
 ]);
 const MAX_BOOK_COMPRESSED_BYTES = 4 * 1024 * 1024;
 const MAX_BOOK_JSON_CHARACTERS = 20 * 1024 * 1024;
+const INFLIGHT_BOOK_PAYLOADS = new Map();
 const BOARD_METADATA_LABELS = Object.freeze({
   "maharashtra-board": "Maharashtra State Board",
   cbse: "CBSE",
@@ -833,7 +839,7 @@ async function questionEligibilityHeadResponse(request, env, route) {
     "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
     "x-studywudy-question-experience": indexable ? "question-specific-trust-v2" : "review-required",
     "x-studywudy-search-metadata": "catalog-data-v1",
-    "x-studywudy-semantic-math": "ast-mathml-authoritative-v5-operator-equivalence",
+    "x-studywudy-semantic-math": "ast-mathml-authoritative-v6-rendered-output-gate",
   });
   return new Response(null, { status: 200, headers });
 }
@@ -846,29 +852,41 @@ function catalogBlobBytes(value) {
 
 async function loadCatalogBookPayload(env, bookId) {
   if (!env.DB) return null;
-  const result = await env.DB.prepare(
-    "SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index",
-  ).bind(bookId).all();
-  const chunks = (result.results || []).map((row) => catalogBlobBytes(row.content_chunk));
-  if (!chunks.length) return null;
-  const compressedBytes = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-  if (compressedBytes > MAX_BOOK_COMPRESSED_BYTES) throw new Error("Textbook payload exceeds the bounded compressed size");
-  const compressed = new Uint8Array(compressedBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    compressed.set(chunk, offset);
-    offset += chunk.byteLength;
+  const existing = INFLIGHT_BOOK_PAYLOADS.get(bookId);
+  if (existing) return existing;
+  const pending = (async () => {
+    const result = await env.DB.prepare(
+      "SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index",
+    ).bind(bookId).all();
+    const chunks = (result.results || []).map((row) => catalogBlobBytes(row.content_chunk));
+    if (!chunks.length) return null;
+    const compressedBytes = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+    if (compressedBytes > MAX_BOOK_COMPRESSED_BYTES) throw new Error("Textbook payload exceeds the bounded compressed size");
+    const compressed = new Uint8Array(compressedBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      compressed.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const decompressed = new Blob([compressed.buffer]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const json = await new Response(decompressed).text();
+    if (json.length > MAX_BOOK_JSON_CHARACTERS) throw new Error("Textbook payload exceeds the bounded decoded size");
+    return applyKnownPayloadRepairs(bookId, JSON.parse(json));
+  })();
+  INFLIGHT_BOOK_PAYLOADS.set(bookId, pending);
+  try {
+    return await pending;
+  } finally {
+    if (INFLIGHT_BOOK_PAYLOADS.get(bookId) === pending) INFLIGHT_BOOK_PAYLOADS.delete(bookId);
   }
-  const decompressed = new Blob([compressed.buffer]).stream().pipeThrough(new DecompressionStream("gzip"));
-  const json = await new Response(decompressed).text();
-  if (json.length > MAX_BOOK_JSON_CHARACTERS) throw new Error("Textbook payload exceeds the bounded decoded size");
-  return applyKnownPayloadRepairs(bookId, JSON.parse(json));
 }
 
 async function questionPageCatalogRecord(env, route) {
   if (!env.DB) return null;
-  const row = await env.DB.prepare(`SELECT q.row_id, q.book_id, q.display_label, q.type,
+  const row = await env.DB.prepare(`SELECT q.row_id, q.book_id, q.question_id, q.display_label, q.type,
+    q.prompt_text, q.concept_tags, q.chapter_slug,
     b.title AS book_title, bo.name AS board_name, bo.short_name AS board_short_name,
+    b.slug AS book_slug, b.board_slug, b.grade_slug, b.subject_slug,
     g.label AS grade_label, g.class_number, s.name AS subject_name,
     c.number AS chapter_number, c.title AS chapter_title, c.book_pages
     FROM catalog_questions q
@@ -886,6 +904,231 @@ async function questionPageCatalogRecord(env, route) {
   row.book_title = reviewedBookTitle(row.book_id, repairKnownText(row.book_id, row.book_title));
   row.chapter_title = reviewedChapterTitle(row.book_id, route.chapter, repairKnownText(row.book_id, row.chapter_title));
   return row;
+}
+
+function standaloneQuestionInline(value, bookId) {
+  const source = repairKnownText(bookId, String(value ?? ""))
+    .replace(/<br\s*\/?\s*>/giu, "\n");
+  return renderMathText(source)
+    .replace(/\*\*([\s\S]+?)\*\*/gu, "<strong>$1</strong>")
+    .replace(/__([\s\S]+?)__/gu, "<strong>$1</strong>")
+    .replace(/\n/gu, "<br>");
+}
+
+function standaloneQuestionContent(value, bookId) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return `<p>${standaloneQuestionInline(value, bookId)}</p>`;
+  }
+  if (Array.isArray(value)) return value.map((item) => standaloneQuestionContent(item, bookId)).join("");
+  if (value.kind === "blocks" || Array.isArray(value.blocks)) {
+    return (value.blocks || []).map((block) => standaloneQuestionContent(block, bookId)).join("");
+  }
+  if (value.kind === "paragraph" || typeof value.text === "string") {
+    return `<p>${standaloneQuestionInline(value.text, bookId)}</p>`;
+  }
+  if (value.kind === "list" || Array.isArray(value.items)) {
+    const tag = value.style === "ordered" ? "ol" : "ul";
+    return `<${tag}>${(value.items || []).map((item) => `<li>${typeof item === "object" ? standaloneQuestionContent(item, bookId) : standaloneQuestionInline(item, bookId)}</li>`).join("")}</${tag}>`;
+  }
+  if (value.kind === "table" || Array.isArray(value.rows)) {
+    const headers = (value.headers || []).map((cell) => `<th scope="col">${standaloneQuestionInline(cell, bookId)}</th>`).join("");
+    const rows = (value.rows || []).map((row) => `<tr>${(Array.isArray(row) ? row : Object.values(row || {})).map((cell) => `<td>${standaloneQuestionInline(cell, bookId)}</td>`).join("")}</tr>`).join("");
+    return `<div class="question-table-scroll"><table>${headers ? `<thead><tr>${headers}</tr></thead>` : ""}<tbody>${rows}</tbody></table></div>`;
+  }
+  if (value.kind === "code" && typeof value.code === "string") {
+    return `<p class="question-source-note">${standaloneQuestionInline(value.code, bookId)}</p>`;
+  }
+  return `<p>${standaloneQuestionInline(JSON.stringify(value), bookId)}</p>`;
+}
+
+function standaloneMediaUrl(value) {
+  const source = rewritePublicAssetPath(String(value || ""));
+  const prefix = "/api/generated-preview/media/";
+  return source.startsWith(prefix) ? `/studywudy-media/${source.slice(prefix.length)}.webp` : source;
+}
+
+function standaloneQuestionMedia(items, label, bookId) {
+  return (items || []).map((item, index) => {
+    const alt = String(item?.alt || "").trim().toLocaleLowerCase("en-IN") === "image"
+      ? `${label} illustration`
+      : String(item?.alt || `${label} illustration`);
+    const caption = String(item?.caption || "").trim();
+    return `<figure><img alt="${escapeHtmlAttribute(alt)}" decoding="async" height="${Number(item?.height) || 640}" loading="lazy" src="${escapeHtmlAttribute(standaloneMediaUrl(item?.url || item?.fallbackUrl))}" width="${Number(item?.width) || 960}">${caption ? `<figcaption>${standaloneQuestionInline(caption, bookId)}</figcaption>` : ""}</figure>`;
+  }).join("");
+}
+
+function standaloneQuestionChoices(question, bookId) {
+  if (!question?.choices?.length) return "";
+  const correctIds = new Set(question.correctChoiceIds || (question.correctChoiceId ? [question.correctChoiceId] : []));
+  return `<ol class="question-choice-list">${question.choices.map((choice) => `<li${correctIds.has(choice.id) ? ' class="is-correct"' : ""}><b>${escapeHtmlAttribute(String(choice.id || "").toUpperCase())}</b><span>${standaloneQuestionInline(choice.content, bookId)}</span>${correctIds.has(choice.id) ? "<small>Correct option</small>" : ""}</li>`).join("")}</ol>`;
+}
+
+function standaloneQuestionSolution(question, bookId) {
+  const parts = [];
+  if (question.answer != null) parts.push(`<section><h3>Answer</h3>${standaloneQuestionContent(question.answer, bookId)}</section>`);
+  if (question.answers?.length) parts.push(`<section><h3>Answers</h3>${standaloneQuestionContent({ kind: "list", items: question.answers }, bookId)}</section>`);
+  if (question.explanation != null) parts.push(`<section><h3>Explanation</h3>${standaloneQuestionContent(question.explanation, bookId)}</section>`);
+  if (question.steps?.length) {
+    parts.push(`<section><h3>Step-by-step solution</h3><ol class="question-step-list">${question.steps.map((step, index) => `<li><span>Step ${index + 1}</span>${standaloneQuestionContent(step.content, bookId)}</li>`).join("")}</ol></section>`);
+  }
+  if (question.comparison != null) parts.push(`<section><h3>Comparison</h3>${standaloneQuestionContent(question.comparison, bookId)}</section>`);
+  if (question.matches?.length) parts.push(`<section><h3>Matches</h3>${standaloneQuestionContent(question.matches, bookId)}</section>`);
+  if (question.blanks?.length) parts.push(`<section><h3>Completed blanks</h3>${standaloneQuestionContent(question.blanks.map((blank) => blank.answer ?? blank), bookId)}</section>`);
+  const finalAnswer = questionAnswerOverride({ question_id: question.id }) || question.finalAnswer;
+  if (finalAnswer != null) parts.push(`<section class="final-answer"><h3>Final answer</h3>${standaloneQuestionContent(finalAnswer, bookId)}</section>`);
+  if (!parts.length) parts.push(`<section><h3>Direct answer</h3><p>${standaloneQuestionInline(conciseDirectAnswer(question), bookId)}</p></section>`);
+  return parts.join("");
+}
+
+const STANDALONE_QUESTION_STYLES = `<style data-studywudy-question-render="canonical-single-pass-v1">
+:root{--ink:#17231d;--green:#174d31;--paper:#f7f2e8;--line:#d7d1c5;--blue:#0757d8}*{box-sizing:border-box}html{color-scheme:light}body{margin:0;background:#fbfaf6;color:var(--ink);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:inherit}.shell{width:min(1120px,calc(100% - 2rem));margin-inline:auto}.site-header{border-bottom:1px solid var(--line);background:#fff}.site-header .shell{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0}.brand{font-size:1.15rem;font-weight:950;text-decoration:none}.site-header nav{display:flex;gap:1rem}.breadcrumb-bar{padding:.8rem 0;font-size:.82rem}.breadcrumb-list{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}.breadcrumb-list li+li:before{content:"/";margin-right:.35rem;color:#8a8f8b}.answer-page-hero{padding:clamp(1.5rem,5vw,3.5rem) 0 1.25rem}.eyebrow,.solution-kicker{color:var(--green);font-size:.76rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.answer-page-hero h1{max-width:950px;margin:.4rem 0 .7rem;font-size:clamp(1.75rem,4vw,3.25rem);line-height:1.08;letter-spacing:-.035em}.answer-page-chapter{margin:0;color:#59645e}.answer-page-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1.25rem;align-items:start;padding-bottom:3rem}.answer-page-main{min-width:0}.question-card,.solution-body,.study-context{margin-bottom:1rem;padding:clamp(1rem,3vw,1.5rem);border:1px solid var(--line);border-radius:18px;background:#fff}.question-card h2,.solution-body h2{margin:.2rem 0 1rem}.question-prompt{font-size:1.05rem;font-weight:650}.question-card figure,.solution-body figure{margin:1rem 0}.question-card img,.solution-body img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:12px}.question-card figcaption,.solution-body figcaption{margin-top:.4rem;color:#59645e;font-size:.82rem}.question-choice-list,.question-step-list{display:grid;gap:.65rem;padding-left:1.3rem}.question-choice-list li{padding:.7rem;border:1px solid var(--line);border-radius:10px}.question-choice-list li b{display:inline-grid;place-items:center;width:28px;height:28px;margin-right:.6rem;border-radius:8px;background:var(--paper)}.question-choice-list li small{display:block;margin-left:2.2rem;color:var(--green);font-weight:800}.question-choice-list .is-correct{border-color:#72a983;background:#f1f8f3}.solution-body>section{padding:1rem 0;border-top:1px solid #ece7de}.solution-body>section:first-of-type{border-top:0}.solution-body h3{margin:.2rem 0 .55rem}.solution-body p{margin:.4rem 0}.question-step-list>li{padding:.85rem;border-left:4px solid #8db79a;background:#f7fbf8}.question-step-list>li>span{display:block;color:var(--green);font-size:.72rem;font-weight:900;text-transform:uppercase}.final-answer{border-radius:12px;background:#edf7ef}.question-table-scroll{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:.65rem;border:1px solid var(--line);text-align:left}.study-context{position:sticky;top:1rem}.study-context dl{margin:0}.study-context div{padding:.55rem 0;border-bottom:1px solid #ece7de}.study-context dt{color:#647069;font-size:.75rem;font-weight:800}.study-context dd{margin:0;font-weight:700}.phase4-review-signal{display:grid;gap:.35rem;margin-bottom:1rem;padding:1rem;border:1px solid var(--line);border-left:6px solid var(--green);border-radius:14px;background:var(--paper)}.phase4-review-signal.is-pending{border-left-color:#a66a12}.phase4-review-signal a{font-weight:900}.phase4-review-signal small{color:#5c645f}.question-source-note{padding:.75rem;border-radius:9px;background:#f5f2eb}.site-footer{padding:1.35rem 0;background:var(--ink);color:#fff}@media(max-width:850px){.answer-page-layout{grid-template-columns:1fr}.study-context{position:static}}
+</style>`;
+
+function standaloneQuestionBreadcrumbs(row, route) {
+  const items = [
+    ["Home", "/"],
+    [row.board_short_name || row.board_name, `/${route.board}`],
+    [row.grade_label, `/${route.board}/${route.grade}`],
+    [row.subject_name, `/${route.board}/${route.grade}/${route.subject}`],
+    [row.book_title, `/${route.board}/${route.grade}/${route.subject}/${route.book}`],
+    [row.chapter_title, `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}`],
+    [`Question ${row.display_label}`, null],
+  ];
+  return `<nav class="breadcrumb-bar shell" aria-label="Breadcrumb"><ol class="breadcrumb-list">${items.map(([label, href]) => `<li>${href ? `<a href="${escapeHtmlAttribute(href)}">${escapeHtmlAttribute(label)}</a>` : `<span aria-current="page">${escapeHtmlAttribute(label)}</span>`}</li>`).join("")}</ol></nav>`;
+}
+
+function standaloneQuestionExperiencePayload(payload) {
+  return {
+    catalog: payload?.catalog,
+    textbookEdition: payload?.textbookEdition,
+    sourceEdition: payload?.sourceEdition,
+    academicYear: payload?.academicYear,
+    sourceAcademicYear: payload?.sourceAcademicYear,
+    sourceChecksum: payload?.sourceChecksum,
+    sourceVersion: payload?.sourceVersion,
+  };
+}
+
+async function standaloneQuestionResponse(request, env, url, route) {
+  if (request.method !== "GET" || !route) return null;
+  let catalog;
+  try {
+    catalog = await questionPageCatalogRecord(env, route);
+  } catch (error) {
+    console.error(JSON.stringify({ event: "standalone_question_catalog_failed", path: url.pathname, error: String(error) }));
+    return new Response("Question service is temporarily unavailable.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  }
+  if (!catalog) {
+    return new Response("<!doctype html><html lang=\"en-IN\"><head><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex, follow\"><title>Question not found | StudyWudy</title></head><body><main><h1>Question not found</h1><p>The requested textbook question does not exist.</p><a href=\"/search\">Search the question bank</a></main></body></html>", {
+      status: 404,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, follow", "x-studywudy-render-path": "early-question-404-v1" },
+    });
+  }
+
+  let payload;
+  try {
+    payload = await loadCatalogBookPayload(env, catalog.book_id);
+  } catch (error) {
+    console.error(JSON.stringify({ event: "standalone_question_payload_failed", path: url.pathname, error: String(error) }));
+    return new Response("Question service is temporarily unavailable.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  }
+  const context = findQuestionPageContext(payload, route.chapter, route.question);
+  if (!context?.question) {
+    return new Response("Question source is unavailable.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, follow" } });
+  }
+  // Keep only the current chapter (through `context`) and the small provenance
+  // fields needed below. Releasing the full decoded book before the next async
+  // boundary prevents concurrent question GETs from retaining several books.
+  payload = standaloneQuestionExperiencePayload(payload);
+
+  const question = context.question;
+  const formulaEvaluation = evaluateQuestionFormulaAccessibility(question);
+  const promptMarkup = standaloneQuestionContent(question.prompt, catalog.book_id);
+  const choiceMarkup = standaloneQuestionChoices(question, catalog.book_id);
+  const promptMedia = standaloneQuestionMedia(question.promptMedia, `Question ${catalog.display_label}`, catalog.book_id);
+  const solutionMedia = standaloneQuestionMedia(question.solutionMedia, `Solution for question ${catalog.display_label}`, catalog.book_id);
+  const solutionMarkup = standaloneQuestionSolution(question, catalog.book_id);
+  let model = buildQuestionPageExperience({
+    payload,
+    context,
+    route,
+    catalog,
+    reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
+    semanticGraph: null,
+  });
+  if (model) model = await filterPublicQuestionRecommendations(env, model);
+  let experience = renderQuestionPageExperience(model);
+  const renderedMathSurface = `${promptMarkup}${choiceMarkup}${solutionMarkup}${experience?.aboveFold || ""}${experience?.solutionSupplement || ""}`;
+  const renderedMathFailures = invalidRenderedMathFound(renderedMathSurface);
+  const renderedEquationPass = formulaEvaluation.complete
+    && renderedMathFailures.length === 0
+    && !/Equation review pending|data-studywudy-equation-review=["']pending/iu.test(renderedMathSurface);
+  const rowId = Number(catalog.row_id);
+  const indexable = Boolean(
+    renderedEquationPass
+    && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+    && corpusQuestionIndexEligible({
+      questionId: route.question,
+      rowId,
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    })
+  );
+  if (!indexable && model?.trust?.automatedAnswerGatePassed) {
+    model = { ...model, trust: { ...model.trust, automatedAnswerGatePassed: false } };
+    experience = renderQuestionPageExperience(model);
+  }
+
+  const directive = indexable
+    ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    : "noindex, follow";
+  const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(rowId);
+  const title = questionDocumentTitle(catalog, disambiguate);
+  const socialTitle = questionSocialTitle(catalog, disambiguate);
+  const description = questionDescription(catalog, disambiguate);
+  const canonical = publicDocumentUrl(url);
+  const directAnswer = conciseDirectAnswer(question);
+  const schema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${canonical}#webpage`,
+    url: canonical,
+    name: socialTitle,
+    inLanguage: languageForBookId(catalog.book_id) || "en-IN",
+    isAccessibleForFree: true,
+    mainEntity: {
+      "@type": "Question",
+      "@id": `${canonical}#question`,
+      name: questionPrompt(catalog),
+      text: questionPrompt(catalog),
+      eduQuestionType: String(catalog.type || "answer").replaceAll("_", " "),
+      educationalLevel: catalog.grade_label,
+      acceptedAnswer: { "@type": "Answer", text: directAnswer },
+    },
+  }).replaceAll("<", "\\u003c");
+  const reviewed = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })
+    .format(Number(PHASE4_GATE_MANIFEST.reviewedAt) * 1_000);
+  const reviewPanel = `<section class="phase4-review-signal${indexable ? "" : " is-pending"}" aria-label="Automated solution publishing check"><a href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : formulaEvaluation.formulaCount && !renderedEquationPass ? "Equation review pending" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The rendered answer passed type-specific structure, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page is noindex and excluded from sitemaps, search results and quality-screened samples until every publishing check passes."}</span></section>`;
+  const snippetExclusion = experience?.snippetEligible === false ? " data-nosnippet" : "";
+  const body = `<!doctype html><html lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body><header class="site-header"><div class="shell"><a class="brand" href="/" aria-label="StudyWudy home">StudyWudy</a><nav aria-label="Primary"><a href="/boards">Boards</a><a href="/search">Question Bank</a></nav></div></header><main>${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1${snippetExclusion}>${standaloneQuestionInline(questionPrompt(catalog), catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${String(Number(catalog.chapter_number) || "").padStart(2, "0")}</span> · ${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="answer-page-layout shell"><div class="answer-page-main"><article class="question-card" id="${escapeHtmlAttribute(route.question)}"${snippetExclusion}><span class="solution-kicker">Question ${escapeHtmlAttribute(catalog.display_label)} · ${escapeHtmlAttribute(QUESTION_TYPE_LABELS[normalizedQuestionType(question)] || "Textbook answer")}</span><h2>Question</h2><div class="question-prompt">${promptMarkup}</div>${promptMedia}${choiceMarkup}</article><article class="solution-body"><span class="solution-kicker">Solution</span><h2>Answer and explanation</h2>${experience?.solutionOverview || ""}${solutionMarkup}${solutionMedia}${experience?.solutionSupplement || ""}</article>${reviewPanel}${experience?.trust || ""}${experience?.sameExercise || ""}${experience?.previousYear || ""}</div><aside class="study-context" aria-label="Study context"><span class="solution-kicker">Study context</span><dl><div><dt>Board</dt><dd>${escapeHtmlAttribute(catalog.board_short_name || catalog.board_name)}</dd></div><div><dt>Class</dt><dd>${escapeHtmlAttribute(catalog.grade_label)}</dd></div><div><dt>Subject</dt><dd>${escapeHtmlAttribute(catalog.subject_name)}</dd></div><div><dt>Textbook</dt><dd>${escapeHtmlAttribute(catalog.book_title)}</dd></div><div><dt>Chapter</dt><dd>${escapeHtmlAttribute(catalog.chapter_title)}</dd></div></dl></aside></div></main><footer class="site-footer"><div class="shell">StudyWudy · Textbook questions with explicit publishing checks</div></footer></body></html>`;
+  const headers = launchStaticSecurityHeaders(new Headers({
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",
+    "x-robots-tag": directive,
+    "x-studywudy-accessibility-text": ACCESSIBILITY_TEXT_RELEASE,
+    "x-studywudy-brand-hygiene": PUBLIC_BRAND_HYGIENE_RELEASE,
+    "x-studywudy-breadcrumbs": "canonical-v1",
+    "x-studywudy-corpus-quality": CORPUS_QUALITY_POLICY_VERSION,
+    "x-studywudy-public-eligibility": PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
+    "x-studywudy-public-title": PUBLIC_TITLE_QUALITY_RELEASE,
+    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
+    "x-studywudy-question-experience": "question-specific-trust-v2",
+    "x-studywudy-render-consistency": RENDER_CONSISTENCY_RELEASE,
+    "x-studywudy-search-metadata": "catalog-data-v1",
+    "x-studywudy-semantic-math": "ast-mathml-authoritative-v6-rendered-output-gate",
+    "x-studywudy-render-path": "canonical-single-pass-v1",
+  }));
+  return new Response(body, { status: 200, headers });
 }
 
 async function filterPublicQuestionRecommendations(env, model) {
@@ -1611,7 +1854,7 @@ function semanticMathResponse(response, requestMethod) {
   headers.delete("content-length");
   headers.delete("content-encoding");
   headers.delete("etag");
-  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v5-operator-equivalence");
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v6-rendered-output-gate");
   response = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -2521,7 +2764,7 @@ async function launchHotPathStaticResponse(request, env, url) {
   headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
   headers.set("X-StudyWudy-Public-Title", PUBLIC_TITLE_QUALITY_RELEASE);
   headers.set("X-StudyWudy-Render-Consistency", RENDER_CONSISTENCY_RELEASE);
-  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v5-operator-equivalence");
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v6-rendered-output-gate");
   if (document.kind === "question-search") {
     headers.set("cache-control", document.search ? "no-store" : EDGE_HTML_CACHE);
     headers.set("X-Robots-Tag", "noindex, follow");
@@ -2547,6 +2790,45 @@ async function launchHotPathStaticResponse(request, env, url) {
   });
 }
 
+function crawlableRobotsResponse(request, url) {
+  if (!["GET", "HEAD"].includes(request.method) || url.pathname !== "/robots.txt") return null;
+  const origin = new URL(publicDocumentUrl(url)).origin;
+  const body = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /preview/\nDisallow: /*?*preview=\nDisallow: /*?*draft=\nSitemap: ${origin}/sitemap.xml\nHost: ${origin}\n`;
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": EDGE_HTML_CACHE,
+      "x-studywudy-brand-hygiene": PUBLIC_BRAND_HYGIENE_RELEASE,
+      "x-studywudy-robots-policy": "crawlable-search-noindex-v1",
+    },
+  });
+}
+
+const PUBLIC_ROUTE_ROOTS = new Set([
+  "about", "ads.txt", "api", "boardly-media", "boards", "cdn-cgi", "cbse", "cisce",
+  "contact", "corrections", "favicon.ico", "manifest.webmanifest", "maharashtra-board",
+  "privacy", "reviewers", "robots.txt", "search", "sitemap.xml", "sitemaps", "studywudy-media",
+  "tamil-nadu-board", "terms", "_next",
+]);
+
+function obviousNotFoundResponse(request, url) {
+  if (!["GET", "HEAD"].includes(request.method)) return null;
+  const root = url.pathname.split("/").filter(Boolean)[0] || "";
+  const malformedQuestionPath = /\/questions(?:\/|$)/u.test(url.pathname) && !questionRoute(url.pathname);
+  if ((!root || PUBLIC_ROUTE_ROOTS.has(root)) && !malformedQuestionPath) return null;
+  const body = "<!doctype html><html lang=\"en-IN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"robots\" content=\"noindex, follow\"><title>Page not found | StudyWudy</title></head><body><main><h1>Page not found</h1><p>The requested page does not exist.</p><a href=\"/\">Return to StudyWudy</a></main></body></html>";
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 404,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-robots-tag": "noindex, follow",
+      "x-studywudy-render-path": "early-public-404-v1",
+    },
+  });
+}
+
 const afterWorker = {
   async fetch(request, env, ctx) {
     request = withoutConditionalHtmlValidators(request);
@@ -2560,6 +2842,8 @@ const afterWorker = {
     if (quarantinedLanguagePage) {
       return enhanceResponse(request, withTheme(request, quarantinedLanguagePage), env);
     }
+    const robots = crawlableRobotsResponse(request, url);
+    if (robots) return robots;
     const launchHotPath = await launchHotPathStaticResponse(request, env, url);
     if (launchHotPath) return launchHotPath;
     const edgeCached = await edgeHtmlCacheMatch(request);
@@ -2593,6 +2877,10 @@ const afterWorker = {
         enhanceResponse(request, withTheme(request, staticCorpusPage), env),
         ctx,
       );
+    }
+    const standaloneQuestion = await standaloneQuestionResponse(request, env, url, routedQuestion);
+    if (standaloneQuestion) {
+      return edgeHtmlCacheStore(request, standaloneQuestion, ctx, { allowNoindex: true });
     }
     const staticStudyClusterPage = await staticStudyClusterPageResponse(request, env, url);
     if (staticStudyClusterPage) {
@@ -2647,6 +2935,8 @@ const afterWorker = {
         ctx,
       );
     }
+    const notFound = obviousNotFoundResponse(request, url);
+    if (notFound) return notFound;
     const response = completenessPolicyHeaders(await baseWorker.fetch(request, env, ctx), url);
     const chapterResponse = chapterSolutionLinksResponse(response, url);
     const chapterExperienceResponse = await chapterPageExperienceResponse(

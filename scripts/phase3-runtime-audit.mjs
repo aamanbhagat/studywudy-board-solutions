@@ -153,14 +153,16 @@ canonicalResults.push({
 
 const robots = await fetchText("/robots.txt");
 const robotsLines = robots.text.trim().split(/\r?\n/);
-const requiredRobotRules = ["Allow: /", "Disallow: /api/", "Disallow: /admin/", "Disallow: /preview/", "Disallow: /search?", "Disallow: /*?*preview=", "Disallow: /*?*draft="];
+const requiredRobotRules = ["Allow: /", "Disallow: /api/", "Disallow: /admin/", "Disallow: /preview/", "Disallow: /*?*preview=", "Disallow: /*?*draft="];
 const robotsAudit = {
   status: robots.response.status,
   lines: robotsLines,
   sitemapDirectives: robotsLines.filter((line) => line.startsWith("Sitemap:")),
   missingRules: requiredRobotRules.filter((rule) => !robotsLines.includes(rule)),
 };
-robotsAudit.pass = robots.response.ok && robotsAudit.missingRules.length === 0 && robotsAudit.sitemapDirectives.length === 1 && robotsAudit.sitemapDirectives[0].endsWith("/sitemap.xml");
+robotsAudit.pass = robots.response.ok && robotsAudit.missingRules.length === 0
+  && !robotsLines.includes("Disallow: /search?")
+  && robotsAudit.sitemapDirectives.length === 1 && robotsAudit.sitemapDirectives[0].endsWith("/sitemap.xml");
 
 const indexResponse = await fetchWithRetry(`${baseUrl}/sitemap.xml`);
 const indexXml = await indexResponse.text();

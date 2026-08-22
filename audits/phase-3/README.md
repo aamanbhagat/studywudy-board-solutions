@@ -55,7 +55,6 @@ Allow: /
 Disallow: /api/
 Disallow: /admin/
 Disallow: /preview/
-Disallow: /search?
 Disallow: /*?*preview=
 Disallow: /*?*draft=
 Sitemap: https://studywudy-board-solutions.amanbhagat17089.workers.dev/sitemap.xml
