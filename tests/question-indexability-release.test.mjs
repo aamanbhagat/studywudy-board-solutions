@@ -7,6 +7,8 @@ import { DatabaseSync } from "node:sqlite";
 import { isQuestionRowIndexable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { bookIdFromPathname, isBookQuarantined } from "../multilingual-text-quality.mjs";
+import { SOURCE_TEXT_INTEGRITY_MANIFEST } from "../source-text-integrity-manifest.mjs";
+import { isSourceTextIntegrityRowPassed } from "../source-text-integrity.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -21,7 +23,7 @@ function popcountByte(value) {
 }
 
 test("the generated publishing manifest has no word-count threshold", () => {
-  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v13-geometry-symbol-preservation");
+  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v14-source-input-integrity");
   assert.match(PHASE4_GATE_MANIFEST.multilingualTextPolicy, /unresolved Hindi and Tamil imports are quarantined/u);
   assert.equal(PHASE4_GATE_MANIFEST.questionPageExperienceVersion, "question-specific-trust-v2");
   assert.match(PHASE4_GATE_MANIFEST.formulaAccessibilityPolicy, /semantic-token preservation.*MathML/i);
@@ -29,12 +31,30 @@ test("the generated publishing manifest has no word-count threshold", () => {
   assert.equal(typeof PHASE4_GATE_MANIFEST.equationReviewBitsetBase64, "string");
   assert.match(PHASE4_GATE_MANIFEST.semanticAnswerQualityPolicy, /post-generation-semantic/u);
   assert.match(PHASE4_GATE_MANIFEST.sourceMappingPolicy, /internal mapping consistency is separate/u);
+  assert.match(PHASE4_GATE_MANIFEST.sourceTextIntegrityPolicy, /imported question.*Given.*substitutions.*final answer/u);
+  assert.match(PHASE4_GATE_MANIFEST.sourceTextIntegrityPolicy, /near-duplicates.*discrete counts fail closed/u);
+  assert.equal(PHASE4_GATE_MANIFEST.sourceTextIntegrityPassedCount, SOURCE_TEXT_INTEGRITY_MANIFEST.gatePassedCount);
+  assert.equal(PHASE4_GATE_MANIFEST.normalizedQuestionVerifiedCount, SOURCE_TEXT_INTEGRITY_MANIFEST.normalizedQuestionVerifiedCount);
   assert.match(PHASE4_GATE_MANIFEST.completenessPolicy, /no minimum word count/i);
   assert.equal(Object.hasOwn(PHASE4_GATE_MANIFEST, "depthFloor"), false);
   const bytes = Uint8Array.from(atob(PHASE4_GATE_MANIFEST.indexabilityBitsetBase64), (character) => character.charCodeAt(0));
   const passedRows = bytes.reduce((sum, byte) => sum + popcountByte(byte), 0);
   assert.equal(passedRows, PHASE4_GATE_MANIFEST.gatePassedCount);
   assert.equal(passedRows, PHASE4_GATE_MANIFEST.indexableCount);
+});
+
+test("source-input integrity is a separate fail-closed publishing prerequisite", () => {
+  assert.equal(SOURCE_TEXT_INTEGRITY_MANIFEST.policyVersion, "source-text-integrity-v1");
+  assert.equal(SOURCE_TEXT_INTEGRITY_MANIFEST.corpusCount, PHASE4_GATE_MANIFEST.corpusCount);
+  const bytes = Uint8Array.from(atob(SOURCE_TEXT_INTEGRITY_MANIFEST.indexabilityBitsetBase64), (character) => character.charCodeAt(0));
+  assert.equal(bytes.reduce((sum, byte) => sum + popcountByte(byte), 0), SOURCE_TEXT_INTEGRITY_MANIFEST.gatePassedCount);
+
+  const correctedButQuarantinedRows = [12550, 12559, 13092, 13094, 13096];
+  const suspiciousNearDuplicatePeers = [9047, 195312];
+  for (const rowId of [...correctedButQuarantinedRows, ...suspiciousNearDuplicatePeers]) {
+    assert.equal(isSourceTextIntegrityRowPassed(SOURCE_TEXT_INTEGRITY_MANIFEST, rowId), false, `row ${rowId} must remain in source review`);
+    assert.equal(isQuestionRowIndexable(PHASE4_GATE_MANIFEST, rowId), false, `row ${rowId} must remain out of the final publishing set`);
+  }
 });
 
 test("production sitemap assets contain exactly the type-complete question set", () => {

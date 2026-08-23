@@ -141,6 +141,7 @@ import {
   LAUNCH_HOT_PATH_RELEASE,
   launchHotPathDocument,
 } from "../launch-hot-path.mjs";
+import { filterStaticSearchEligibility } from "../static-search-eligibility.mjs";
 import {
   HOMEPAGE_DOCUMENT_TITLE,
   PUBLIC_TITLE_QUALITY_RELEASE,
@@ -574,7 +575,7 @@ async function searchQuestionBankResponse(request, env, ctx, url) {
     .on(".section-mini-heading > p", {
       element(element) {
         if (!criteria.hasCriteria) element.setInnerContent("16 quality-screened questions across boards, classes, subjects, languages and formats.");
-        else element.setInnerContent(`All ${rows.length} eligible matches are rendered below.`);
+        else element.setInnerContent(`${rows.length} eligible ${rows.length === 1 ? "match is" : "matches are"} rendered below.`);
       },
     })
     .on(".search-result-list", {
@@ -978,6 +979,7 @@ async function questionPageCatalogRecord(env, route) {
   if (!row) return null;
   row.book_title = reviewedBookTitle(row.book_id, repairKnownText(row.book_id, row.book_title));
   row.chapter_title = reviewedChapterTitle(row.book_id, route.chapter, repairKnownText(row.book_id, row.chapter_title));
+  row.prompt_text = repairKnownText(row.book_id, row.prompt_text);
   return row;
 }
 
@@ -2826,7 +2828,10 @@ async function launchHotPathStaticResponse(request, env, url) {
   if (!document) return null;
   const assetUrl = new URL(document.assetPath, url);
   assetUrl.search = "";
-  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  const assetRequest = document.kind === "question-search"
+    ? new Request(assetUrl, { method: "GET", headers: request.headers })
+    : new Request(assetUrl, request);
+  const asset = await env.ASSETS.fetch(assetRequest);
   if (!asset.ok || !(asset.headers.get("content-type") || "").includes("text/html")) {
     return new Response("Launch-critical static document is unavailable.", {
       status: 503,
@@ -2844,7 +2849,10 @@ async function launchHotPathStaticResponse(request, env, url) {
   headers.set("X-StudyWudy-Public-Title", PUBLIC_TITLE_QUALITY_RELEASE);
   headers.set("X-StudyWudy-Render-Consistency", RENDER_CONSISTENCY_RELEASE);
   headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v7-geometry-symbols");
+  let body = asset.body;
   if (document.kind === "question-search") {
+    const filtered = filterStaticSearchEligibility(await asset.text(), PHASE4_GATE_MANIFEST);
+    body = request.method === "HEAD" ? null : filtered.html;
     headers.set("cache-control", document.search ? "no-store" : EDGE_HTML_CACHE);
     headers.set("X-Robots-Tag", "noindex, follow");
     headers.set("X-StudyWudy-Search-Excerpt", SEARCH_EXCERPT_RELEASE);
@@ -2862,7 +2870,7 @@ async function launchHotPathStaticResponse(request, env, url) {
     headers.set("X-StudyWudy-Question-Experience", "question-specific-trust-v2");
     headers.set("X-StudyWudy-Search-Metadata", "catalog-data-v1");
   }
-  return new Response(request.method === "HEAD" ? null : asset.body, {
+  return new Response(request.method === "HEAD" ? null : body, {
     status: asset.status,
     statusText: asset.statusText,
     headers,

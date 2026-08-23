@@ -2,8 +2,31 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
+import { isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
+import { corpusQuestionSearchEligible } from "../corpus-quality.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
 import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
+import { getQuestionUrl, questionRecordFromCatalogRow } from "../question-routes.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
+import { QUESTION_SHOWCASE_ENTRIES } from "../question-showcase-manifest.mjs";
+import {
+  buildQuestionSearchPlan,
+  normalizedQuestionType,
+  parseQuestionSearchCriteria,
+  questionHasNumericalEvidence,
+} from "../question-search.mjs";
+import { createPlainSearchText, evaluateSearchExcerptSource, truncateSearchExcerpt } from "../search-excerpt.mjs";
+import { filterStaticSearchEligibility, staticSearchEligibilityFailures } from "../static-search-eligibility.mjs";
+import {
+  isBookQuarantined,
+  languageForBookId,
+  repairKnownText,
+  reviewedBookTitle,
+  reviewedChapterTitle,
+} from "../multilingual-text-quality.mjs";
 import {
   LAUNCH_HOT_PATH_DOCUMENTS,
   LAUNCH_HOT_PATH_RELEASE,
@@ -11,6 +34,14 @@ import {
 
 const root = resolve(import.meta.dirname, "..");
 const assetsRoot = resolve(root, "comparison/after-assets");
+const databasePath = resolve(root, "../data/d1/studywudy-content.sqlite3");
+const typeLabels = Object.freeze({
+  one_word: "One word", one_sentence: "One sentence", brief: "Brief answer", detailed: "Detailed answer",
+  define: "Definition", give_reason: "Give reason", name_list: "Name / list", mcq_single: "Single-choice MCQ",
+  mcq_multi: "Multiple-choice MCQ", assertion_reason: "Assertion–reason", true_false: "True / false",
+  fill_blank: "Fill in the blank", match_column: "Match the columns", distinguish: "Distinguish between",
+  passage: "Passage-based", numerical: "Numerical", diagram: "Diagram-based",
+});
 
 function outputPath(entry) {
   return resolve(assetsRoot, entry.assetPath.replace(/^\//u, ""), "index.html");
@@ -18,6 +49,115 @@ function outputPath(entry) {
 
 function occurrences(value, pattern) {
   return [...String(value || "").matchAll(pattern)].length;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function conceptTags(value) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  try {
+    const parsed = JSON.parse(String(value || "[]"));
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function searchCardMarkup(row) {
+  const href = getQuestionUrl(questionRecordFromCatalogRow(row));
+  const type = normalizedQuestionType(row);
+  const tags = conceptTags(row.concept_tags)
+    .map((tag) => repairKnownText(row.book_id, tag.replaceAll("-", " ")))
+    .slice(0, 4);
+  const context = [
+    reviewedBookTitle(row.book_id, repairKnownText(row.book_id, row.book_title)),
+    reviewedChapterTitle(row.book_id, row.chapter_slug, repairKnownText(row.book_id, row.chapter_title)),
+    ...tags,
+  ].filter(Boolean).join(" · ");
+  const plainPrompt = createPlainSearchText(repairKnownText(row.book_id, row.prompt_text));
+  const prompt = truncateSearchExcerpt(plainPrompt);
+  const anchorVerb = type === "numerical" ? "Calculate"
+    : /derive|prove|show that/iu.test(prompt) ? "Derive"
+      : type === "mcq_single" ? "Test your understanding of" : "Explain";
+  const anchorSubject = truncateSearchExcerpt(
+    plainPrompt.replace(/^(?:choose the correct(?: option)?|calculate|derive|explain|find)\s*:?\s*/iu, ""),
+    110,
+  );
+  const descriptiveAnchor = `${anchorVerb} ${anchorSubject.charAt(0).toLocaleLowerCase("en-IN")}${anchorSubject.slice(1)}`;
+  const showcase = row.showcase || null;
+  const verification = showcase
+    ? ` data-showcase-quality-screened="true" data-internal-mapping-consistent="${showcase.internalMappingConsistent}" data-authoritative-textbook-mapping-verified="${showcase.authoritativeTextbookMappingVerified}" data-known-authoritative-mapping-mismatch="${showcase.knownAuthoritativeMappingMismatch}" data-native-script-validation-passed="${showcase.nativeScriptValidationPassed}" data-search-excerpt-clean="${showcase.searchExcerptClean}" data-automated-gate-passed="${showcase.automatedGatePassed}" data-final-publishing-gate-passed="${showcase.finalPublishingGatePassed !== false}" data-unresolved-content="${showcase.unresolvedContent}" data-broken-media="${showcase.brokenMedia}" data-duplicate-options="${showcase.duplicateOptions}" data-runtime-payload-safe="${showcase.runtimePayloadSafe}" data-content-quality-passed="${showcase.contentQualityPassed}"`
+    : "";
+  return `<a href="${escapeHtml(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtml(row.question_id)}" data-question-type="${escapeHtml(type)}" data-question-board="${escapeHtml(row.board_slug)}" data-question-class="${escapeHtml(row.grade_slug)}" data-question-subject="${escapeHtml(row.subject_slug)}" data-question-book="${escapeHtml(row.book_id)}" data-question-language="${escapeHtml(showcase?.language || languageForBookId(row.book_id) || "en")}" data-has-diagram="${row.has_rendered_diagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${Number(row.search_priority) || 9}" data-search-match="${escapeHtml(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtml(row.display_label)}</span><i>${escapeHtml(typeLabels[type] || "Answer")}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtml(prompt)}</h2><p>${escapeHtml(context)}</p><b data-search-description="plain-v2">${escapeHtml(descriptiveAnchor)} →</b></a>`;
+}
+
+const searchProjection = `SELECT q.row_id, q.question_id, q.display_label, q.type, q.prompt_text, q.concept_tags,
+  b.id AS book_id, b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug, b.title AS book_title,
+  q.chapter_slug, c.title AS chapter_title`;
+
+function searchRows(database, entry) {
+  if (!entry.search) {
+    const byRowId = new Map();
+    const statement = database.prepare(`${searchProjection}
+      FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
+      JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
+      WHERE q.row_id = ? LIMIT 1`);
+    for (const showcase of QUESTION_SHOWCASE_ENTRIES) {
+      const row = statement.get(showcase.rowId);
+      if (!row) throw new Error(`Showcase row ${showcase.rowId} is missing from D1`);
+      byRowId.set(showcase.rowId, { ...row, showcase, has_rendered_diagram: showcase.hasDiagram, search_match: "quality-screened-showcase" });
+    }
+    return QUESTION_SHOWCASE_ENTRIES.map(({ rowId }) => byRowId.get(rowId));
+  }
+  const criteria = parseQuestionSearchCriteria(new URLSearchParams(entry.search));
+  const plan = buildQuestionSearchPlan(criteria, searchProjection);
+  const buildSql = criteria.type ? plan.sql.replace(/LIMIT \d+\s*$/u, "LIMIT 10000") : plan.sql;
+  return database.prepare(buildSql).all(...plan.bindings).map((row) => ({
+    ...row,
+    has_rendered_diagram: isQuestionRenderedDiagramAvailable(PHASE4_GATE_MANIFEST, Number(row.row_id)),
+  })).filter((row) => !isBookQuarantined(row.book_id)
+    && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id), {
+      requiresDiagram: criteria.hasDiagram === true,
+      hasRenderedDiagram: Boolean(row.has_rendered_diagram),
+    })
+    && corpusQuestionSearchEligible(row, CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS)
+    && evaluateSearchExcerptSource(row.prompt_text).pass
+    && (criteria.type !== "numerical" || questionHasNumericalEvidence(row))
+    && (criteria.hasDiagram == null || Boolean(row.has_rendered_diagram) === criteria.hasDiagram))
+    .slice(0, 50);
+}
+
+function replaceSearchCards(html, cards) {
+  const source = String(html || "");
+  const listStart = source.search(/<div\b[^>]*\bclass=["']search-result-list["'][^>]*>/iu);
+  if (listStart < 0) throw new Error("Static search result list is missing");
+  const openingEnd = source.indexOf(">", listStart) + 1;
+  const listEnd = source.indexOf("</div></section></main>", openingEnd);
+  if (openingEnd <= 0 || listEnd < 0) throw new Error("Static search result list boundary is missing");
+  return `${source.slice(0, openingEnd)}${cards.join("")}${source.slice(listEnd)}`;
+}
+
+function refreshSearchDocuments() {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    for (const entry of LAUNCH_HOT_PATH_DOCUMENTS.filter(({ kind }) => kind === "question-search")) {
+      const path = outputPath(entry);
+      const rows = searchRows(database, entry);
+      const refreshed = filterStaticSearchEligibility(replaceSearchCards(readFileSync(path, "utf8"), rows.map(searchCardMarkup)), PHASE4_GATE_MANIFEST);
+      if (refreshed.removedCount) throw new Error(`${entry.publicPath} rebuilt ${refreshed.removedCount} ineligible cards`);
+      writeFileSync(path, refreshed.html);
+      console.log(`REFRESH ${entry.publicPath} (${refreshed.resultCount} eligible cards)`);
+    }
+  } finally {
+    database.close();
+  }
 }
 
 function inspect(entry, html) {
@@ -67,6 +207,7 @@ function inspect(entry, html) {
       if (!/U sub B equals one half L i squared/iu.test(source)) failures.push("LR one-half magnetic-energy relation is missing");
     }
   } else {
+    failures.push(...staticSearchEligibilityFailures(source, PHASE4_GATE_MANIFEST));
     const declared = Number(source.match(/\bdata-search-result-count=["'](\d+)["']/iu)?.[1]);
     const cards = occurrences(source, /<a\b[^>]*\bdata-question-id=["'][^"']+["'][^>]*>/giu);
     if (!Number.isInteger(declared)) failures.push("server-rendered result count is missing");
@@ -76,7 +217,7 @@ function inspect(entry, html) {
     if (entry.search === "" && !/Quality-screened sample questions/iu.test(text)) failures.push("default showroom still makes a misleading verified claim");
     if (entry.search === "" && /data-showcase-verified|data-source-mapping-verified/iu.test(source)) failures.push("default showroom still conflates internal and authoritative mapping");
     if (entry.search !== "" && /\breviewed matches\b/iu.test(text)) failures.push("filtered summary overclaims human review");
-    if (entry.search !== "" && !/All \d+ eligible matches are rendered below\./iu.test(text)) failures.push("filtered summary does not describe eligible matches");
+    if (entry.search !== "" && !/\d+ eligible (?:match is|matches are) rendered below\./iu.test(text)) failures.push("filtered summary does not describe eligible matches");
     if (/डसपटक|HuntingGathering|We did not\s+(?:blank|in the class)|literal blank|_{3,}/iu.test(text)) {
       failures.push("a reported showroom defect remains");
     }
@@ -138,6 +279,10 @@ if (mode === "--check") {
   }
   verifyFiles();
   console.log(`Wrote ${documents.length} ${LAUNCH_HOT_PATH_RELEASE} documents`);
+} else if (mode === "--refresh-gates") {
+  refreshSearchDocuments();
+  verifyFiles();
+  console.log(`Refreshed final publishing gates in ${LAUNCH_HOT_PATH_DOCUMENTS.length} ${LAUNCH_HOT_PATH_RELEASE} documents`);
 } else {
-  throw new Error("Usage: node scripts/build-launch-hot-path-static.mjs --write [--origin URL] | --check");
+  throw new Error("Usage: node scripts/build-launch-hot-path-static.mjs --write [--origin URL] | --refresh-gates | --check");
 }

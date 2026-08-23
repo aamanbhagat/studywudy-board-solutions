@@ -18,6 +18,8 @@ import {
   QUESTION_SEARCH_SMOKE_CASES,
   smokeQuestionSearch,
 } from "../scripts/question-search-smoke.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { filterStaticSearchEligibility } from "../static-search-eligibility.mjs";
 
 const projection = "SELECT q.question_id, q.type, b.board_slug";
 
@@ -148,6 +150,18 @@ test("crawler inspection rejects lexical type chips in HTML or hydration data an
   assert.ok(inspection.failures.some((failure) => failure.includes("type other than numerical")));
 });
 
+test("static search cards are re-filtered through the current final publishing gate", () => {
+  const html = '<div class="section-mini-heading"><div><span>2</span><h2>Numericals</h2></div><p>All 2 eligible matches are rendered below.</p></div><div class="search-result-list" data-search-result-count="2"><a data-question-row-id="39148" data-question-id="q-good"><div>Good</div></a><a data-question-row-id="251535" data-question-id="q-source-review"><div>Review</div></a></div></section></main>';
+  const filtered = filterStaticSearchEligibility(html, PHASE4_GATE_MANIFEST);
+  assert.equal(filtered.removedCount, 1);
+  assert.equal(filtered.resultCount, 1);
+  assert.match(filtered.html, /data-question-row-id="39148"/u);
+  assert.doesNotMatch(filtered.html, /data-question-row-id="251535"/u);
+  assert.match(filtered.html, /data-search-result-count="1"/u);
+  assert.match(filtered.html, /1 eligible match is rendered below\./u);
+  assert.match(filtered.html, /data-search-final-gate="phase4-v14-source-input-integrity"/u);
+});
+
 test("production smoke covers every structured filter and relevance ranking", async () => {
   const requests = [];
   const popular = '<div class="search-suggestions"><a href="/search?type=numerical">Numericals</a><a href="/search?hasDiagram=true">Diagrams</a><a href="/search?type=mcq_single">MCQs</a><a href="/search?board=maharashtra-board">Maharashtra</a></div>';
@@ -170,7 +184,7 @@ test("production smoke covers every structured filter and relevance ranking", as
     const diagram = parsed.searchParams.get("hasDiagram") === "true";
     const priority = parsed.searchParams.has("q") ? 2 : parsed.search ? 1 : 9;
     const cards = card(type, board, diagram, priority);
-    const summary = parsed.search ? '<p>All 1 eligible matches are rendered below.</p>' : "";
+    const summary = parsed.search ? '<p>1 eligible match is rendered below.</p>' : "";
     return new Response(`${popular}${summary}<div class="search-result-list" data-search-result-count="1">${cards}</div>`, {
       status: 200,
       headers: {
@@ -193,7 +207,7 @@ test("production smoke rejects a search card whose individual page is noindex", 
     const parsed = new URL(url);
     if (parsed.pathname === "/__studywudy_missing_route_probe_20260823__") return new Response("not found", { status: 404 });
     if (parsed.pathname === "/search") {
-      return new Response(`<div class="search-suggestions"><a href="/search?type=numerical">Numericals</a><a href="/search?hasDiagram=true">Diagrams</a><a href="/search?type=mcq_single">MCQs</a><a href="/search?board=maharashtra-board">Maharashtra</a></div><p>All 1 eligible matches are rendered below.</p><div class="search-result-list" data-search-result-count="1"><a href="/cbse/class-12/physics/book/chapter/questions/q-incomplete" data-question-row-id="2" data-question-type="mcq_single" data-question-board="cbse" data-has-diagram="false" data-public-search-eligible="true" data-search-priority="1" data-search-match="structured-filter"></a></div>`, {
+      return new Response(`<div class="search-suggestions"><a href="/search?type=numerical">Numericals</a><a href="/search?hasDiagram=true">Diagrams</a><a href="/search?type=mcq_single">MCQs</a><a href="/search?board=maharashtra-board">Maharashtra</a></div><p>1 eligible match is rendered below.</p><div class="search-result-list" data-search-result-count="1"><a href="/cbse/class-12/physics/book/chapter/questions/q-incomplete" data-question-row-id="2" data-question-type="mcq_single" data-question-board="cbse" data-has-diagram="false" data-public-search-eligible="true" data-search-priority="1" data-search-match="structured-filter"></a></div>`, {
         status: 200,
         headers: {
           "content-type": "text/html",
@@ -221,6 +235,6 @@ test("the Worker keeps structured search parameters out of the default edge cach
   assert.match(source, /\["q", "type", "hasDiagram", "board"\]\.some/u);
   assert.match(source, /buildQuestionSearchPlan\(criteria, projection\)/u);
   assert.match(source, /x-studywudy-search-filter/u);
-  assert.match(source, /All \$\{rows\.length\} eligible matches are rendered below\./u);
+  assert.match(source, /\$\{rows\.length\} eligible \$\{rows\.length === 1 \? "match is" : "matches are"\} rendered below\./u);
   assert.doesNotMatch(source, /reviewed matches/iu);
 });

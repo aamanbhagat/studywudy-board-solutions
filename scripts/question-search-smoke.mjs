@@ -75,7 +75,7 @@ export function inspectQuestionSearchHtml(entry, html) {
   }
   if (entry.pathname.includes("?")) {
     if (/\breviewed matches\b/iu.test(crawlerText)) failures.push("filtered summary overclaims human review");
-    if (!/All \d+ eligible matches are rendered below\./iu.test(crawlerText)) failures.push("filtered summary does not describe eligible matches");
+    if (!/\d+ eligible (?:match is|matches are) rendered below\./iu.test(crawlerText)) failures.push("filtered summary does not describe eligible matches");
   }
   if (entry.expected.type && cards.some((card) => card.type !== entry.expected.type)) {
     failures.push(`results include a type other than ${entry.expected.type}`);

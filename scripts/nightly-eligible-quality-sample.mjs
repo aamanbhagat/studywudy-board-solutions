@@ -9,6 +9,7 @@ import {
   extractCrawlerVisibleText,
 } from "../crawler-visible-text.mjs";
 import { NIGHTLY_QUALITY_SAMPLE_MANIFEST } from "../nightly-quality-sample-manifest.mjs";
+import { detectSourceTextAnomalies } from "../source-text-integrity.mjs";
 import { PRODUCTION_ORIGIN } from "./featured-study-route-smoke.mjs";
 
 const DEFAULT_SAMPLE_SIZE = 100;
@@ -75,6 +76,10 @@ function inspectPage({ category, rowId, entry, status, headers, html, error }) {
     failures.push(caught instanceof Error ? caught.message : String(caught));
   }
   if (FORBIDDEN_PAGE_TEXT.test(crawlerText)) failures.push("crawler text contains a placeholder, runtime token, or corrupted Unicode");
+  const sourceTextAnomalies = detectSourceTextAnomalies(crawlerText, { numericContext: true });
+  if (sourceTextAnomalies.length) {
+    failures.push(`crawler text contains source-input anomaly signals: ${[...new Set(sourceTextAnomalies.map(({ code }) => code))].join(", ")}`);
+  }
   if (!/<article\b[^>]*\bclass=(?:"[^"]*\bsolution-body\b[^"]*"|'[^']*\bsolution-body\b[^']*')/iu.test(html)) failures.push("answer body is missing");
   if (!/Automated completeness gate passed/u.test(crawlerText)) failures.push("passed-gate trust copy is missing");
   const mathCount = (html.match(/<math\b/giu) || []).length;

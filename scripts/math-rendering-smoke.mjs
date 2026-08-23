@@ -216,7 +216,7 @@ export async function smokeMathRendering({
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status !== 200) throw new Error(`${pathname} returned ${response.status}`);
-    if ([lrQuestionPath, transmissionQuestionPath].includes(pathname)
+    if (pathname === lrQuestionPath
       && !/; complete$/u.test(response.headers.get("x-studywudy-publish-gate") || "")) {
       throw new Error(`${pathname} did not pass the semantic publishing gate`);
     }

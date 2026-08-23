@@ -1,3 +1,8 @@
+import {
+  RD_SHARMA_CLASS_10_BOOK_ID,
+  applyVerifiedQuestionCorrections,
+} from "./source-correction-ledger.mjs";
+
 const POLICY_VERSION = "multilingual-text-v1";
 
 const CYRILLIC_CONFUSABLES = Object.freeze({
@@ -117,6 +122,11 @@ const SOURCE_TITLE_REPAIRS = Object.freeze({
 });
 
 const VERIFIED_SOURCE_REPAIRS = Object.freeze({
+  [RD_SHARMA_CLASS_10_BOOK_ID]: Object.freeze({
+    "dimension  6cm $$\\times$$ 42cm $$\\times$$ 21 cm": "dimensions 66 cm × 42 cm × 21 cm",
+    "11cm x 10cm x 75cm___": "11 cm × 10 cm × 7 cm",
+    "loo red cards": "100 red cards",
+  }),
   [MAHARASHTRA_PHYSICS_BOOK_ID]: Object.freeze({
     "plate separation I mm": "plate separation 1 mm",
   }),
@@ -271,6 +281,7 @@ function applyKnownPayloadRepairs(bookId, payload) {
     return value;
   };
   repairNestedStrings(payload);
+  applyVerifiedQuestionCorrections(bookId, payload);
   const bookTitle = REVIEWED_LOCALIZED_BOOK_TITLES[bookId];
   if (bookTitle && payload.catalog?.book) payload.catalog.book.title = bookTitle;
   for (const chapter of payload.chapters || []) {

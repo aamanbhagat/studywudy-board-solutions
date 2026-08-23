@@ -31,8 +31,13 @@ import {
   isBookQuarantined,
 } from "../multilingual-text-quality.mjs";
 import { sourceMappingReleaseEligibility } from "../source-mapping-quality.mjs";
+import {
+  POLICY_VERSION as SOURCE_TEXT_INTEGRITY_POLICY_VERSION,
+  isSourceTextIntegrityRowPassed,
+} from "../source-text-integrity.mjs";
+import { SOURCE_TEXT_INTEGRITY_MANIFEST } from "../source-text-integrity-manifest.mjs";
 
-const POLICY_VERSION = "phase4-v13-geometry-symbol-preservation";
+const POLICY_VERSION = "phase4-v14-source-input-integrity";
 const QUESTION_PAGE_EXPERIENCE_VERSION = "question-specific-trust-v2";
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;
@@ -228,7 +233,9 @@ for (const { book_id: bookId } of bookIds) {
         const questionPageExperiencePass = directAnswerPass && exactQuestionContextPass && sourceRevisionPass;
         const policyExclusion = STATIC_NOINDEX_KEYS.has(key);
         const languageQualityPass = !isBookQuarantined(bookId);
+        const sourceTextIntegrityPass = isSourceTextIntegrityRowPassed(SOURCE_TEXT_INTEGRITY_MANIFEST, rowId);
         const eligibleBeforeEquivalence = recognizedFormat
+          && sourceTextIntegrityPass
           && completeness.complete
           && semanticAnswerQuality.complete
           && textbookMappingPass
@@ -273,6 +280,7 @@ for (const { book_id: bookId } of bookIds) {
           sourceEditionRecorded,
           questionPageExperiencePass,
           languageQualityPass,
+          sourceTextIntegrityPass,
           sameExerciseNavigationAvailable: (exercise.questions || []).length > 1,
           explicitCommonMistakeAvailable: Boolean(question.commonStudentMistake || question.commonMistake || question.examinerWarning || question.mistakeToAvoid),
           explicitAlternativeMethodAvailable: Boolean(question.alternativeMethod || question.alternativeMethods || question.otherMethod),
@@ -347,6 +355,8 @@ for (const record of records) {
 
 const completenessPassedCount = records.filter((record) => record.completeness.complete).length;
 const gatePassedCount = records.filter((record) => record.gatePassed).length;
+const sourceTextIntegrityPassedCount = records.filter((record) => record.sourceTextIntegrityPass).length;
+const sourceNearDuplicateReviewCount = SOURCE_TEXT_INTEGRITY_MANIFEST.suspiciousNearDuplicateQuestionCount;
 const maximumRowId = records.reduce((maximum, record) => Math.max(maximum, record.rowId), 0);
 const catalogEpoch = (value) => {
   const number = Number(value || 0);
@@ -359,6 +369,13 @@ const catalogMaxUpdatedAt = metadataRows.reduce((maximum, metadata) => Math.max(
   catalogEpoch(metadata.chapter_updated_at),
   catalogEpoch(metadata.question_updated_at),
 ), 0);
+if (
+  SOURCE_TEXT_INTEGRITY_MANIFEST.corpusCount !== records.length
+  || SOURCE_TEXT_INTEGRITY_MANIFEST.maximumRowId !== maximumRowId
+  || SOURCE_TEXT_INTEGRITY_MANIFEST.catalogMaxUpdatedAt !== catalogMaxUpdatedAt
+) {
+  throw new Error("Source-text-integrity manifest is stale for the current catalog; rebuild the source gate before phase 4");
+}
 const indexabilityBitsetBase64 = encodeIndexabilityBitset(records, maximumRowId);
 const equationReviewBitsetBase64 = encodeFlagBitset(records, maximumRowId, "equationReviewPending");
 const equationReviewPendingCount = records.filter((record) => record.equationReviewPending).length;
@@ -371,6 +388,7 @@ if (manifestPath) {
     completenessPolicy: "question-type-aware; no minimum word count",
     questionPageExperienceVersion: QUESTION_PAGE_EXPERIENCE_VERSION,
     formulaAccessibilityPolicy: "strict canonical parse plus semantic-token preservation across spoken text, plain text and semantic MathML",
+    sourceTextIntegrityPolicy: `${SOURCE_TEXT_INTEGRITY_POLICY_VERSION}; imported question → normalized question → Given → substitutions → final answer; suspicious numeric near-duplicates and non-integral discrete counts fail closed`,
     promptRequirementsPolicy: "draw, working, comparison, reason and derivation instructions must be satisfied by rendered answer structures",
     semanticAnswerQualityPolicy: ANSWER_SEMANTIC_QUALITY_POLICY_VERSION,
     sourceMappingPolicy: "internal mapping consistency is separate from authoritative textbook verification; known mismatches fail closed",
@@ -380,6 +398,10 @@ if (manifestPath) {
     reviewedAt,
     corpusCount: records.length,
     completenessPassedCount,
+    sourceTextIntegrityPassedCount,
+    normalizedQuestionVerifiedCount: SOURCE_TEXT_INTEGRITY_MANIFEST.normalizedQuestionVerifiedCount,
+    sourceNearDuplicateReviewCount,
+    correctionReviewPendingCount: SOURCE_TEXT_INTEGRITY_MANIFEST.correctionReviewPendingCount,
     gatePassedCount,
     indexableCount: gatePassedCount,
     maximumRowId,
@@ -419,6 +441,7 @@ if (applyPath) {
           answer: record.completeness.checks,
           semanticAnswerQuality: record.semanticAnswerQuality,
           formulaAccessibility: record.formulaAccessibility,
+          sourceTextIntegrity: { passed: record.sourceTextIntegrityPass, policyVersion: SOURCE_TEXT_INTEGRITY_POLICY_VERSION },
         }),
         record.completeness.complete ? 1 : 0,
         record.distinctIntentPass ? 1 : 0,
@@ -480,6 +503,7 @@ const formatAudit = SUPPORTED_ANSWER_TYPES.map((type) => {
 const gateFailureCounts = new Map();
 for (const record of records.filter((candidate) => !candidate.gatePassed)) {
   const reasons = [
+    ...(!record.sourceTextIntegrityPass ? ["sourceTextIntegrity"] : []),
     ...record.completeness.missing.map((check) => `answer:${check}`),
     ...(!record.semanticAnswerQuality.complete ? record.semanticAnswerQuality.failures.map((check) => `semanticAnswer:${check}`) : []),
     ...(!record.textbookMappingPass ? ["textbookMapping"] : []),
@@ -504,7 +528,7 @@ const report = {
   generatedManifest: manifestPath,
   pipelineFinding: {
     currentGateLocation: "scripts/phase4-content-gate.mjs and the generated row-indexability bitset",
-    currentFailBehavior: "fail closed for incomplete, unmapped, malformed, non-canonical, non-distinct or substantially equivalent atomic question pages",
+    currentFailBehavior: "fail closed for corrupt or unverified source inputs before evaluating incomplete, unmapped, malformed, non-canonical, non-distinct or substantially equivalent atomic question pages",
     failOpen: false,
   },
   policy: {
@@ -513,6 +537,10 @@ const report = {
     completenessPolicy: "question-type-aware",
     wordCountRole: "diagnostic only; a naturally concise complete answer can pass",
     indexRequirements: [
+      "source question text passes OCR, numeric-quantity and unit-boundary integrity checks",
+      "imported, normalized, Given, substitution and final-answer numbers remain traceable or have an approved correction record",
+      "near-duplicate numeric prompts with a suspicious dropped or duplicated digit have completed source review",
+      "discrete-object questions do not publish a fractional result without an explicit complete-object rule",
       "distinct search intent",
       "complete answer for its type",
       "internally consistent catalog/source mapping",
@@ -553,6 +581,22 @@ const report = {
     explicitAlternativeMethodCount: records.filter((record) => record.explicitAlternativeMethodAvailable).length,
     previousYearMetadataCount: records.filter((record) => record.previousYearMetadataAvailable).length,
     optionalSectionPolicy: "Render only when the current question or mapped exercise contains supporting source data; never synthesize a repeated filler paragraph.",
+  },
+  sourceTextIntegrity: {
+    policyVersion: SOURCE_TEXT_INTEGRITY_POLICY_VERSION,
+    evaluatedCount: records.length,
+    passedCount: sourceTextIntegrityPassedCount,
+    failedCount: records.length - sourceTextIntegrityPassedCount,
+    normalizedQuestionVerifiedCount: SOURCE_TEXT_INTEGRITY_MANIFEST.normalizedQuestionVerifiedCount,
+    numericChainApplicableCount: SOURCE_TEXT_INTEGRITY_MANIFEST.numericChainApplicableCount,
+    numericChainPassedCount: SOURCE_TEXT_INTEGRITY_MANIFEST.numericChainPassedCount,
+    discreteResultApplicableCount: SOURCE_TEXT_INTEGRITY_MANIFEST.discreteResultApplicableCount,
+    discreteResultFailedCount: SOURCE_TEXT_INTEGRITY_MANIFEST.discreteResultFailedCount,
+    suspiciousNearDuplicatePairCount: SOURCE_TEXT_INTEGRITY_MANIFEST.suspiciousNearDuplicatePairCount,
+    suspiciousNearDuplicateQuestionCount: sourceNearDuplicateReviewCount,
+    correctionReviewPendingCount: SOURCE_TEXT_INTEGRITY_MANIFEST.correctionReviewPendingCount,
+    ordering: "source text integrity and normalized-question verification run before answer, equation and final publishing eligibility",
+    detailedAudit: "audits/source-integrity/source-text-integrity-audit.json",
   },
   semanticAnswerQuality: {
     policyVersion: ANSWER_SEMANTIC_QUALITY_POLICY_VERSION,
