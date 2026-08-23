@@ -6,6 +6,9 @@ import {
   LAUNCH_HOT_PATH_DOCUMENTS,
   LAUNCH_HOT_PATH_RELEASE,
 } from "../launch-hot-path.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
 import { PRODUCTION_ORIGIN } from "./featured-study-route-smoke.mjs";
 
 export async function smokeLaunchHotPaths({
@@ -46,6 +49,23 @@ export async function smokeLaunchHotPaths({
       }
       const body = await response.text();
       if (!/<\/html>\s*$/iu.test(body)) throw new Error(`${job.document.publicPath} returned truncated HTML`);
+      if (job.document.kind === "electrostatics-question") {
+        if (!/class=["'][^"']*\bquestion-exercise-related\b/iu.test(body)) {
+          throw new Error(`${job.document.publicPath} missed same-exercise or same-chapter questions`);
+        }
+        if (!/class=["'][^"']*\brelated-questions\b/iu.test(body)) {
+          throw new Error(`${job.document.publicPath} missed related textbook questions`);
+        }
+        const relatedRowIds = [...body.matchAll(/\bdata-related-question-row-id=["'](\d+)["']/giu)]
+          .map((match) => Number(match[1]));
+        if (!relatedRowIds.length) throw new Error(`${job.document.publicPath} missed related question publishing identities`);
+        if (new Set(relatedRowIds).size !== relatedRowIds.length) {
+          throw new Error(`${job.document.publicPath} repeated a related question`);
+        }
+        const ineligibleRowId = relatedRowIds.find((rowId) => !isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+          || CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS.includes(rowId));
+        if (ineligibleRowId) throw new Error(`${job.document.publicPath} linked ineligible related row ${ineligibleRowId}`);
+      }
       results.push(Object.freeze({
         pathname: job.document.publicPath,
         iteration: job.iteration,

@@ -190,6 +190,22 @@ function inspect(entry, html) {
     if (!/class=["'][^"']*\bquestion-chapter-rail\b/iu.test(source)) failures.push("chapter question rail is missing");
     if (!/class=["'][^"']*\banswer-context\b/iu.test(source)) failures.push("study context rail is missing");
     if (!/(?:Automated (?:completeness gate passed|answer checks incomplete)|Equation review pending)/u.test(text)) failures.push("publishing evidence is missing");
+    const relatedRowIds = [...source.matchAll(/\bdata-related-question-row-id=["'](\d+)["']/giu)]
+      .map((match) => Number(match[1]));
+    for (const relatedRowId of relatedRowIds) {
+      if (!isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, relatedRowId)) {
+        failures.push(`related question row ${relatedRowId} failed the final publishing gate`);
+      }
+      if (CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS.includes(relatedRowId)) {
+        failures.push(`related question row ${relatedRowId} is corpus-quarantined`);
+      }
+    }
+    if (new Set(relatedRowIds).size !== relatedRowIds.length) failures.push("a related question is duplicated");
+    if (entry.kind === "electrostatics-question") {
+      if (!/class=["'][^"']*\bquestion-exercise-related\b/iu.test(source)) failures.push("same-exercise or same-chapter questions are missing");
+      if (!/class=["'][^"']*\brelated-questions\b/iu.test(source)) failures.push("related textbook questions are missing");
+      if (!relatedRowIds.length) failures.push("related question publishing identities are missing");
+    }
     if (entry.questionId.endsWith("-002")) {
       if (!/Dielectric Slab Capacitor MCQ Solution/u.test(source)) failures.push("Q2 title does not use the normalized MCQ type");
       if (/Dielectric Slab Capacitor Numerical/u.test(source)) failures.push("Q2 title still uses the imported Numerical classification");

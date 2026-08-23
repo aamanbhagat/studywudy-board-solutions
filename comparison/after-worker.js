@@ -165,7 +165,7 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260823-original-question-theme-v91";
+const PHASE_2_VERSION = "20260824-related-questions-v93";
 const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
   "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/quadatric-euation": "/pages/corpus-quality/quadratic-equations/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031": "/pages/corpus-quality/source-review-61425/",
@@ -1109,6 +1109,69 @@ function standaloneQuestionFooter() {
   return `<footer class="site-footer"><div class="footer-banner"><div class="shell"><strong><span aria-hidden="true">★</span> Learn in textbook order. Understand every answer.</strong><div aria-label="StudyWudy benefits" role="list"><span role="listitem">Free to study</span><span role="listitem">17 question types</span><span role="listitem">Made for mobile</span></div></div></div><div class="shell footer-grid"><div class="footer-intro"><a class="brand brand-footer" href="/" aria-label="StudyWudy home"><span aria-hidden="true" class="brand-mark" data-nosnippet></span><span>Study<span>Wudy</span></span></a><p class="footer-eyebrow">Clear answers for curious students</p><h2>One clear answer away from understanding it.</h2><p class="footer-note">Board-wise textbook solutions, kept in the same order as your classroom and your book.</p><a class="footer-cta" href="/boards">Find my textbook <span aria-hidden="true">→</span></a></div><nav aria-label="Footer navigation" class="footer-nav"><div><h2>Explore</h2><a href="/boards">Browse all boards <span aria-hidden="true">→</span></a><a href="/search">Question bank <span aria-hidden="true">→</span></a></div><div><h2>Study promise</h2><p><span aria-hidden="true">✓</span> Free to study</p><p><span aria-hidden="true">✓</span> Textbook order</p><p><span aria-hidden="true">✓</span> Mobile friendly</p></div><div class="phase5-native-links"><h2>About</h2><a href="/about/methodology">About &amp; Methodology <span aria-hidden="true">→</span></a><a href="/reviewers">Reviewer registry <span aria-hidden="true">→</span></a><a href="/corrections">Corrections history <span aria-hidden="true">→</span></a><a href="/privacy">Privacy Policy <span aria-hidden="true">→</span></a><a href="/terms">Terms of Service <span aria-hidden="true">→</span></a><a href="/contact">Contact Us <span aria-hidden="true">→</span></a></div></nav></div><div class="shell footer-bottom"><span>© 2026 StudyWudy · Built for curious students.</span><span class="footer-made"><i aria-hidden="true">★</i> Made for students across India</span><a href="#main-content">Back to top <span aria-hidden="true">↑</span></a></div></footer>`;
 }
 
+function standaloneRelatedQuestionHref(row, route) {
+  return `/${route.board}/${route.grade}/${route.subject}/${route.book}/${row.chapter_slug}/questions/${row.question_id}`;
+}
+
+function standaloneRelatedQuestionModel(row, catalog, route) {
+  const type = normalizedQuestionType(row);
+  return Object.freeze({
+    rowId: Number(row.row_id),
+    href: standaloneRelatedQuestionHref(row, route),
+    label: String(row.display_label || ""),
+    typeLabel: QUESTION_TYPE_LABELS[type] || "Textbook answer",
+    chapter: reviewedChapterTitle(
+      catalog.book_id,
+      row.chapter_slug,
+      repairKnownText(catalog.book_id, row.chapter_title),
+    ),
+    prompt: truncateSearchExcerpt(createPlainSearchText(repairKnownText(catalog.book_id, row.prompt_text)), 170),
+  });
+}
+
+async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
+  if (!env.DB?.batch) return Object.freeze({ sameChapter: Object.freeze([]), sameTextbook: Object.freeze([]) });
+  const projection = `SELECT q.row_id, q.question_id, q.display_label, q.type, q.prompt_text,
+    q.chapter_slug, c.title AS chapter_title
+    FROM catalog_questions q JOIN catalog_chapters c
+      ON c.book_id = q.book_id AND c.slug = q.chapter_slug`;
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare(`${projection}
+        WHERE q.book_id = ? AND q.chapter_slug = ? AND q.row_id != ?
+        ORDER BY ABS(q.row_id - ?) LIMIT 64`).bind(catalog.book_id, route.chapter, rowId, rowId),
+      env.DB.prepare(`${projection}
+        WHERE q.book_id = ? AND q.chapter_slug != ? AND q.row_id != ?
+        ORDER BY ABS(q.row_id - ?) LIMIT 96`).bind(catalog.book_id, route.chapter, rowId, rowId),
+    ]);
+    const eligible = (row) => isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id))
+      && corpusQuestionIndexEligible({
+        questionId: row.question_id,
+        rowId: Number(row.row_id),
+        duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+      });
+    const sameChapter = (results[0]?.results || []).filter(eligible).slice(0, 4)
+      .map((row) => standaloneRelatedQuestionModel(row, catalog, route));
+    const used = new Set(sameChapter.map(({ rowId: relatedRowId }) => relatedRowId));
+    const sameTextbook = (results[1]?.results || []).filter((row) => eligible(row) && !used.has(Number(row.row_id))).slice(0, 8)
+      .map((row) => standaloneRelatedQuestionModel(row, catalog, route));
+    return Object.freeze({ sameChapter: Object.freeze(sameChapter), sameTextbook: Object.freeze(sameTextbook) });
+  } catch (error) {
+    console.error(JSON.stringify({ event: "standalone_related_questions_failed", questionId: route.question, error: String(error) }));
+    return Object.freeze({ sameChapter: Object.freeze([]), sameTextbook: Object.freeze([]) });
+  }
+}
+
+function standaloneRelatedQuestionSections(recommendations, catalog, route) {
+  const sameChapter = recommendations.sameChapter.length
+    ? `<section class="question-exercise-related" aria-labelledby="same-chapter-heading"><header><span>Same chapter</span><h2 id="same-chapter-heading">More questions from ${escapeHtmlAttribute(catalog.chapter_title)}</h2></header><div>${recommendations.sameChapter.map((card) => `<a class="question-exercise-card" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span>${escapeHtmlAttribute(card.typeLabel)}</span><strong>Question ${escapeHtmlAttribute(card.label)}</strong><p>${escapeHtmlAttribute(card.prompt)}</p><b>View answer →</b></a>`).join("")}</div></section>`
+    : "";
+  const sameTextbook = recommendations.sameTextbook.length
+    ? `<section class="related-questions" aria-labelledby="related-questions-heading"><header class="related-questions-heading"><div><span aria-hidden="true">+</span><div><small>Keep learning</small><h2 id="related-questions-heading">Related questions</h2></div></div><p>${recommendations.sameTextbook.length} questions from this textbook.</p></header><div class="related-question-grid">${recommendations.sameTextbook.map((card) => `<a class="related-question-link" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span class="related-question-number">Q ${escapeHtmlAttribute(card.label)}</span><div class="related-question-preview"><div class="related-question-copy">${escapeHtmlAttribute(card.prompt)}</div><small>${escapeHtmlAttribute(card.chapter)}</small></div><b><span>Open</span> →</b></a>`).join("")}</div></section>`
+    : "";
+  return Object.freeze({ sameChapter, sameTextbook });
+}
+
 function standaloneQuestionExperiencePayload(payload) {
   return {
     catalog: payload?.catalog,
@@ -1189,6 +1252,12 @@ async function standaloneQuestionResponse(request, env, url, route) {
     model = { ...model, trust: { ...model.trust, automatedAnswerGatePassed: false } };
     experience = renderQuestionPageExperience(model);
   }
+  const relatedQuestionSections = standaloneRelatedQuestionSections(
+    await standaloneEligibleRelatedQuestions(env, catalog, route, rowId),
+    catalog,
+    route,
+  );
+  const sameExerciseOrChapter = experience?.sameExercise || relatedQuestionSections.sameChapter;
 
   const directive = indexable
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
@@ -1227,7 +1296,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const chapterNumber = String(Number(catalog.chapter_number) || "").padStart(2, "0");
   const solutionHeadingId = `${route.question}-solution-heading`;
   const promptTitle = questionPrompt(catalog);
-  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1">${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(promptTitle)}"${snippetExclusion}>${standaloneQuestionInline(promptTitle, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="shell answer-page-layout">${standaloneQuestionChapterRail(catalog, route)}<div class="answer-page-main"><article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${experience?.solutionOverview || ""}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">Step-by-step solution</h2><div>${solutionMarkup}</div>${solutionMedia}${experience?.solutionSupplement || ""}</section></article>${reviewPanel}${experience?.trust || ""}${experience?.sameExercise || ""}${experience?.previousYear || ""}</div>${standaloneQuestionContext(catalog, route)}</div></main>${standaloneQuestionFooter()}</body></html>`;
+  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1">${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(promptTitle)}"${snippetExclusion}>${standaloneQuestionInline(promptTitle, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="shell answer-page-layout">${standaloneQuestionChapterRail(catalog, route)}<div class="answer-page-main"><article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${experience?.solutionOverview || ""}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">Step-by-step solution</h2><div>${solutionMarkup}</div>${solutionMedia}${experience?.solutionSupplement || ""}</section></article>${reviewPanel}${experience?.trust || ""}${experience?.semanticLinks || ""}${sameExerciseOrChapter}${experience?.previousYear || ""}${relatedQuestionSections.sameTextbook}</div>${standaloneQuestionContext(catalog, route)}</div></main>${standaloneQuestionFooter()}</body></html>`;
   const headers = launchStaticSecurityHeaders(new Headers({
     "content-type": "text/html; charset=utf-8",
     "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",

@@ -83,7 +83,10 @@ test("stress smoke requests every static document repeatedly", async () => {
     fetchImpl: async (url) => {
       requests.push(url.toString());
       const document = launchHotPathDocument(url);
-      return new Response("<!doctype html><html></html>", {
+      const relatedMarkup = document.kind === "electrostatics-question"
+        ? '<section class="question-exercise-related"></section><section class="related-questions"><a data-related-question-row-id="229916"></a></section>'
+        : "";
+      return new Response(`<!doctype html><html>${relatedMarkup}</html>`, {
         status: 200,
         headers: {
           "content-type": "text/html",

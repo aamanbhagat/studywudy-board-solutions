@@ -189,3 +189,17 @@ test("the bounded question renderer preserves the original StudyWudy page theme"
   assert.match(source, /canonical-single-pass-v2-themed/);
   assert.doesNotMatch(source, /--ink:#17231d;--green:#174d31;--paper:#f7f2e8/);
 });
+
+test("the bounded renderer restores publishing-gated related question sections", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /standaloneEligibleRelatedQuestions/);
+  assert.match(source, /standaloneRelatedQuestionSections/);
+  assert.match(source, /data-related-question-row-id/);
+  assert.match(source, /class=\"related-question-copy\"/);
+  assert.match(source, /<b><span>Open<\/span> →<\/b><\/a>/);
+  assert.match(source, /sameExerciseOrChapter/);
+  assert.match(source, /relatedQuestionSections\.sameTextbook/);
+  assert.match(source, /standalone_related_questions_failed/);
+  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 64/);
+  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 96/);
+});
