@@ -42,6 +42,7 @@ const typeLabels = Object.freeze({
   fill_blank: "Fill in the blank", match_column: "Match the columns", distinguish: "Distinguish between",
   passage: "Passage-based", numerical: "Numerical", diagram: "Diagram-based",
 });
+const questionDecorativeTextStyles = '<style data-studywudy-decorative-text="pseudo-v3">.brand-mark::before{content:"S"}.board-card-meta [data-label]::before{content:attr(data-label)}</style>';
 
 function outputPath(entry) {
   return resolve(assetsRoot, entry.assetPath.replace(/^\//u, ""), "index.html");
@@ -58,6 +59,16 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function preserveAccessibleQuestionTheme(html) {
+  let output = String(html || "")
+    .replaceAll('<span class="brand-mark" aria-hidden="true">S</span>', '<span aria-hidden="true" class="brand-mark" data-nosnippet></span>')
+    .replaceAll('<span aria-hidden="true" class="brand-mark">S</span>', '<span aria-hidden="true" class="brand-mark" data-nosnippet></span>');
+  if (!output.includes('data-studywudy-decorative-text="pseudo-v3"')) {
+    output = output.replace("</head>", `${questionDecorativeTextStyles}</head>`);
+  }
+  return output;
 }
 
 function conceptTags(value) {
@@ -172,6 +183,12 @@ function inspect(entry, html) {
   if (/\\(?:frac|varepsilon|epsilon|text|mathrm|times)\b|\$\$/u.test(text)) failures.push("raw TeX is crawler-visible");
   if (entry.kind.endsWith("-question")) {
     if (!source.includes(`id="${entry.questionId}"`)) failures.push("question identity is missing");
+    if (!source.includes('data-studywudy-question-template="original-theme-v1"')) failures.push("original StudyWudy question template is missing");
+    if (!source.includes('/_next/static/chunks/3utpp1hmg6_bb.css')) failures.push("original StudyWudy question stylesheet is missing");
+    if (!source.includes('data-studywudy-decorative-text="pseudo-v3"')) failures.push("accessible brand monogram styling is missing");
+    if (/<span(?: [^>]*)?class=["']brand-mark["'](?: [^>]*)?>S<\/span>/iu.test(source)) failures.push("brand monogram remains crawler-visible text");
+    if (!/class=["'][^"']*\bquestion-chapter-rail\b/iu.test(source)) failures.push("chapter question rail is missing");
+    if (!/class=["'][^"']*\banswer-context\b/iu.test(source)) failures.push("study context rail is missing");
     if (!/(?:Automated (?:completeness gate passed|answer checks incomplete)|Equation review pending)/u.test(text)) failures.push("publishing evidence is missing");
     if (entry.questionId.endsWith("-002")) {
       if (!/Dielectric Slab Capacitor MCQ Solution/u.test(source)) failures.push("Q2 title does not use the normalized MCQ type");
@@ -239,10 +256,13 @@ function verifyFiles() {
   }
 }
 
-async function fetchDocuments(origin) {
+async function fetchDocuments(origin, { refreshQuestionTheme = false } = {}) {
   const documents = [];
   for (const entry of LAUNCH_HOT_PATH_DOCUMENTS) {
     const url = new URL(entry.publicPath, `${origin}/`);
+    if (refreshQuestionTheme && entry.kind.endsWith("-question")) {
+      url.searchParams.set("__studywudy_question_template", "original-theme-v1");
+    }
     const response = await fetch(url, {
       headers: {
         accept: "text/html",
@@ -255,7 +275,8 @@ async function fetchDocuments(origin) {
     });
     if (response.status !== 200) throw new Error(`${entry.publicPath} returned ${response.status}`);
     if (!(response.headers.get("content-type") || "").includes("text/html")) throw new Error(`${entry.publicPath} did not return HTML`);
-    const html = await response.text();
+    const responseHtml = await response.text();
+    const html = entry.kind.endsWith("-question") ? preserveAccessibleQuestionTheme(responseHtml) : responseHtml;
     const failures = inspect(entry, html);
     if (failures.length) throw new Error(`${entry.publicPath}: ${failures.join("; ")}`);
     documents.push(Object.freeze({ entry, html }));
@@ -271,7 +292,7 @@ if (mode === "--check") {
 } else if (mode === "--write") {
   const originFlag = process.argv.indexOf("--origin");
   const origin = new URL(originFlag >= 0 ? process.argv[originFlag + 1] : "http://127.0.0.1:8789").origin;
-  const documents = await fetchDocuments(origin);
+  const documents = await fetchDocuments(origin, { refreshQuestionTheme: process.argv.includes("--refresh-question-theme") });
   for (const { entry, html } of documents) {
     const path = outputPath(entry);
     mkdirSync(dirname(path), { recursive: true });
@@ -284,5 +305,5 @@ if (mode === "--check") {
   verifyFiles();
   console.log(`Refreshed final publishing gates in ${LAUNCH_HOT_PATH_DOCUMENTS.length} ${LAUNCH_HOT_PATH_RELEASE} documents`);
 } else {
-  throw new Error("Usage: node scripts/build-launch-hot-path-static.mjs --write [--origin URL] | --refresh-gates | --check");
+  throw new Error("Usage: node scripts/build-launch-hot-path-static.mjs --write [--origin URL] [--refresh-question-theme] | --refresh-gates | --check");
 }

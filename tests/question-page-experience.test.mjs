@@ -176,3 +176,16 @@ test("the final Worker layer fails indexing closed when the experience is unavai
   assert.match(source, /X-StudyWudy-Question-Experience/);
   assert.match(source, /Question-Experience/);
 });
+
+test("the bounded question renderer preserves the original StudyWudy page theme", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /data-studywudy-question-template=\"original-theme-v1\"/);
+  assert.match(source, /STUDYWUDY_QUESTION_THEME_ASSETS/);
+  assert.match(source, /_next\/static\/chunks\/3utpp1hmg6_bb\.css/);
+  assert.match(source, /class=\"shell header-inner\"/);
+  assert.match(source, /class=\"question-chapter-rail\"/);
+  assert.match(source, /class=\"answer-context\"/);
+  assert.match(source, /class=\"footer-banner\"/);
+  assert.match(source, /canonical-single-pass-v2-themed/);
+  assert.doesNotMatch(source, /--ink:#17231d;--green:#174d31;--paper:#f7f2e8/);
+});
