@@ -32,6 +32,7 @@ import {
 } from "../question-routes.mjs";
 import { isQuestionEquationReviewPending, isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { QUESTION_PAYLOAD_ASSET_MANIFEST } from "../question-payload-assets-manifest.mjs";
 import {
   isQuestionPubliclyEligible,
   PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
@@ -163,7 +164,7 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260823-single-pass-render-gate-v81";
+const PHASE_2_VERSION = "20260823-question-payload-pack-v89";
 const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
   "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/quadatric-euation": "/pages/corpus-quality/quadratic-equations/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031": "/pages/corpus-quality/source-review-61425/",
@@ -193,7 +194,12 @@ const STATIC_STUDY_CLUSTER_SUFFIXES = new Set([
 ]);
 const MAX_BOOK_COMPRESSED_BYTES = 4 * 1024 * 1024;
 const MAX_BOOK_JSON_CHARACTERS = 20 * 1024 * 1024;
+const MAX_QUESTION_INDEX_BYTES = 4 * 1024 * 1024;
+const MAX_QUESTION_COMPRESSED_BYTES = 512 * 1024;
+const MAX_QUESTION_JSON_CHARACTERS = 4 * 1024 * 1024;
 const INFLIGHT_BOOK_PAYLOADS = new Map();
+const INFLIGHT_CHAPTER_PAYLOADS = new Map();
+const QUESTION_PAYLOAD_ASSET_BOOK_IDS = new Set(QUESTION_PAYLOAD_ASSET_MANIFEST.bookIds);
 const BOARD_METADATA_LABELS = Object.freeze({
   "maharashtra-board": "Maharashtra State Board",
   cbse: "CBSE",
@@ -839,7 +845,7 @@ async function questionEligibilityHeadResponse(request, env, route) {
     "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
     "x-studywudy-question-experience": indexable ? "question-specific-trust-v2" : "review-required",
     "x-studywudy-search-metadata": "catalog-data-v1",
-    "x-studywudy-semantic-math": "ast-mathml-authoritative-v6-rendered-output-gate",
+    "x-studywudy-semantic-math": "ast-mathml-authoritative-v7-geometry-symbols",
   });
   return new Response(null, { status: 200, headers });
 }
@@ -868,7 +874,7 @@ async function loadCatalogBookPayload(env, bookId) {
       compressed.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const decompressed = new Blob([compressed.buffer]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const decompressed = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
     const json = await new Response(decompressed).text();
     if (json.length > MAX_BOOK_JSON_CHARACTERS) throw new Error("Textbook payload exceeds the bounded decoded size");
     return applyKnownPayloadRepairs(bookId, JSON.parse(json));
@@ -878,6 +884,75 @@ async function loadCatalogBookPayload(env, bookId) {
     return await pending;
   } finally {
     if (INFLIGHT_BOOK_PAYLOADS.get(bookId) === pending) INFLIGHT_BOOK_PAYLOADS.delete(bookId);
+  }
+}
+
+function packedQuestionRange(indexBytes, rowId) {
+  if (indexBytes.byteLength < 12 || indexBytes.byteLength > MAX_QUESTION_INDEX_BYTES) {
+    throw new Error("Question payload index exceeds the size bound");
+  }
+  const bytes = new Uint8Array(indexBytes);
+  if (String.fromCharCode(...bytes.subarray(0, 4)) !== "SWQP") throw new Error("Question payload index has an invalid signature");
+  const view = new DataView(indexBytes);
+  if (view.getUint32(4, true) !== 1) throw new Error("Question payload index has an unsupported version");
+  const count = view.getUint32(8, true);
+  if (indexBytes.byteLength !== 12 + count * 12) throw new Error("Question payload index has an invalid length");
+  let low = 0;
+  let high = count - 1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const recordOffset = 12 + middle * 12;
+    const candidate = view.getUint32(recordOffset, true);
+    if (candidate === rowId) {
+      return {
+        offset: view.getUint32(recordOffset + 4, true),
+        length: view.getUint32(recordOffset + 8, true),
+      };
+    }
+    if (candidate < rowId) low = middle + 1;
+    else high = middle - 1;
+  }
+  return null;
+}
+
+async function loadCatalogQuestionPayload(env, bookId, chapterSlug, rowId) {
+  if (!QUESTION_PAYLOAD_ASSET_BOOK_IDS.has(bookId)) return loadCatalogBookPayload(env, bookId);
+  if (!env.ASSETS) throw new Error("Bounded question payload assets binding is unavailable");
+  const key = `${bookId}:${chapterSlug}:${rowId}`;
+  const existing = INFLIGHT_CHAPTER_PAYLOADS.get(key);
+  if (existing) return existing;
+  const pending = (async () => {
+    const bookRoute = String(bookId).split("::");
+    if (bookRoute.length !== 4) throw new Error("Invalid textbook identifier for bounded question payload");
+    const basePath = `/__studywudy_payloads/${[...bookRoute, chapterSlug].map(encodeURIComponent).join("/")}`;
+    const indexAsset = await env.ASSETS.fetch(new URL(`${basePath}.idx`, "https://assets.local"));
+    if (!indexAsset.ok) throw new Error(`Bounded question payload index returned ${indexAsset.status}`);
+    const range = packedQuestionRange(await indexAsset.arrayBuffer(), Number(rowId));
+    if (!range?.length || range.length > MAX_QUESTION_COMPRESSED_BYTES) {
+      throw new Error("Bounded question payload is missing or exceeds the compressed size limit");
+    }
+    const packRequest = new Request(new URL(`${basePath}.pack`, "https://assets.local"), {
+      headers: { range: `bytes=${range.offset}-${range.offset + range.length - 1}` },
+    });
+    const packAsset = await env.ASSETS.fetch(packRequest);
+    if (!packAsset.ok) throw new Error(`Bounded question payload pack returned ${packAsset.status}`);
+    const packed = new Uint8Array(await packAsset.arrayBuffer());
+    const compressed = packAsset.status === 206
+      ? packed
+      : packed.subarray(range.offset, range.offset + range.length);
+    if (compressed.byteLength !== range.length) throw new Error("Bounded question payload range is incomplete");
+    const decompressed = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const json = await new Response(decompressed).text();
+    if (json.length > MAX_QUESTION_JSON_CHARACTERS) {
+      throw new Error("Bounded question payload exceeds the decoded size limit");
+    }
+    return applyKnownPayloadRepairs(bookId, JSON.parse(json));
+  })();
+  INFLIGHT_CHAPTER_PAYLOADS.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (INFLIGHT_CHAPTER_PAYLOADS.get(key) === pending) INFLIGHT_CHAPTER_PAYLOADS.delete(key);
   }
 }
 
@@ -1028,7 +1103,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
 
   let payload;
   try {
-    payload = await loadCatalogBookPayload(env, catalog.book_id);
+    payload = await loadCatalogQuestionPayload(env, catalog.book_id, route.chapter, Number(catalog.row_id));
   } catch (error) {
     console.error(JSON.stringify({ event: "standalone_question_payload_failed", path: url.pathname, error: String(error) }));
     return new Response("Question service is temporarily unavailable.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
@@ -1083,11 +1158,12 @@ async function standaloneQuestionResponse(request, env, url, route) {
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     : "noindex, follow";
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(rowId);
-  const title = questionDocumentTitle(catalog, disambiguate);
-  const socialTitle = questionSocialTitle(catalog, disambiguate);
-  const description = questionDescription(catalog, disambiguate);
+  const title = repairKnownText(catalog.book_id, questionDocumentTitle(catalog, disambiguate));
+  const socialTitle = repairKnownText(catalog.book_id, questionSocialTitle(catalog, disambiguate));
+  const description = repairKnownText(catalog.book_id, questionDescription(catalog, disambiguate));
   const canonical = publicDocumentUrl(url);
   const directAnswer = conciseDirectAnswer(question);
+  const publicDirectAnswer = createPlainSearchText(directAnswer);
   const schema = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -1099,18 +1175,18 @@ async function standaloneQuestionResponse(request, env, url, route) {
     mainEntity: {
       "@type": "Question",
       "@id": `${canonical}#question`,
-      name: questionPrompt(catalog),
-      text: questionPrompt(catalog),
+      name: repairKnownText(catalog.book_id, questionPrompt(catalog)),
+      text: repairKnownText(catalog.book_id, questionPrompt(catalog)),
       eduQuestionType: String(catalog.type || "answer").replaceAll("_", " "),
       educationalLevel: catalog.grade_label,
-      acceptedAnswer: { "@type": "Answer", text: directAnswer },
+      acceptedAnswer: { "@type": "Answer", text: publicDirectAnswer },
     },
   }).replaceAll("<", "\\u003c");
   const reviewed = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })
     .format(Number(PHASE4_GATE_MANIFEST.reviewedAt) * 1_000);
   const reviewPanel = `<section class="phase4-review-signal${indexable ? "" : " is-pending"}" aria-label="Automated solution publishing check"><a href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : formulaEvaluation.formulaCount && !renderedEquationPass ? "Equation review pending" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The rendered answer passed type-specific structure, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page is noindex and excluded from sitemaps, search results and quality-screened samples until every publishing check passes."}</span></section>`;
   const snippetExclusion = experience?.snippetEligible === false ? " data-nosnippet" : "";
-  const body = `<!doctype html><html lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body><header class="site-header"><div class="shell"><a class="brand" href="/" aria-label="StudyWudy home">StudyWudy</a><nav aria-label="Primary"><a href="/boards">Boards</a><a href="/search">Question Bank</a></nav></div></header><main>${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1${snippetExclusion}>${standaloneQuestionInline(questionPrompt(catalog), catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${String(Number(catalog.chapter_number) || "").padStart(2, "0")}</span> · ${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="answer-page-layout shell"><div class="answer-page-main"><article class="question-card" id="${escapeHtmlAttribute(route.question)}"${snippetExclusion}><span class="solution-kicker">Question ${escapeHtmlAttribute(catalog.display_label)} · ${escapeHtmlAttribute(QUESTION_TYPE_LABELS[normalizedQuestionType(question)] || "Textbook answer")}</span><h2>Question</h2><div class="question-prompt">${promptMarkup}</div>${promptMedia}${choiceMarkup}</article><article class="solution-body"><span class="solution-kicker">Solution</span><h2>Answer and explanation</h2>${experience?.solutionOverview || ""}${solutionMarkup}${solutionMedia}${experience?.solutionSupplement || ""}</article>${reviewPanel}${experience?.trust || ""}${experience?.sameExercise || ""}${experience?.previousYear || ""}</div><aside class="study-context" aria-label="Study context"><span class="solution-kicker">Study context</span><dl><div><dt>Board</dt><dd>${escapeHtmlAttribute(catalog.board_short_name || catalog.board_name)}</dd></div><div><dt>Class</dt><dd>${escapeHtmlAttribute(catalog.grade_label)}</dd></div><div><dt>Subject</dt><dd>${escapeHtmlAttribute(catalog.subject_name)}</dd></div><div><dt>Textbook</dt><dd>${escapeHtmlAttribute(catalog.book_title)}</dd></div><div><dt>Chapter</dt><dd>${escapeHtmlAttribute(catalog.chapter_title)}</dd></div></dl></aside></div></main><footer class="site-footer"><div class="shell">StudyWudy · Textbook questions with explicit publishing checks</div></footer></body></html>`;
+  const body = `<!doctype html><html lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body><header class="site-header"><div class="shell"><a class="brand" href="/" aria-label="StudyWudy home">StudyWudy</a><nav aria-label="Primary"><a href="/boards">Boards</a><a href="/search">Question Bank</a></nav></div></header><main>${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1${snippetExclusion}>${standaloneQuestionInline(questionPrompt(catalog), catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${String(Number(catalog.chapter_number) || "").padStart(2, "0")}</span> · ${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="answer-page-layout shell"><div class="answer-page-main"><article class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(normalizedQuestionType(question))}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${snippetExclusion}><span class="solution-kicker">Question ${escapeHtmlAttribute(catalog.display_label)} · ${escapeHtmlAttribute(QUESTION_TYPE_LABELS[normalizedQuestionType(question)] || "Textbook answer")}</span><h2>Question</h2><div class="question-prompt">${promptMarkup}</div>${promptMedia}${choiceMarkup}</article><article class="solution-body"><span class="solution-kicker">Solution</span><h2>Answer and explanation</h2>${experience?.solutionOverview || ""}${solutionMarkup}${solutionMedia}${experience?.solutionSupplement || ""}</article>${reviewPanel}${experience?.trust || ""}${experience?.sameExercise || ""}${experience?.previousYear || ""}</div><aside class="study-context" aria-label="Study context"><span class="solution-kicker">Study context</span><dl><div><dt>Board</dt><dd>${escapeHtmlAttribute(catalog.board_short_name || catalog.board_name)}</dd></div><div><dt>Class</dt><dd>${escapeHtmlAttribute(catalog.grade_label)}</dd></div><div><dt>Subject</dt><dd>${escapeHtmlAttribute(catalog.subject_name)}</dd></div><div><dt>Textbook</dt><dd>${escapeHtmlAttribute(catalog.book_title)}</dd></div><div><dt>Chapter</dt><dd>${escapeHtmlAttribute(catalog.chapter_title)}</dd></div></dl></aside></div></main><footer class="site-footer"><div class="shell">StudyWudy · Textbook questions with explicit publishing checks</div></footer></body></html>`;
   const headers = launchStaticSecurityHeaders(new Headers({
     "content-type": "text/html; charset=utf-8",
     "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",
@@ -1122,10 +1198,13 @@ async function standaloneQuestionResponse(request, env, url, route) {
     "x-studywudy-public-eligibility": PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
     "x-studywudy-public-title": PUBLIC_TITLE_QUALITY_RELEASE,
     "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
+    "x-studywudy-question-payload": QUESTION_PAYLOAD_ASSET_BOOK_IDS.has(catalog.book_id)
+      ? QUESTION_PAYLOAD_ASSET_MANIFEST.policyVersion
+      : "bounded-book-fallback-v1",
     "x-studywudy-question-experience": "question-specific-trust-v2",
     "x-studywudy-render-consistency": RENDER_CONSISTENCY_RELEASE,
     "x-studywudy-search-metadata": "catalog-data-v1",
-    "x-studywudy-semantic-math": "ast-mathml-authoritative-v6-rendered-output-gate",
+    "x-studywudy-semantic-math": "ast-mathml-authoritative-v7-geometry-symbols",
     "x-studywudy-render-path": "canonical-single-pass-v1",
   }));
   return new Response(body, { status: 200, headers });
@@ -1854,7 +1933,7 @@ function semanticMathResponse(response, requestMethod) {
   headers.delete("content-length");
   headers.delete("content-encoding");
   headers.delete("etag");
-  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v6-rendered-output-gate");
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v7-geometry-symbols");
   response = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -2764,7 +2843,7 @@ async function launchHotPathStaticResponse(request, env, url) {
   headers.set("X-StudyWudy-Corpus-Quality", CORPUS_QUALITY_POLICY_VERSION);
   headers.set("X-StudyWudy-Public-Title", PUBLIC_TITLE_QUALITY_RELEASE);
   headers.set("X-StudyWudy-Render-Consistency", RENDER_CONSISTENCY_RELEASE);
-  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v6-rendered-output-gate");
+  headers.set("X-StudyWudy-Semantic-Math", "ast-mathml-authoritative-v7-geometry-symbols");
   if (document.kind === "question-search") {
     headers.set("cache-control", document.search ? "no-store" : EDGE_HTML_CACHE);
     headers.set("X-Robots-Tag", "noindex, follow");

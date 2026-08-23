@@ -137,9 +137,12 @@ const VERIFIED_SOURCE_REPAIRS = Object.freeze({
   }),
   [HC_VERMA_PHYSICS_BOOK_ID]: Object.freeze({
     "uniform charge distribution of density ρρ": "uniform charge distribution of density ρ",
+    "number of charge carries be nand the average": "number of charge carriers be n and the average",
+    "charge carries": "charge carriers",
   }),
   [NCERT_CLASS_12_PHYSICS_EXEMPLAR_BOOK_ID]: Object.freeze({
     "the line joining the two fixed charged": "the line joining the two fixed charges",
+    "elecric field": "electric field",
   }),
 });
 
@@ -225,7 +228,10 @@ function reviewedChapterTitle(bookId, chapterSlug, fallback = "") {
 }
 
 function repairKnownText(bookId, value) {
-  let output = String(value ?? "").normalize("NFC");
+  let output = String(value ?? "").normalize("NFC")
+    .replaceAll("\u001c(\u001c", "$")
+    .replaceAll("\u001c)\u001c", "$")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, " ");
   const repairs = [
     ...Object.entries(SOURCE_TITLE_REPAIRS[bookId] || {}),
     ...Object.entries(VERIFIED_SOURCE_REPAIRS[bookId] || {}),

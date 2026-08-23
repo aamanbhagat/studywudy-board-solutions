@@ -37,6 +37,13 @@ test("global text repair preserves Greek symbols in scientific notation", () => 
   assert.equal(repairKnownTextEverywhere("Goods and Services Taх"), "Goods and Services Tax");
 });
 
+test("normalizes imported control-character math delimiters", () => {
+  assert.equal(
+    repairKnownTextEverywhere("Construct \u001c(\u001c\\frac{4}{5}\u001c)\u001c now"),
+    "Construct $\\frac{4}{5}$ now",
+  );
+});
+
 test("rejects unresolved mixed-script tokens", () => {
   const result = validateImportedText("Taж", { field: "principal" });
   assert.equal(result.complete, false);
@@ -127,9 +134,15 @@ test("repairs the reported physics source-text defects before public rendering",
     "uniform charge distribution of density ρ",
   );
   assert.equal(
+    repairKnownText(hcVerma, "Let the number of charge carries be nand the average drift speed be v."),
+    "Let the number of charge carriers be n and the average drift speed be v.",
+  );
+  assert.equal(repairKnownText(hcVerma, "motion of charge carries"), "motion of charge carriers");
+  assert.equal(
     repairKnownText(exemplar, "the line joining the two fixed charged as shown"),
     "the line joining the two fixed charges as shown",
   );
+  assert.equal(repairKnownText(exemplar, "the elecric field everywhere"), "the electric field everywhere");
 });
 
 test("recognizes language editions and quarantines unreviewed imports", () => {

@@ -238,6 +238,32 @@ test("rendered semantic math exposes one labelled and visually authoritative Mat
   assert.equal((markup.match(/>\(1\/2\)CV²</gu) || []).length, 0);
 });
 
+test("bare boxed final answers are discovered and rendered as semantic math", () => {
+  const source = String.raw`\boxed{\frac{2}{7}}`;
+  const evaluation = evaluateQuestionFormulaAccessibility({ finalAnswer: source });
+  assert.equal(evaluation.formulaCount, 1);
+  assert.equal(evaluation.complete, true);
+  const html = renderMathText(source);
+  assert.match(html, /<math\b/u);
+  assert.match(html, /<mfrac>/u);
+  assert.doesNotMatch(html, /\\(?:boxed|frac)/u);
+});
+
+test("geometry words inside TeX text commands become semantic geometry symbols", () => {
+  const angle = formulaRepresentations(String.raw`\text{angle}RQS={30}^{\circ}`);
+  const triangle = formulaRepresentations(String.raw`\text{triangle}PQR`);
+  const parallel = formulaRepresentations(String.raw`RS\parallel PQ`);
+  assert.equal(angle.plainText, "∠RQS = 30°");
+  assert.equal(triangle.plainText, "△PQR");
+  assert.equal(parallel.plainText, "RS ∥ PQ");
+  assert.match(angle.mathml, /<mo>∠<\/mo><mi>R<\/mi><mi>Q<\/mi><mi>S<\/mi>/u);
+  assert.match(triangle.mathml, /<mo>△<\/mo><mi>P<\/mi><mi>Q<\/mi><mi>R<\/mi>/u);
+  assert.match(parallel.mathml, /<mo>∥<\/mo>/u);
+  assert.doesNotMatch(`${angle.mathml}${triangle.mathml}`, /<mtext>(?:angle|triangle)<\/mtext>/u);
+  assert.equal(validateFormulaRepresentations(angle).complete, true);
+  assert.equal(validateFormulaRepresentations(triangle).complete, true);
+});
+
 test("shared rich-text rendering derives every route's equation markup from the semantic renderer", () => {
   const markup = renderMathText("Use $$C_1=\\frac{\\varepsilon_0A}{d}$$ when $d>0$.");
   assert.equal((markup.match(/<math\b/gu) || []).length, 2);
@@ -248,7 +274,7 @@ test("shared rich-text rendering derives every route's equation markup from the 
 
 test("the Worker replaces legacy glyph trees with one semantic representation", async () => {
   const source = await readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
-  assert.match(source, /ast-mathml-authoritative-v6-rendered-output-gate/u);
+  assert.match(source, /ast-mathml-authoritative-v7-geometry-symbols/u);
   assert.match(source, /canonicalFormulaForLegacyLabel/u);
   assert.match(source, /data-nosnippet/u);
   assert.match(source, /element\.replace\(renderSemanticMath\(representation, \{ visiblePlain: true \}\)/u);

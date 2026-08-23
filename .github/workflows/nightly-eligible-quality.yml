@@ -1,0 +1,42 @@
+name: Nightly eligible-page quality sample
+
+on:
+  schedule:
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studywudy-nightly-eligible-quality
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Sample 100 pages from each eligible stratum
+        run: node scripts/nightly-eligible-quality-sample.mjs
+        env:
+          STUDYWUDY_DEPLOYMENT_URL: https://studywudy-board-solutions.amanbhagat17089.workers.dev
+          STUDYWUDY_NIGHTLY_CONCURRENCY: "4"
+          STUDYWUDY_NIGHTLY_REPORT: nightly-eligible-quality-report.json
+
+      - name: Preserve the audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-eligible-quality-${{ github.run_id }}
+          path: nightly-eligible-quality-report.json
+          if-no-files-found: warn
+          retention-days: 30

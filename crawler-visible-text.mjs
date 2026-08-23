@@ -27,7 +27,8 @@ export function forbiddenCrawlerTextFound(value) {
 }
 
 export function assertValidCrawlerText(value, label = "rendered page") {
-  const failures = forbiddenCrawlerTextFound(value);
+  const failures = [...forbiddenCrawlerTextFound(value)];
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(String(value ?? ""))) failures.push("control character");
   if (failures.length) {
     throw new Error(`${label}: invalid rendered text: ${failures.join(", ")}`);
   }

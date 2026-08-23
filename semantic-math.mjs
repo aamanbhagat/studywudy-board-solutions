@@ -30,6 +30,7 @@ const OPERATORS = Object.freeze({
   neq: ["≠", "not equal to"], approx: ["≈", "approximately equal to"],
   sum: ["Σ", "sum"], int: ["∫", "integral"], oint: ["∮", "closed surface integral"],
   cap: ["∩", "intersection"], parallel: ["∥", "is parallel to"],
+  angle: ["∠", "angle"], triangle: ["△", "triangle"],
   to: ["→", "to"], rightarrow: ["→", "to"], leftarrow: ["←", "from"],
   Rightarrow: ["⇒", "implies"], implies: ["⇒", "implies"], Leftarrow: ["⇐", "is implied by"],
   Leftrightarrow: ["⇔", "is equivalent to"],
@@ -334,7 +335,14 @@ class TexParser {
       if (["vec", "hat", "bar", "overline"].includes(command)) {
         return node("accent", { accent: command, base: this.readGroup() });
       }
-      if (command === "text") return node("text", { value: this.readTextGroup(), word: true });
+      if (command === "text") {
+        const value = this.readTextGroup();
+        const semanticOperator = OPERATORS[value.toLocaleLowerCase("en-IN")];
+        if (semanticOperator && ["angle", "triangle"].includes(value.toLocaleLowerCase("en-IN"))) {
+          return node("operator", { value: semanticOperator[0], spoken: semanticOperator[1] });
+        }
+        return node("text", { value, word: true });
+      }
       if (ROMAN_COMMANDS.has(command)) return node("roman", { base: this.readGroup() });
       if (SYMBOLS[command]) return node("identifier", { value: SYMBOLS[command][0], spoken: SYMBOLS[command][1] });
       if (OPERATORS[command]) return node("operator", { value: OPERATORS[command][0], spoken: OPERATORS[command][1] });
@@ -418,7 +426,8 @@ function plainFromNode(value) {
   if (value.type === "sequence") {
     const parts = [];
     for (const child of value.children) {
-      if (child.type === "operator" && !["(", ")", "[", "]", "|", "°"].includes(child.value)) appendPlain(parts, plainFromNode(child), "operator");
+      if (child.type === "operator" && ["∠", "△"].includes(child.value)) appendPlain(parts, plainFromNode(child));
+      else if (child.type === "operator" && !["(", ")", "[", "]", "|", "°"].includes(child.value)) appendPlain(parts, plainFromNode(child), "operator");
       else if (child.type === "separator") appendPlain(parts, plainFromNode(child), "separator");
       else if (child.type === "roman") appendPlain(parts, plainFromNode(child), "unit");
       else if (child.type === "function") parts.push(`${parts.length ? " " : ""}${plainFromNode(child)} `);
@@ -662,14 +671,14 @@ export function semanticEquationTokens(value) {
     .replaceAll("−", "-")
     .replaceAll("·", "×")
     .replace(/\s+/gu, " ");
-  const raw = normalized.match(/[A-Za-z]+|[\p{L}\p{M}]+|\d+(?:\.\d+)?|[=+\-×÷∫∮∑∩∥→←⇒⇐⇔⇌≈≤≥≠±√/()[\]<>|,;:^_]/gu) || [];
+  const raw = normalized.match(/[A-Za-z]+|[\p{L}\p{M}]+|\d+(?:\.\d+)?|[=+\-×÷∫∮∑∩∥∠△→←⇒⇐⇔⇌≈≤≥≠±√/()[\]<>|,;:^_]/gu) || [];
   return Object.freeze(raw.flatMap((token) => /^[\p{L}\p{M}]{2,}$/u.test(token)
     ? [...token.normalize("NFD")].filter((character) => /\p{L}/u.test(character))
     : [token]));
 }
 
 const SEMANTIC_OPERATOR_TOKENS = new Set([
-  "=", "+", "-", "×", "÷", "/", "^", "_", "∫", "∮", "∑", "∩", "∥",
+  "=", "+", "-", "×", "÷", "/", "^", "_", "∫", "∮", "∑", "∩", "∥", "∠", "△",
   "→", "←", "⇒", "⇐", "⇔", "⇌", "≈", "≤", "≥", "≠", "±", "√", "<", ">", "|",
 ]);
 
@@ -842,6 +851,7 @@ export function extractFormulaSources(value) {
     const delimiterPattern = /\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/gu;
     for (const match of text.matchAll(delimiterPattern)) add(match[1] || match[2] || match[3] || match[4]);
     if (/^(?:formula|formulaUsed|equation|equationUsed)$/iu.test(key) && !text.includes("$")) add(text);
+    if (/^(?:answer|finalAnswer)$/u.test(key) && /^\s*\\(?:boxed|frac|sqrt|text|mathrm|left|begin)\b/u.test(text)) add(text);
   }
   return sources;
 }
@@ -876,7 +886,7 @@ export function evaluateQuestionFormulaAccessibility(question, { includeRepresen
   });
 }
 
-const LEGACY_RENDERER_DROPPED_TOKENS = new Set(["ε", "∫", "∮", "Σ", "∞", "Ω", "∩", "∥", "→", "←", "⇒", "⇐", "⇔"]);
+const LEGACY_RENDERER_DROPPED_TOKENS = new Set(["ε", "∫", "∮", "Σ", "∞", "Ω", "∩", "∥", "∠", "△", "→", "←", "⇒", "⇐", "⇔"]);
 
 function formulaLookupKey(value, { tolerateLegacyTokenLoss = false } = {}) {
   let repairedLegacyLabel = repairMalformedFormulaText(value)
@@ -945,6 +955,13 @@ export function renderSemanticMath(record, { visiblePlain = false, extraClass = 
 
 export function renderMathText(value, { extraClass = "math-inline" } = {}) {
   const source = String(value ?? "");
+  const trimmed = source.trim();
+  if (/^\\(?:boxed|frac|sqrt|text|mathrm|left|begin)\b/u.test(trimmed)) {
+    const representation = formulaRepresentations(trimmed);
+    if (validateFormulaRepresentations(representation).complete) {
+      return renderSemanticMath(representation, { visiblePlain: true, extraClass });
+    }
+  }
   const pattern = /\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/gu;
   const output = [];
   let cursor = 0;

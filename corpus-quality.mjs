@@ -5,7 +5,7 @@ import {
   authoritativeSourceMappingStatus,
 } from "./source-mapping-quality.mjs";
 
-export const CORPUS_QUALITY_POLICY_VERSION = "provenance-classified-v2-authoritative-mapping";
+export const CORPUS_QUALITY_POLICY_VERSION = "provenance-classified-v3-reviewed-import-repairs";
 
 export const CORPUS_QUALITY_CLASSIFICATIONS = Object.freeze([
   "verified source wording",
@@ -79,11 +79,62 @@ const FINDINGS = Object.freeze({
     title: "Equation rendering repair applied",
     detail: "Malformed epsilon terms in the intermediate capacitance derivation are repaired by the semantic-math source normalizer before MathML, spoken text and plain text are generated.",
   }),
+  "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-30-039": Object.freeze({
+    code: "hc-verma-duplicated-rho-import",
+    classification: "OCR/import corruption",
+    status: "reviewed-display-repair",
+    searchEligible: true,
+    snippetEligible: true,
+    indexEligible: true,
+    title: "Reviewed import repair applied",
+    detail: "A duplicated rho introduced during import was reduced to the single volume-charge-density symbol required by the question and its worked solution. The stored source payload remains unchanged for auditability.",
+  }),
+  "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-013": Object.freeze({
+    code: "hc-verma-charge-carriers-import",
+    classification: "OCR/import corruption",
+    status: "reviewed-display-repair",
+    searchEligible: true,
+    snippetEligible: true,
+    indexEligible: true,
+    title: "Reviewed import repair applied",
+    detail: "The semiconductor term charge carriers and the adjacent variables n and v were separated using the terminology and symbols repeated in the choices and explanation. The stored source payload remains unchanged for auditability.",
+  }),
+  "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-028": Object.freeze({
+    code: "hc-verma-charge-carriers-import-2",
+    classification: "OCR/import corruption",
+    status: "reviewed-display-repair",
+    searchEligible: true,
+    snippetEligible: true,
+    indexEligible: true,
+    title: "Reviewed import repair applied",
+    detail: "A noun-ending import error was corrected to the standard semiconductor term charge carriers. The stored source payload remains unchanged for auditability.",
+  }),
+  "q-cbse-ncert-exemplar-physics-exemplar-class-12-1-017": Object.freeze({
+    code: "ncert-elecric-import",
+    classification: "OCR/import corruption",
+    status: "reviewed-display-repair",
+    searchEligible: true,
+    snippetEligible: true,
+    indexEligible: true,
+    title: "Reviewed import repair applied",
+    detail: "An omitted letter in the imported wording was restored to electric, matching the repeated term in the second sentence and the worked answer. The stored source payload remains unchanged for auditability.",
+  }),
 });
 
 export const CORPUS_QUALITY_FINDINGS = FINDINGS;
 
 export const CORPUS_QUALITY_CHAPTER_FINDINGS = Object.freeze({
+  "cbse::class-12::physics::hc-verma-concepts-of-physics-volume-1-and-2-class-12::gausss-law": Object.freeze({
+    code: "gauss-law-metadata-import",
+    classification: "metadata typo",
+    status: "reviewed-display-repair",
+    source: "Gausss Law",
+    replacement: "Gauss’s Law",
+    searchEligible: true,
+    snippetEligible: true,
+    indexEligible: true,
+    detail: "The duplicated s in the imported chapter title is corrected on public surfaces while the original stored metadata remains available for audit.",
+  }),
   "cbse::class-10::mathematics::ncert-exemplar-mathematics-exemplar-class-10::quadatric-euation": Object.freeze({
     code: "quadratic-equations-metadata-import",
     classification: "metadata typo",

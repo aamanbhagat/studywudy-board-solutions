@@ -21,7 +21,7 @@ function popcountByte(value) {
 }
 
 test("the generated publishing manifest has no word-count threshold", () => {
-  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v12-rendered-equation-output-gate");
+  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v13-geometry-symbol-preservation");
   assert.match(PHASE4_GATE_MANIFEST.multilingualTextPolicy, /unresolved Hindi and Tamil imports are quarantined/u);
   assert.equal(PHASE4_GATE_MANIFEST.questionPageExperienceVersion, "question-specific-trust-v2");
   assert.match(PHASE4_GATE_MANIFEST.formulaAccessibilityPolicy, /semantic-token preservation.*MathML/i);

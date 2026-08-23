@@ -25,6 +25,7 @@ const practicePath = `${STUDY_CLUSTER_BASE}/practice`;
 const lrQuestionPath = "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electromagnetic-induction/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-38-120";
 const transmissionQuestionPath = "/cbse/class-12/physics/ncert-exemplar-physics-exemplar-class-12/alternating-current/questions/q-cbse-ncert-exemplar-physics-exemplar-class-12-7-028";
 const geometryQuestionPath = "/cbse/class-9/mathematics/ncert-mathematics-class-9/quadrilaterals/questions/q-cbse-ncert-mathematics-class-9-8-012";
+const circlesQuestionPath = "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/circles/questions/q-cbse-ncert-exemplar-mathematics-exemplar-class-10-9-037";
 const lrRequiredTokens = Object.freeze(["ε", "R", "L", "t", "τ", "i", "Q", "W", "H", "U", "∫", "e"]);
 const lrMagneticEnergySpoken = formulaRepresentations(String.raw`U_B=\frac12Li^2`).spokenText;
 const transmissionOneWireSpoken = formulaRepresentations(String.raw`R_{\text{one}}=\frac{\rho l}{A}`).spokenText;
@@ -47,6 +48,7 @@ export const MATH_RENDERING_ROUTES = Object.freeze([
   lrQuestionPath,
   transmissionQuestionPath,
   geometryQuestionPath,
+  circlesQuestionPath,
   practicePath,
 ]);
 
@@ -183,6 +185,12 @@ export function inspectMathRendering(pathname, html) {
     }
     if (!html.includes("<mo>∩</mo>")) failures.push("geometry intersections are not rendered as semantic operators");
     if (!html.includes("<mo>∥</mo>")) failures.push("geometry parallel relations are not rendered as semantic operators");
+  }
+  if (pathname === circlesQuestionPath) {
+    if (!html.includes("<mo>∠</mo><mi>R</mi><mi>Q</mi><mi>S</mi>")) failures.push("angle RQS is not exposed as a semantic angle symbol");
+    if (!html.includes("<mo>△</mo><mi>P</mi><mi>Q</mi><mi>R</mi>")) failures.push("triangle PQR is not exposed as a semantic triangle symbol");
+    if (!html.includes("<mo>∥</mo>")) failures.push("parallel relation is missing from the Circles proof");
+    if (/<mtext>(?:angle|triangle)<\/mtext>/iu.test(html)) failures.push("geometry words remain generic MathML text");
   }
   return Object.freeze({ pathname, crawlerText, failures: Object.freeze(failures) });
 }

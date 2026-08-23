@@ -24,6 +24,7 @@
       "/ads.txt",
       "/sitemap.xml",
       "/sitemaps/*",
+      "/__studywudy_payloads/*",
       "/about",
       "/about/*",
       "/privacy",

@@ -22,10 +22,14 @@ const auditPath = resolve(root, "audits/phase-4/corpus-quality-sweep.json");
 const manifestPath = resolve(root, "corpus-quality-manifest.mjs");
 
 const REQUESTED_PATTERNS = Object.freeze([
+  Object.freeze({ id: "Gausss", expression: /Gausss/gu }),
   Object.freeze({ id: "Quadatric", expression: /Quadatric/gu }),
+  Object.freeze({ id: "elecric", expression: /elecric/gu }),
   Object.freeze({ id: "positvely", expression: /positvely/gu }),
+  Object.freeze({ id: "charge carries", expression: /charge carries/gu }),
   Object.freeze({ id: "rfrom", expression: /rfrom/gu }),
   Object.freeze({ id: "bye the", expression: /bye the/gu }),
+  Object.freeze({ id: "ρρ", expression: /ρρ/gu }),
   Object.freeze({ id: "I mm", expression: /\bI mm\b/gu }),
   Object.freeze({ id: "4_{0}", expression: /4_\{0\}/gu }),
   Object.freeze({ id: "k_{0}", expression: /k_\{0\}/gu }),
@@ -35,13 +39,19 @@ const REQUESTED_PATTERNS = Object.freeze([
 ]);
 
 const EXPECTED_QUESTION_FINDING_BY_PATTERN = Object.freeze({
+  elecric: new Set(["q-cbse-ncert-exemplar-physics-exemplar-class-12-1-017"]),
   positvely: new Set(["q-cbse-ncert-exemplar-chemistry-exemplar-class-12-1-042"]),
+  "charge carries": new Set([
+    "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-013",
+    "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-028",
+  ]),
   rfrom: new Set([
     "q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031",
     "q-cisce-frank-mathematics-part-2-class-10-6-042",
   ]),
   "bye the": new Set(["q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-6-052"]),
   "I mm": new Set(["q-msb-balbharati-physics-standard-12-8-005"]),
+  "ρρ": new Set(["q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-30-039"]),
 });
 
 const LEGITIMATE_K_ZERO_QUESTION = "q-cbse-ncert-exemplar-physics-exemplar-class-12-10-022";
@@ -164,6 +174,8 @@ function auditCorpus() {
     }
     const unclassifiedQuadatric = occurrences.filter((entry) => entry.pattern === "Quadatric" && entry.chapterFinding !== "metadata typo");
     if (unclassifiedQuadatric.length) failures.push(`Quadatric: ${unclassifiedQuadatric.length} occurrences lack metadata-typo classification ${JSON.stringify(unclassifiedQuadatric.slice(0, 4))}`);
+    const unclassifiedGausss = occurrences.filter((entry) => entry.pattern === "Gausss" && entry.chapterFinding !== "metadata typo");
+    if (unclassifiedGausss.length) failures.push(`Gausss: ${unclassifiedGausss.length} occurrences lack metadata-typo classification ${JSON.stringify(unclassifiedGausss.slice(0, 4))}`);
     const malformedFourZero = occurrences.filter((entry) => entry.pattern === "4_{0}");
     if (malformedFourZero.length) failures.push(`4_{0}: ${malformedFourZero.length} unresolved stored occurrences`);
     const nonWaveVectorKZero = occurrences.filter((entry) => entry.pattern === "k_{0}" && entry.questionId !== LEGITIMATE_K_ZERO_QUESTION);

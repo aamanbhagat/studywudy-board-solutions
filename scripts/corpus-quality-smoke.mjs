@@ -122,6 +122,32 @@ const CASES = Object.freeze([
     surface: "atomic",
     contains: /density ρ/u,
     excludes: /density ρρ/u,
+    classification: "OCR/import corruption",
+  }),
+  Object.freeze({
+    name: "semiconductor terminology and variable-spacing repair",
+    pathname: "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/semiconductors-and-semiconductor-devices/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-013",
+    surface: "atomic",
+    contains: /charge carriers be n and the average drift speed/u,
+    excludes: /charge carries|\bnand\b/u,
+    classification: "OCR/import corruption",
+  }),
+  Object.freeze({
+    name: "semiconductor charge-carriers repair",
+    pathname: "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/semiconductors-and-semiconductor-devices/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-45-028",
+    surface: "atomic",
+    contains: /charge carriers/u,
+    excludes: /charge carries/u,
+    classification: "OCR/import corruption",
+    payloadPolicy: "all-question-payload-pack-v3",
+  }),
+  Object.freeze({
+    name: "electric-field spelling repair",
+    pathname: "/cbse/class-12/physics/ncert-exemplar-physics-exemplar-class-12/electric-charges-and-fields/questions/q-cbse-ncert-exemplar-physics-exemplar-class-12-1-017",
+    surface: "atomic",
+    contains: /electric field everywhere/u,
+    excludes: /elecric/u,
+    classification: "OCR/import corruption",
   }),
   Object.freeze({
     name: "fixed-charges grammar repair",
@@ -130,6 +156,8 @@ const CASES = Object.freeze([
     contains: /two fixed charges/u,
     excludes: /two fixed charged/u,
   }),
+  Object.freeze({ name: "charge-carriers search repair", pathname: "/search?q=charge%20carriers", surface: "search", contains: /charge carriers/u, excludes: /charge carries/u }),
+  Object.freeze({ name: "electric-field search repair", pathname: "/search?q=electric%20field", surface: "search", contains: /electric field/u, excludes: /elecric/u }),
 ]);
 
 const RAW_RENDERED_SYNTAX = /\*\*|\$\$|\\(?:frac|varepsilon|epsilon|text|mathrm|times)\b|<br\s*\/?>/iu;
@@ -151,6 +179,9 @@ export function inspectCorpusQualityHtml(entry, html, headers = new Headers()) {
   }
   if (entry.snippetExcluded && !/\bdata-nosnippet(?:\s|=|>)/u.test(html)) failures.push("source quotation is not snippet-excluded");
   if (entry.noindex && !(headers.get("x-robots-tag") || "").includes("noindex")) failures.push("review-required question is not noindexed");
+  if (entry.payloadPolicy && headers.get("x-studywudy-question-payload") !== entry.payloadPolicy) {
+    failures.push(`missing bounded question payload policy ${entry.payloadPolicy}`);
+  }
   return Object.freeze({ text, failures: Object.freeze(failures) });
 }
 

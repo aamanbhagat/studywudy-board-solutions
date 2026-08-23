@@ -9,7 +9,8 @@ import { getQuestionUrl } from "./question-routes.mjs";
 import { renderQuestionSemanticGraph } from "./semantic-link-graph.mjs";
 import { normalizedQuestionType } from "./question-classification.mjs";
 import { sourceMappingReleaseEligibility } from "./source-mapping-quality.mjs";
-import { formulaRepresentations, renderMathText, renderSemanticMath } from "./semantic-math.mjs";
+import { createPlainSearchText } from "./search-excerpt.mjs";
+import { extractFormulaSources, formulaRepresentations, renderMathText, renderSemanticMath } from "./semantic-math.mjs";
 import { buildQuestionTrustRecord } from "./trust-transparency.mjs";
 import {
   corpusQualityFindingForQuestion,
@@ -72,7 +73,12 @@ function cleanText(value) {
 function compactText(value, maximum = MAX_DIRECT_ANSWER_LENGTH) {
   const text = cleanText(value);
   if ([...text].length <= maximum) return text;
-  const clipped = [...text].slice(0, maximum - 1).join("");
+  // Clipping a TeX/Markdown source can strand an opening delimiter in the
+  // crawler-visible summary. Long summaries therefore fall back to the shared
+  // plain-text parser before they are shortened; the complete semantic formula
+  // remains in the main answer immediately below.
+  const safeText = createPlainSearchText(text);
+  const clipped = [...safeText].slice(0, maximum - 1).join("");
   const sentence = clipped.match(/^.*[.!?।](?=\s|$)/u)?.[0];
   const wordBoundary = clipped.replace(/\s+\S*$/u, "").trim();
   return `${sentence || wordBoundary || clipped.trimEnd()}…`;
@@ -216,6 +222,8 @@ function formulaOrPrinciple(question) {
   const explanation = cleanText(question.explanation);
   const steps = (question.steps || []).map((step) => cleanText(step.content)).filter(Boolean);
   const candidates = [explanation, ...steps];
+  const completeFormula = candidates.flatMap((candidate) => extractFormulaSources(candidate)).find(Boolean);
+  if (completeFormula) return `$$${completeFormula}$$`;
   const formula = candidates
     .flatMap((candidate) => candidate.split(/(?<=[.!?।])\s+/u))
     .find((candidate) => /(?:=|\\(?:frac|sqrt|times|div|cdot)|\b(?:because|therefore|hence|principle|law|theorem|rule)\b)/iu.test(candidate));
@@ -281,7 +289,7 @@ function questionRecord(route, chapterSlug, publicQuestionId) {
 }
 
 function promptCard(question, route, chapterSlug, meta = "") {
-  const prompt = compactText(question.prompt, MAX_CARD_PROMPT_LENGTH);
+  const prompt = compactText(createPlainSearchText(cleanText(question.prompt)), MAX_CARD_PROMPT_LENGTH);
   const anchorVerb = question.type === "numerical" ? "Calculate"
     : /derive|prove|show that/iu.test(prompt) ? "Derive"
       : question.type === "mcq_single" ? "Test your understanding of"

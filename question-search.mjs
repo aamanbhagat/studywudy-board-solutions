@@ -31,7 +31,15 @@ const BOARD_LABELS = Object.freeze({
   "tamil-nadu-board": "Tamil Nadu Board",
 });
 
-export const SEARCH_FILTER_RELEASE = "structured-ranking-v9-adaptive-candidate-cpu";
+export const SEARCH_FILTER_RELEASE = "structured-ranking-v11-reviewed-source-aliases";
+
+const REVIEWED_SOURCE_SEARCH_ALIASES = Object.freeze({
+  "charge carriers": "charge carries",
+  "electric field": "elecric field",
+  "gauss's law": "gausss law",
+  "gauss’s law": "gausss law",
+  "quadratic equations": "quadatric euation",
+});
 
 const NORMALIZED_PROMPT_SQL = `lower(' ' || replace(replace(replace(replace(replace(replace(q.prompt_text, '<br>', ' '), '<br/>', ' '), '.', ' '), ',', ' '), ':', ' '), ';', ' ') || ' ')`;
 
@@ -221,13 +229,16 @@ function exactConceptOrTitleSql() {
 }
 
 function exactQuestionPhraseSql() {
-  return `lower(q.prompt_text) LIKE search_input.phrase ESCAPE '\\'`;
+  return `(lower(q.prompt_text) LIKE search_input.phrase ESCAPE '\\'
+    OR lower(q.prompt_text) LIKE search_input.source_phrase ESCAPE '\\')`;
 }
 
 function textbookOrChapterSql() {
   return `(
     lower(b.title) LIKE search_input.phrase ESCAPE '\\'
     OR lower(c.title) LIKE search_input.phrase ESCAPE '\\'
+    OR lower(b.title) LIKE search_input.source_phrase ESCAPE '\\'
+    OR lower(c.title) LIKE search_input.source_phrase ESCAPE '\\'
   )`;
 }
 
@@ -263,11 +274,12 @@ export function buildQuestionSearchPlan(criteria, projection) {
   const inputBindings = [];
   if (criteria.query) {
     const normalizedQuery = criteria.query.toLocaleLowerCase("en-IN");
+    const reviewedSourceQuery = REVIEWED_SOURCE_SEARCH_ALIASES[normalizedQuery] || normalizedQuery;
     const tokens = searchTokens(criteria.query);
     const tokenColumns = tokens.map((_, index) => `term_${index}`);
-    const inputColumns = ["query", "phrase", ...tokenColumns];
+    const inputColumns = ["query", "phrase", "source_phrase", ...tokenColumns];
     cte = `WITH search_input(${inputColumns.join(", ")}) AS (VALUES (${inputColumns.map(() => "?").join(", ")}))`;
-    inputBindings.push(normalizedQuery, `%${escapeLike(normalizedQuery)}%`, ...tokens.map((token) => `%${escapeLike(token)}%`));
+    inputBindings.push(normalizedQuery, `%${escapeLike(normalizedQuery)}%`, `%${escapeLike(reviewedSourceQuery)}%`, ...tokens.map((token) => `%${escapeLike(token)}%`));
     const exactConcept = exactConceptOrTitleSql();
     const exactQuestion = exactQuestionPhraseSql();
     const textbookChapter = textbookOrChapterSql();

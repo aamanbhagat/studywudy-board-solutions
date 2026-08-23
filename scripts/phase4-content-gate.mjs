@@ -32,7 +32,7 @@ import {
 } from "../multilingual-text-quality.mjs";
 import { sourceMappingReleaseEligibility } from "../source-mapping-quality.mjs";
 
-const POLICY_VERSION = "phase4-v12-rendered-equation-output-gate";
+const POLICY_VERSION = "phase4-v13-geometry-symbol-preservation";
 const QUESTION_PAGE_EXPERIENCE_VERSION = "question-specific-trust-v2";
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;

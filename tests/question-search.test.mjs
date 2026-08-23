@@ -111,7 +111,7 @@ test("normalized classifications and diagram evidence reject the reported false 
 
 test("text search ranks concept, question phrase, textbook and body in order", () => {
   const plan = buildQuestionSearchPlan(criteria("q=electric%20field"), projection);
-  assert.deepEqual(plan.bindings, ["electric field", "%electric field%", "%electric%", "%field%"]);
+  assert.deepEqual(plan.bindings, ["electric field", "%electric field%", "%elecric field%", "%electric%", "%field%"]);
   const concept = plan.sql.indexOf("THEN 2");
   const question = plan.sql.indexOf("THEN 3");
   const textbook = plan.sql.indexOf("THEN 4");
