@@ -292,7 +292,9 @@ async function fetchDocuments(origin, { refreshQuestionTheme = false } = {}) {
     if (response.status !== 200) throw new Error(`${entry.publicPath} returned ${response.status}`);
     if (!(response.headers.get("content-type") || "").includes("text/html")) throw new Error(`${entry.publicPath} did not return HTML`);
     const responseHtml = await response.text();
-    const html = entry.kind.endsWith("-question") ? preserveAccessibleQuestionTheme(responseHtml) : responseHtml;
+    const html = entry.kind.endsWith("-question")
+      ? preserveAccessibleQuestionTheme(responseHtml)
+      : filterStaticSearchEligibility(responseHtml, PHASE4_GATE_MANIFEST).html;
     const failures = inspect(entry, html);
     if (failures.length) throw new Error(`${entry.publicPath}: ${failures.join("; ")}`);
     documents.push(Object.freeze({ entry, html }));
