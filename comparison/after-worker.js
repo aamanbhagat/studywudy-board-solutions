@@ -1925,6 +1925,16 @@ function chapterRoute(pathname) {
   };
 }
 
+function unpaginatedChapterRedirect(request, url) {
+  if (!["GET", "HEAD"].includes(request.method)
+    || !chapterRoute(url.pathname)
+    || !url.searchParams.has("page")) return null;
+  const canonical = new URL(url);
+  canonical.searchParams.delete("page");
+  canonical.hash = "";
+  return Response.redirect(canonical.toString(), 308);
+}
+
 async function chapterPageCatalogRecord(env, route) {
   if (!env.DB) return null;
   const row = await env.DB.prepare(`SELECT b.id AS book_id, b.title AS book_title,
@@ -2041,8 +2051,7 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
     })
     .on(".shell.study-layout", {
       element(element) {
-        element.before(experience.hub, { html: true });
-        element.after(experience.directory, { html: true });
+        element.after(`${experience.hub}${experience.directory}`, { html: true });
       },
     });
   for (const questionId of experience.snippetExcludedQuestionIds || []) {
@@ -3572,6 +3581,8 @@ const afterWorker = {
     if (pilotSitemap) return pilotSitemap;
     const favicon = publicFaviconResponse(request, url);
     if (favicon) return favicon;
+    const chapterPaginationRedirect = unpaginatedChapterRedirect(request, url);
+    if (chapterPaginationRedirect) return chapterPaginationRedirect;
     const catalogArtworkAsset = await catalogArtworkAssetResponse(request, env, url);
     if (catalogArtworkAsset) return catalogArtworkAsset;
     const launchHotPath = await launchHotPathStaticResponse(request, env, url);

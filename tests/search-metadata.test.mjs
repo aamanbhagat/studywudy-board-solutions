@@ -161,6 +161,11 @@ test("main question headings omit the question-type instruction but preserve the
     display_label: "22",
     prompt_text: "Describe the process of double fertilization.",
   }), "Describe the process of double fertilization");
+  assert.equal(questionMainHeading({
+    question_id: "matrix-example",
+    display_label: "11",
+    prompt_text: String.raw`Find the co-factor of the following matrix. $\left[\begin{matrix}1&-1&2\\-2&3&5\\-2&0&-1\end{matrix}\right]$`,
+  }), "Find the co-factor of the following matrix. [1, −1, 2; −2, 3, 5; −2, 0, −1]");
 });
 
 test("the Worker rewrites search metadata without replacing ordinary question H1 text", async () => {

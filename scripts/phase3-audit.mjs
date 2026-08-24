@@ -195,19 +195,13 @@ const chapters = database.prepare(`SELECT b.id AS book_id, b.board_slug, b.grade
   c.question_count FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id ORDER BY c.id`).all();
 let paginationCount = 0;
 for (const chapter of chapters) {
-  const pageCount = Math.max(1, Math.ceil(Number(chapter.question_count) / 40));
-  for (let page = 1; page <= pageCount; page += 1) {
-    if (page > 1) paginationCount += 1;
-    const path = `/${chapter.board_slug}/${chapter.grade_slug}/${chapter.subject_slug}/${chapter.book_slug}/${chapter.chapter_slug}${page > 1 ? `?page=${page}` : ""}`;
-    const pageTitle = page > 1 ? ` · Page ${page}/${pageCount}` : "";
-    const titlePrefix = `Ch ${chapter.number}: `;
-    const titleSuffix = ` — ${middleTruncate(chapter.book_title, 36)}${pageTitle}`;
-    const titleRoom = Math.max(10, 72 - titlePrefix.length - titleSuffix.length);
-    const boardName = BOARD_LABELS[chapter.board_slug] || routeLabel(chapter.board_slug);
-    const grade = Number(chapter.grade_slug.replace("class-", ""));
-    const pageDescription = page > 1 ? `, page ${page} of ${pageCount}` : "";
-    record(path, page > 1 ? "chapter-pagination" : "chapter", `${titlePrefix}${seoText(chapter.title, titleRoom)}${titleSuffix}`, `${boardName} Class ${grade} ${routeLabel(chapter.subject_slug)} — ${chapter.book_title}, Chapter ${chapter.number}${pageDescription}: ${chapter.title}. ${Number(chapter.question_count).toLocaleString("en-IN")} worked answers in textbook order.`);
-  }
+  const path = `/${chapter.board_slug}/${chapter.grade_slug}/${chapter.subject_slug}/${chapter.book_slug}/${chapter.chapter_slug}`;
+  const titlePrefix = `Ch ${chapter.number}: `;
+  const titleSuffix = ` — ${middleTruncate(chapter.book_title, 36)}`;
+  const titleRoom = Math.max(10, 72 - titlePrefix.length - titleSuffix.length);
+  const boardName = BOARD_LABELS[chapter.board_slug] || routeLabel(chapter.board_slug);
+  const grade = Number(chapter.grade_slug.replace("class-", ""));
+  record(path, "chapter", `${titlePrefix}${seoText(chapter.title, titleRoom)}${titleSuffix}`, `${boardName} Class ${grade} ${routeLabel(chapter.subject_slug)} — ${chapter.book_title}, Chapter ${chapter.number}: ${chapter.title}. ${Number(chapter.question_count).toLocaleString("en-IN")} worked answers in textbook order.`);
 }
 
 const streamSource = readFileSync(workerPath, "utf8").match(/var PHASE3_STREAM_PATHS = \[([\s\S]*?)\n\];/);
@@ -281,7 +275,7 @@ for (const entry of entries) {
 const expectedClickDepth = {
   class: 1,
   subject: 2,
-  chapterAndPagination: 3,
+  chapter: 3,
   question: 4,
 };
 
@@ -313,15 +307,15 @@ const report = {
       && Object.values(metadataArtifacts).every((count) => count === 0),
   },
   clickDepth: {
-    navigationModel: "homepage → class → subject → chapter/page → question",
+    navigationModel: "homepage → class → subject → chapter → question",
     depths: expectedClickDepth,
     maxIndexableQuestionDepth: Math.max(...Object.values(expectedClickDepth)),
     pass: Math.max(...Object.values(expectedClickDepth)) <= 4,
-    evidence: "Homepage links every class; class pages link every subject; subject directories link every chapter and pagination page; each chapter page links its question leaves.",
+    evidence: "Homepage links every class; class pages link every subject; subject directories link every chapter; each single-page chapter register links all of its question leaves.",
   },
 };
 
-report.pass = report.corpus.indexableUrls === 312193 && report.corpus.uniquePaths === report.corpus.indexableUrls && report.metadataSimilarity.pass && report.clickDepth.pass;
+report.pass = report.corpus.indexableUrls === 308298 && report.corpus.uniquePaths === report.corpus.indexableUrls && report.metadataSimilarity.pass && report.clickDepth.pass;
 
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);

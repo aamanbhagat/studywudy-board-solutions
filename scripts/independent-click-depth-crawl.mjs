@@ -117,18 +117,18 @@ await mapConcurrent(chapterPages, concurrency, async (path, index) => {
 });
 
 const missingQuestions = questionPaths.filter((path) => !reachedQuestions.has(path));
-for (const path of missingQuestions.slice(0, 100)) failures.push({ depth: 4, missing: path, source: "chapter-or-pagination-page" });
+for (const path of missingQuestions.slice(0, 100)) failures.push({ depth: 4, missing: path, source: "chapter-page" });
 
 const report = {
   capturedAt: new Date().toISOString(),
   origin,
-  method: "Breadth-first HTTP crawl of every required class, subject, chapter and pagination page, with exact link-set comparison against every valid indexable question in the sitemap.",
+  method: "Breadth-first HTTP crawl of every required class, subject and single-page chapter register, with exact link-set comparison against every valid indexable question in the sitemap.",
   sitemapQuestionLeaves: questionPaths.length,
   crawled: {
     homepage: 1,
     classes: classes.length,
     subjects: subjects.length,
-    chapterAndPaginationPages: chapterPages.length,
+    chapterPages: chapterPages.length,
   },
   reachedQuestionLeaves: questionPaths.length - missingQuestions.length,
   missingQuestionLeaves: missingQuestions.length,

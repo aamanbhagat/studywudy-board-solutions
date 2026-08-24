@@ -600,11 +600,11 @@ function directoryMarkup(model) {
 export function renderChapterPageExperience(model) {
   if (!model?.ready) return null;
   const jumpLinks = [
+    ["question-register", "Back to questions \u2191"],
     ["chapter-overview", "Overview"],
     ...(model.formulas.length ? [["formula-sheet", "Formulas"]] : []),
     ["question-groups", "Practice groups"],
     ["exam-preparation", "Exam preparation"],
-    ["question-register", "All questions"],
   ];
   const jumpNav = `<nav class="chapter-hub-jumps" aria-label="Chapter study sections"><span>Study this chapter</span>${jumpLinks.map(([href, label]) => `<a href="#${href}">${escapeHtml(label)}</a>`).join("")}</nav>`;
   const hub = `<div class="shell chapter-learning-hub" data-studywudy-chapter-hub="evidence-v1">${jumpNav}${overviewMarkup(model)}${studyModesMarkup(model)}${formulasMarkup(model)}${groupsMarkup(model)}${examPreparationMarkup(model)}</div>`;

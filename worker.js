@@ -53259,7 +53259,7 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         async function p({ params: a2, searchParams: b2 }) {
           let c2 = await a2, d2 = await m(c2.board, c2.grade, c2.subject, c2.book, c2.chapter);
           if (!d2) return {};
-          let e2 = n((await b2).page), f2 = Math.max(1, Math.ceil(d2.questions.length / 40));
+          let e2 = n((await b2).page), f2 = 1;
           if (!e2 || e2 > f2) return {};
           let g2 = d2.questions.filter(k.hasQuestionSolution).length, h2 = (0, j.catalogChapterPath)(d2.book, d2.slug), i2 = chapterBookContext(d2.book.title), pageTitle = e2 > 1 ? ` \xB7 Page ${e2}/${f2}` : "", titlePrefix = `Ch ${d2.number}: `, titleSuffix = ` — ${i2}${pageTitle}`, titleRoom = Math.max(10, 72 - titlePrefix.length - titleSuffix.length), boardName = { cbse: "CBSE", cisce: "CISCE", "maharashtra-board": "Maharashtra Board", "tamil-nadu-board": "Tamil Nadu Board" }[d2.book.boardSlug] ?? routeLabel(d2.book.boardSlug), gradeNumber = (0, k.gradeNumber)(d2.book.gradeSlug) ?? routeLabel(d2.book.gradeSlug), subjectName = routeLabel(d2.book.subjectSlug), pageDescription = e2 > 1 ? `, page ${e2} of ${f2}` : "";
           return (0, l.pageMetadata)({ title: `${titlePrefix}${(0, l.seoText)(d2.title, titleRoom)}${titleSuffix}`, description: `${boardName} Class ${gradeNumber} ${subjectName} \u2014 ${d2.book.title}, Chapter ${d2.number}${pageDescription}: ${d2.title}. ${g2.toLocaleString("en-IN")} worked answers in textbook order.`, pathname: o(h2, e2) });
@@ -53269,9 +53269,9 @@ see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`), "_
         async function q({ params: a2, searchParams: e2 }) {
           let p2 = await a2, r = await m(p2.board, p2.grade, p2.subject, p2.book, p2.chapter), s = await (0, j.getCatalogBoard)(p2.board), t = (0, k.gradeNumber)(p2.grade), u = (await (0, j.listCatalogSubjects)(p2.board, p2.grade)).find((a3) => a3.slug === p2.subject);
           r && s && t && u || (0, d.notFound)();
-          let v = `/${p2.board}/${p2.grade}/${p2.subject}/${p2.book}`, w = (0, j.catalogChapterPath)(r.book, r.slug), x = (await e2).page, y = n(x), z = r.questions.length, A = Math.max(1, Math.ceil(z / 40));
+          let v = `/${p2.board}/${p2.grade}/${p2.subject}/${p2.book}`, w = (0, j.catalogChapterPath)(r.book, r.slug), x = (await e2).page, y = n(x), z = r.questions.length, A = 1;
           (!y || y > A) && (0, d.notFound)(), x !== void 0 && y === 1 && (0, d.permanentRedirect)(w);
-          let B = (y - 1) * 40, C = Math.min(B + 40, z), D = r.exercises.flatMap((a3, b2) => {
+          let B = 0, C = z, D = r.exercises.flatMap((a3, b2) => {
             let c2 = r.exercises.slice(0, b2).reduce((a4, b3) => a4 + b3.questions.length, 0), d2 = a3.questions.filter((a4, b3) => {
               let d3 = c2 + b3;
               return d3 >= B && d3 < C;
@@ -77772,8 +77772,6 @@ ${t2}
               t3.add(`/${a4.board_slug}`), t3.add(`/${a4.board_slug}/${a4.grade_slug}`), t3.add(`/${a4.board_slug}/${a4.grade_slug}/${a4.subject_slug}`), t3.add(`/${a4.board_slug}/${a4.grade_slug}/${a4.subject_slug}/${a4.book_slug}`);
               let e4 = `/${a4.board_slug}/${a4.grade_slug}/${a4.subject_slug}/${a4.book_slug}/${a4.chapter_slug}`;
               t3.add(e4);
-              let s4 = Math.max(1, Math.ceil(Number(a4.question_count) / 40));
-              for (let a5 = 2; a5 <= s4; a5 += 1) t3.add(`${e4}?page=${a5}`);
             }
             let a3 = f.boards.flatMap((e4) => [`/${e4.slug}`, ...e4.classes.map((t4) => `/${e4.slug}/class-${t4}`)]), s3 = [`/${f.featuredBook.boardSlug}/${f.featuredBook.gradeSlug}/${f.featuredBook.subjectSlug}`, `/${f.featuredBook.boardSlug}/${f.featuredBook.gradeSlug}/${f.featuredBook.subjectSlug}/${f.featuredBook.slug}`, (0, f.chapterPath)()], o3 = e3.length ? [...t3] : [.../* @__PURE__ */ new Set([...a3, ...s3])], r3 = new Set(e3.length ? e3.map((e4) => `${e4.board_slug}/${e4.grade_slug}/${e4.subject_slug}`) : [`${f.featuredBook.boardSlug}/${f.featuredBook.gradeSlug}/${f.featuredBook.subjectSlug}`]), n3 = Object.entries(w).flatMap(([e4, t4]) => Object.entries(t4).flatMap(([t5, a4]) => a4.flatMap((a5) => a5.courses.flatMap((s4) => s4.subjectSlugs.map((o4) => ({ board: e4, grade: t5, stream: a5.slug, course: s4.slug, subject: o4 })))))).filter((e4) => r3.has(`${e4.board}/${e4.grade}/${e4.subject}`)), i3 = new Set(n3.map((e4) => `${e4.board}/${e4.grade}/${e4.stream}`)), l2 = new Set(n3.map((e4) => `${e4.board}/${e4.grade}/${e4.stream}/${e4.course}`)), u2 = Object.entries(w).flatMap(([e4, t4]) => Object.entries(t4).flatMap(([t5, a4]) => a4.flatMap((a5) => [{ board: e4, grade: t5, stream: a5.slug, course: null }, ...a5.courses.map((s4) => ({ board: e4, grade: t5, stream: a5.slug, course: s4.slug }))]))).filter((e4) => e4.course ? l2.has(`${e4.board}/${e4.grade}/${e4.stream}/${e4.course}`) : i3.has(`${e4.board}/${e4.grade}/${e4.stream}`)).map((e4) => `/${e4.board}/${e4.grade}/streams/${e4.stream}${e4.course ? `/${e4.course}` : ""}`), m2 = /* @__PURE__ */ new Set();
             for (let e4 of n3) m2.add(`/${e4.board}/${e4.grade}/streams/${e4.stream}/${e4.course}/${e4.subject}`);
@@ -99647,8 +99645,6 @@ async function phase3HierarchySitemap(request, environment) {
     let board = `/${row.board_slug}`, grade = `${board}/${row.grade_slug}`, subject = `${grade}/${row.subject_slug}`, book = `${subject}/${row.book_slug}`, chapter = `${book}/${row.chapter_slug}`;
     let descendantsUpdated = Math.max(phase3Epoch(row.book_updated_at), phase3Epoch(row.chapter_updated_at), phase3Epoch(row.question_updated_at));
     record(board, descendantsUpdated), record(grade, descendantsUpdated), record(subject, descendantsUpdated), record(book, descendantsUpdated), record(chapter, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
-    let pageCount = Math.max(1, Math.ceil(Number(row.question_count) / 40));
-    for (let page = 2; page <= pageCount; page += 1) record(`${chapter}?page=${page}`, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
   }
   let entries = [...timestamps].map(([pathname, timestamp]) => phase3UrlEntry(siteUrl, pathname, phase3Lastmod(timestamp))).join("\n");
   return phase3GzipXmlResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`, request.method);
@@ -99880,7 +99876,7 @@ async function phase3EnhanceHtml(request, response, environment) {
           book.chapters.push(row), books.set(row.book_slug, book);
         }
         let bookHtml = [...books].map(([bookSlug, book]) => `<section><h3><a href="/${encodeURIComponent(boardSlug)}/${encodeURIComponent(gradeSlug)}/${encodeURIComponent(subjectSlug)}/${encodeURIComponent(bookSlug)}">${phase3HtmlEscape(book.title)}</a></h3><ol>${book.chapters.map((chapter) => {
-          let chapterPathname = `/${encodeURIComponent(boardSlug)}/${encodeURIComponent(gradeSlug)}/${encodeURIComponent(subjectSlug)}/${encodeURIComponent(bookSlug)}/${encodeURIComponent(chapter.chapter_slug)}`, pageCount = Math.max(1, Math.ceil(Number(chapter.question_count) / 40)), pageLinks = Array.from({ length: pageCount - 1 }, (_, pageIndex) => `<a href="${chapterPathname}?page=${pageIndex + 2}">${pageIndex + 2}</a>`).join(" ");
+          let chapterPathname = `/${encodeURIComponent(boardSlug)}/${encodeURIComponent(gradeSlug)}/${encodeURIComponent(subjectSlug)}/${encodeURIComponent(bookSlug)}/${encodeURIComponent(chapter.chapter_slug)}`, pageLinks = "";
           return `<li><a href="${chapterPathname}"><span>Chapter ${phase3HtmlEscape(chapter.chapter_number)}</span> ${phase3HtmlEscape(chapter.chapter_title)}</a>${pageLinks ? `<span aria-label="Question pages">Pages ${pageLinks}</span>` : ""}</li>`;
         }).join("")}</ol></section>`).join("");
         injection = `<section class="shell catalog-section" aria-labelledby="phase3-chapter-directory"><details class="course-finder-directory"><summary id="phase3-chapter-directory">Browse all ${(rows.results ?? []).length} chapters in this subject</summary><div>${bookHtml}</div></details></section>`;

@@ -108,8 +108,6 @@ for (const row of hierarchyRows) {
   record(subject, descendantsUpdated);
   record(book, descendantsUpdated);
   record(chapter, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
-  const pageCount = Math.max(1, Math.ceil(Number(row.question_count) / 40));
-  for (let page = 2; page <= pageCount; page += 1) record(`${chapter}?page=${page}`, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
 }
 const hierarchy = writeGzip("hierarchy.xml.gz", [...timestamps].map(([pathname, timestamp]) => urlEntry(pathname, timestamp)));
 children.push({ pathname: "/sitemaps/hierarchy.xml.gz", updatedAt: Math.max(...timestamps.values()) });

@@ -14,6 +14,7 @@ import {
   repairCrawlerFormulaSource,
   renderSemanticMath,
   renderMathText,
+  SEMANTIC_MATH_STYLES,
   validateFormulaStructure,
   validateFormulaRepresentations,
 } from "../semantic-math.mjs";
@@ -42,6 +43,62 @@ test("canonical formula representations preserve fractions, exponents and subscr
 
   const dipole = formulaRepresentations("V_{\\text{equatorial}} = \\frac{1}{4\\pi\\varepsilon_0}\\frac{p\\cos 90^\\circ}{r^2} = 0");
   assert.equal(dipole.plainText, "V₍equatorial₎ = (1/4πε₀)(p cos 90°/r²) = 0");
+});
+
+test("matrix environments render as accessible MathML tables without leaking TeX commands", () => {
+  const squareMatrix = formulaRepresentations(String.raw`\left[\begin{matrix}{1}&-{1}&{2}\\-{2}&{3}&{5}\\-{2}&{0}&-{1}\end{matrix}\right]`);
+  assert.equal((squareMatrix.mathml.match(/<mtr>/gu) || []).length, 3);
+  assert.equal((squareMatrix.mathml.match(/<mtd>/gu) || []).length, 9);
+  assert.match(squareMatrix.mathml, /<mtable class="math-matrix-table">/u);
+  assert.match(squareMatrix.mathml, /<mo>\[<\/mo><mrow><mtable class="math-matrix-table">/u);
+  assert.match(squareMatrix.mathml, /<\/mtable><\/mrow><mo>\]<\/mo>/u);
+  assert.equal(squareMatrix.plainText, "[1, −1, 2; −2, 3, 5; −2, 0, −1]");
+  assert.match(squareMatrix.spokenText, /three by three matrix; row one: one, minus one, two/u);
+  assert.doesNotMatch(`${squareMatrix.plainText}\n${squareMatrix.spokenText}\n${squareMatrix.mathml}`, /begin|end|bmatrix|vmatrix/iu);
+  assert.equal(validateFormulaRepresentations(squareMatrix).complete, true);
+
+  const bracketMatrix = formulaRepresentations(String.raw`A=\begin{bmatrix}1&2\\3&4\end{bmatrix}`);
+  assert.equal(bracketMatrix.plainText, "A = [1, 2; 3, 4]");
+  assert.match(bracketMatrix.mathml, /<mo fence="true" stretchy="true">\[<\/mo><mtable class="math-matrix-table">/u);
+  assert.match(bracketMatrix.mathml, /<\/mtable><mo fence="true" stretchy="true">\]<\/mo>/u);
+
+  const determinant = formulaRepresentations(String.raw`\begin{vmatrix}a&b\\c&d\end{vmatrix}`);
+  assert.equal(determinant.plainText, "|a, b; c, d|");
+  assert.match(determinant.spokenText, /two by two determinant/u);
+  assert.equal((determinant.mathml.match(/fence="true"/gu) || []).length, 2);
+  assert.match(determinant.mathml, /<mtable class="math-matrix-table">/u);
+  assert.equal(validateFormulaRepresentations(determinant).complete, true);
+  assert.match(SEMANTIC_MATH_STYLES, /\.math-matrix-table>mtr>mtd\{padding:\.18em \.42em\}/u);
+});
+
+test("matrix imports with comma-separated cells and piecewise cases become real tables", () => {
+  const imported = formulaRepresentations(String.raw`\left[\begin{matrix}{1},-{1},{2}\\-{2},{3},{5}\\-{2},{0},-{1}\end{matrix}\right]`);
+  assert.equal((imported.mathml.match(/<mtd>/gu) || []).length, 9);
+  assert.equal(imported.plainText, "[1, −1, 2; −2, 3, 5; −2, 0, −1]");
+
+  const cases = formulaRepresentations(String.raw`f(x)=\begin{cases}x&x>0\\0&x=0\end{cases}`);
+  assert.equal((cases.mathml.match(/<mtr>/gu) || []).length, 2);
+  assert.equal((cases.mathml.match(/<mtd>/gu) || []).length, 4);
+  assert.match(cases.mathml, /<mo fence="true" stretchy="true">\{<\/mo><mtable>/u);
+  assert.match(cases.spokenText, /two by two piecewise expression/u);
+  assert.doesNotMatch(`${cases.plainText}\n${cases.mathml}`, /begin|end|cases/iu);
+
+  const multilineInline = renderMathText(String.raw`$\begin{aligned}
+x&=1\\
+y&=2
+\end{aligned}$`);
+  assert.match(multilineInline, /<mtable>/u);
+  assert.doesNotMatch(multilineInline, /\\begin|\\end|begin\s*aligned|end\s*aligned/iu);
+
+  const embeddedBareArray = renderMathText(String.raw`Use the following values: \begin{array}{cc}x&1\\y&2\end{array}.`);
+  assert.match(embeddedBareArray, /Use the following values:/u);
+  assert.match(embeddedBareArray, /<mtable>/u);
+  assert.doesNotMatch(embeddedBareArray, /\\begin|\\end|begin\s*array|end\s*array/iu);
+
+  const rowSpacing = formulaRepresentations(String.raw`\begin{array}{c}1\\[-2pt]2\\[4pt]3\end{array}`);
+  assert.equal((rowSpacing.mathml.match(/<mtr>/gu) || []).length, 3);
+  assert.equal(rowSpacing.plainText, "1; 2; 3");
+  assert.doesNotMatch(rowSpacing.plainText, /pt|\[/u);
 });
 
 test("semantic-token round trips preserve the complete LR identifier and operator set", () => {

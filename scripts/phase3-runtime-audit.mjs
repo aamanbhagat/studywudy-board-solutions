@@ -66,7 +66,6 @@ const templateRoutes = [
   ["subject", "/maharashtra-board/class-12/physics"],
   ["book", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12"],
   ["chapter", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics"],
-  ["chapter-pagination", "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2"],
   ["question", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001"],
   ["stream", "/maharashtra-board/class-12/streams/science"],
   ["course", "/maharashtra-board/class-12/streams/science/hsc-science-general"],
@@ -101,7 +100,7 @@ for (const [template, path] of templateRoutes) {
     if (!webpage) errors.push("missing WebPage/Question schema");
     if (webpage?.mainEntity?.acceptedAnswer?.["@type"] !== "Answer" || !String(webpage.mainEntity.acceptedAnswer.text || "").trim()) errors.push("missing accepted Answer text");
   }
-  if (template === "chapter" || template === "chapter-pagination") {
+  if (template === "chapter") {
     if (!schemas.some((schema) => schema["@type"] === "LearningResource")) errors.push("missing LearningResource schema");
   }
   if (template === "search" && !matchOne(text, /<meta name="robots" content="([^"]*noindex[^"]*)"/)) errors.push("search page must be noindex");
@@ -128,7 +127,7 @@ const canonicalCases = [
   ["/maharashtra-board/class-12?filter=science", "/maharashtra-board/class-12"],
   ["/maharashtra-board/class-12/physics?stream=science&utm_source=a", "/maharashtra-board/class-12/physics"],
   ["/maharashtra-board/class-12/physics/balbharati-physics-standard-12?filter=popular", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12"],
-  ["/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2&sort=new&utm_source=a", "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2"],
+  ["/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2&sort=new&utm_source=a", "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals"],
   ["/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001?preview=1&utm_source=a", "/maharashtra-board/class-12/physics/balbharati-physics-standard-12/rotational-dynamics/questions/q-msb-balbharati-physics-standard-12-1-001"],
   ["/maharashtra-board/class-12/streams/science/hsc-science-general/physics?filter=popular", "/maharashtra-board/class-12/streams/science/hsc-science-general/physics"],
   ["/search?q=physics&page=9", "/search"],
@@ -149,6 +148,14 @@ canonicalResults.push({
   actual: pageOne.headers.get("location"),
   expected: "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals",
   pass: [301, 308].includes(pageOne.status) && new URL(pageOne.headers.get("location"), baseUrl).pathname === "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals",
+});
+const pageTwo = await fetchWithRetry(`${baseUrl}/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2&utm_source=a`, { redirect: "manual", headers: { accept: "text/html" } });
+canonicalResults.push({
+  path: "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2&utm_source=a",
+  status: pageTwo.status,
+  actual: pageTwo.headers.get("location"),
+  expected: "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals",
+  pass: [301, 308].includes(pageTwo.status) && new URL(pageTwo.headers.get("location"), baseUrl).pathname === "/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals",
 });
 
 const robots = await fetchText("/robots.txt");
@@ -205,14 +212,17 @@ const sitemapAudit = {
   lastmods: [...new Set(childUrls.map((child) => child.lastmod))],
 };
 // Phase 5 adds Privacy, Terms and Contact to the previously verified hierarchy.
-const expectedHierarchyUrls = 12728 + 3;
+const expectedHierarchyUrls = 7188;
 const QUESTION_SITEMAP_BLOCK_SIZE = 10_000;
 const expectedQuestionChildren = Math.ceil(PHASE4_GATE_MANIFEST.maximumRowId / QUESTION_SITEMAP_BLOCK_SIZE);
-sitemapAudit.pass = indexResponse.ok && childUrls.length === 1 + expectedQuestionChildren && childResults.every((child) => child.pass) && sitemapUrlTotal === expectedHierarchyUrls + PHASE4_GATE_MANIFEST.indexableCount;
+sitemapAudit.pass = indexResponse.ok
+  && childUrls.length === 2 + expectedQuestionChildren
+  && childResults.every((child) => child.pass)
+  && sitemapUrlTotal === expectedHierarchyUrls + PHASE4_GATE_MANIFEST.indexableCount + 1;
 
 const homeHtml = (await fetchText("/")).text;
 const subjectHtml = (await fetchText("/cbse/class-12/mathematics")).text;
-const chapterPageHtml = (await fetchText("/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals?page=2")).text;
+const chapterPageHtml = (await fetchText("/cbse/class-12/mathematics/rd-sharma-maths-class-12/indefinite-integrals")).text;
 const homeClassLinks = new Set([...homeHtml.matchAll(/href="(\/(?:maharashtra-board|cbse|cisce|tamil-nadu-board)\/class-\d+)"/g)].map((match) => match[1]));
 const subjectChapterLinks = new Set([...subjectHtml.matchAll(/href="(\/cbse\/class-12\/mathematics\/[^"?]+\/[^"?]+)"/g)].map((match) => match[1]));
 const subjectPaginationLinks = new Set([...subjectHtml.matchAll(/href="(\/cbse\/class-12\/mathematics\/[^"?]+\/[^"?]+\?page=\d+)"/g)].map((match) => match[1]));
@@ -222,7 +232,7 @@ const gradeCount = database.prepare("SELECT COUNT(*) AS count FROM catalog_grade
 // recovered catalog snapshot has no persisted books beneath it yet.
 const homepageClassLinkExpected = gradeCount + 1;
 const subjectChapterExpected = database.prepare("SELECT COUNT(*) AS count FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id WHERE b.board_slug = 'cbse' AND b.grade_slug = 'class-12' AND b.subject_slug = 'mathematics'").get().count;
-const subjectPaginationExpected = database.prepare("SELECT COALESCE(SUM(MAX(0, CAST((c.question_count + 39) / 40 AS INTEGER) - 1)), 0) AS count FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id WHERE b.board_slug = 'cbse' AND b.grade_slug = 'class-12' AND b.subject_slug = 'mathematics'").get().count;
+const subjectPaginationExpected = 0;
 const internalLinking = {
   homepageClassLinks: homeClassLinks.size,
   homepageClassLinksExpected: homepageClassLinkExpected,

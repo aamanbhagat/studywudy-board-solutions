@@ -40,6 +40,23 @@ const IGNORED_COMMANDS = new Set(["left", "right", "big", "Big", "bigg", "Bigg",
 const SPACING_COMMANDS = new Set([",", ";", ":", "!", "quad", "qquad", " "]);
 const ROMAN_COMMANDS = new Set(["mathrm", "textrm", "operatorname"]);
 const FUNCTION_COMMANDS = new Set(["sin", "cos", "tan", "cot", "sec", "csc", "log", "ln", "exp", "min", "max"]);
+const TABLE_ENVIRONMENTS = Object.freeze({
+  matrix: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "matrix" }),
+  smallmatrix: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "matrix" }),
+  bmatrix: Object.freeze({ leftDelimiter: "[", rightDelimiter: "]", spokenKind: "matrix" }),
+  Bmatrix: Object.freeze({ leftDelimiter: "{", rightDelimiter: "}", spokenKind: "matrix" }),
+  pmatrix: Object.freeze({ leftDelimiter: "(", rightDelimiter: ")", spokenKind: "matrix" }),
+  vmatrix: Object.freeze({ leftDelimiter: "|", rightDelimiter: "|", spokenKind: "determinant" }),
+  Vmatrix: Object.freeze({ leftDelimiter: "‖", rightDelimiter: "‖", spokenKind: "determinant" }),
+  cases: Object.freeze({ leftDelimiter: "{", rightDelimiter: "", spokenKind: "piecewise expression" }),
+  array: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "array", columnSpecification: true }),
+  aligned: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression" }),
+  alignedat: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression", columnSpecification: true }),
+  align: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression" }),
+  "align*": Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression" }),
+  gathered: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression" }),
+  split: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "aligned expression" }),
+});
 const UNIT_SPOKEN = Object.freeze({
   mm: "millimetres", cm: "centimetres", km: "kilometres", m: "metres", s: "seconds",
   ms: "milliseconds", kg: "kilograms", g: "grams", mol: "moles", Hz: "hertz", V: "volts",
@@ -55,6 +72,8 @@ const INVALID_RENDERED_MATH_PATTERNS = Object.freeze([
   Object.freeze(["invalidRuntimeToken", /\b(?:undefined|NaN)\b|\[object Object\]/u]),
   Object.freeze(["proseAndSplitIntoIdentifiers", /<mi>a<\/mi>\s*<mi>n<\/mi>\s*<mi>d<\/mi>/iu]),
   Object.freeze(["proseParallelogramSplitIntoIdentifiers", /<mi>i<\/mi>\s*<mi>s<\/mi>\s*<mi>a<\/mi>(?:\s*<mi>[a-z]<\/mi>){13}/iu]),
+  Object.freeze(["matrixEnvironmentCommandLeak", /(?:^|[^\\])\b(?:begin|end)\s*(?:[bpvV]?matrix|smallmatrix|array|cases|aligned(?:at)?|align|gathered|split)\b/iu]),
+  Object.freeze(["matrixEnvironmentMathmlCommandLeak", /<mtext>(?:begin|end)<\/mtext>(?:\s*<mi>[^<]+<\/mi>){3,12}/iu]),
 ]);
 
 export function invalidRenderedMathFound(value) {
@@ -199,6 +218,114 @@ function node(type, properties = {}) {
   return { type, ...properties };
 }
 
+function splitTopLevelCommas(value) {
+  const output = [];
+  let part = "";
+  let braceDepth = 0;
+  let environmentDepth = 0;
+  const source = String(value || "");
+  for (let index = 0; index < source.length;) {
+    const character = source[index];
+    if (character === "\\") {
+      const environmentMatch = source.slice(index).match(/^\\(begin|end)\s*\{([^{}]+)\}/u);
+      if (environmentMatch) {
+        environmentDepth += environmentMatch[1] === "begin" ? 1 : -1;
+        part += environmentMatch[0];
+        index += environmentMatch[0].length;
+        continue;
+      }
+      const commandMatch = source.slice(index).match(/^\\([A-Za-z]+|.)/u);
+      const commandSource = commandMatch?.[0] || "\\";
+      part += commandSource;
+      index += commandSource.length;
+      continue;
+    }
+    if (character === "{") braceDepth += 1;
+    else if (character === "}") braceDepth = Math.max(0, braceDepth - 1);
+    if (character === "," && braceDepth === 0 && environmentDepth === 0) {
+      output.push(part.trim());
+      part = "";
+      index += 1;
+      continue;
+    }
+    part += character;
+    index += 1;
+  }
+  output.push(part.trim());
+  return output;
+}
+
+function splitTableSource(value, { splitCommas = false } = {}) {
+  const rows = [[]];
+  let cell = "";
+  let braceDepth = 0;
+  let environmentDepth = 0;
+  const pushCell = () => {
+    rows.at(-1).push(cell.trim());
+    cell = "";
+  };
+  const pushRow = () => {
+    pushCell();
+    if (rows.at(-1).some(Boolean)) rows.push([]);
+    else rows[rows.length - 1] = [];
+  };
+  const source = String(value || "");
+  for (let index = 0; index < source.length;) {
+    const character = source[index];
+    if (character === "\\") {
+      if (source[index + 1] === "\\" && braceDepth === 0 && environmentDepth === 0) {
+        pushRow();
+        index += 2;
+        while (/\s/u.test(source[index] || "")) index += 1;
+        if (source[index] === "[") {
+          const end = source.indexOf("]", index + 1);
+          if (end >= 0) index = end + 1;
+        }
+        continue;
+      }
+      const commandMatch = source.slice(index).match(/^\\([A-Za-z]+|.)/u);
+      const command = commandMatch?.[1] || "";
+      const commandSource = commandMatch?.[0] || "\\";
+      if (["newline", "cr"].includes(command) && braceDepth === 0 && environmentDepth === 0) {
+        pushRow();
+        index += commandSource.length;
+        continue;
+      }
+      if (["hline", "toprule", "midrule", "bottomrule"].includes(command) && braceDepth === 0 && environmentDepth === 0) {
+        index += commandSource.length;
+        continue;
+      }
+      const environmentMatch = source.slice(index).match(/^\\(begin|end)\s*\{([^{}]+)\}/u);
+      if (environmentMatch) {
+        environmentDepth += environmentMatch[1] === "begin" ? 1 : -1;
+        cell += environmentMatch[0];
+        index += environmentMatch[0].length;
+        continue;
+      }
+      cell += commandSource;
+      index += commandSource.length;
+      continue;
+    }
+    if (character === "{") braceDepth += 1;
+    else if (character === "}") braceDepth = Math.max(0, braceDepth - 1);
+    if (character === "&" && braceDepth === 0 && environmentDepth === 0) {
+      pushCell();
+      index += 1;
+      continue;
+    }
+    cell += character;
+    index += 1;
+  }
+  pushCell();
+  if (rows.length > 1 && rows.at(-1).every((entry) => !entry)) rows.pop();
+
+  return rows.filter((row) => row.some(Boolean)).map((row) => {
+    if (!splitCommas || row.length !== 1) return row;
+    const commaCells = splitTopLevelCommas(row[0]);
+    return commaCells.length > 1 ? commaCells : row;
+  });
+}
+
 class TexParser {
   constructor(source) {
     this.source = source;
@@ -298,6 +425,78 @@ class TexParser {
       .trim();
   }
 
+  readRawGroup(label = "argument") {
+    while (/\s/u.test(this.source[this.index] || "")) this.index += 1;
+    if (this.source[this.index] !== "{") {
+      this.errors.push(`missing${label[0].toUpperCase()}${label.slice(1)}`);
+      return "";
+    }
+    this.index += 1;
+    const start = this.index;
+    let depth = 1;
+    while (this.index < this.source.length && depth > 0) {
+      const character = this.source[this.index++];
+      if (character === "\\") {
+        if (this.index < this.source.length && !/[A-Za-z]/u.test(this.source[this.index])) this.index += 1;
+        continue;
+      }
+      if (character === "{") depth += 1;
+      else if (character === "}") depth -= 1;
+    }
+    if (depth > 0) this.errors.push("unmatchedOpeningDelimiter:{");
+    const end = depth === 0 ? this.index - 1 : this.index;
+    return this.source.slice(start, end);
+  }
+
+  readEnvironmentBody(environment) {
+    const start = this.index;
+    const environmentPattern = /\\(begin|end)\s*\{([^{}]+)\}/gu;
+    environmentPattern.lastIndex = start;
+    let depth = 1;
+    let match;
+    while ((match = environmentPattern.exec(this.source))) {
+      if (match[2].trim() !== environment) continue;
+      depth += match[1] === "begin" ? 1 : -1;
+      if (depth === 0) {
+        this.index = environmentPattern.lastIndex;
+        return this.source.slice(start, match.index);
+      }
+    }
+    this.index = this.source.length;
+    this.errors.push(`unclosedEnvironment:${environment}`);
+    return this.source.slice(start);
+  }
+
+  parseEnvironment() {
+    const environment = this.readRawGroup("environmentName").trim();
+    if (!environment) return node("sequence", { children: [] });
+    let body = this.readEnvironmentBody(environment);
+    const configuration = TABLE_ENVIRONMENTS[environment];
+    if (!configuration) {
+      const parser = new TexParser(body);
+      const parsed = parser.parse();
+      this.errors.push(...parser.errors.map((error) => `${environment}:${error}`));
+      return parsed;
+    }
+
+    if (configuration.columnSpecification) {
+      const specificationParser = new TexParser(body);
+      specificationParser.readRawGroup("columnSpecification");
+      if (!specificationParser.errors.length) body = body.slice(specificationParser.index);
+    }
+
+    const rawRows = splitTableSource(body, {
+      splitCommas: ["matrix", "smallmatrix", "bmatrix", "Bmatrix", "pmatrix", "vmatrix", "Vmatrix"].includes(environment),
+    });
+    const rows = rawRows.map((rawRow, rowIndex) => rawRow.map((rawCell, columnIndex) => {
+      const parser = new TexParser(rawCell);
+      const parsed = parser.parse();
+      this.errors.push(...parser.errors.map((error) => `${environment}[${rowIndex + 1},${columnIndex + 1}]:${error}`));
+      return parsed;
+    }));
+    return node("matrix", { environment, rows, ...configuration });
+  }
+
   parseAtom() {
     const character = this.source[this.index];
     if (character == null) return null;
@@ -320,6 +519,12 @@ class TexParser {
     }
     if (character === "\\") {
       const command = this.readCommand();
+      if (command === "begin") return this.parseEnvironment();
+      if (command === "end") {
+        const environment = this.readRawGroup("environmentName").trim();
+        this.errors.push(`unexpectedEndEnvironment:${environment || "unknown"}`);
+        return node("sequence", { children: [] });
+      }
       if (["frac", "dfrac", "tfrac"].includes(command)) {
         return node("fraction", {
           numerator: this.readGroup("fractionNumerator"),
@@ -349,6 +554,7 @@ class TexParser {
       if (FUNCTION_COMMANDS.has(command)) return node("function", { value: command });
       if (IGNORED_COMMANDS.has(command) || SPACING_COMMANDS.has(command)) return this.parseAtom();
       if (command === "\\" || command === "newline") return node("separator", { value: ";" });
+      if (["{", "}"].includes(command)) return node("operator", { value: command, spoken: command });
       return node("text", { value: command, unknown: true });
     }
     if (/\d/u.test(character)) {
@@ -437,6 +643,10 @@ function plainFromNode(value) {
     return parts.join("").replace(/\s+/gu, " ").replace(/\s+([,;:)\]])/gu, "$1").replace(/([(\[])[ ]+/gu, "$1").trim();
   }
   if (["number", "identifier", "function", "text", "operator", "separator"].includes(value.type)) return String(value.value || "");
+  if (value.type === "matrix") {
+    const body = value.rows.map((row) => row.map((cell) => plainFromNode(cell).replace(/^−\s+/u, "−")).join(", ")).join("; ");
+    return `${value.leftDelimiter || ""}${body}${value.rightDelimiter || ""}`;
+  }
   if (value.type === "roman") return plainFromNode(value.base);
   if (value.type === "fraction") {
     const compoundSequence = (part) => part?.type === "sequence" && part.children.length > 1;
@@ -507,6 +717,13 @@ function spokenFromNode(value) {
   if (value.type === "operator") return value.spoken || value.value;
   if (value.type === "separator") return value.value === ";" ? "then" : value.value;
   if (value.type === "text") return String(value.value || "").trim();
+  if (value.type === "matrix") {
+    const rowCount = value.rows.length;
+    const columnCount = Math.max(0, ...value.rows.map((row) => row.length));
+    const dimensions = rowCount && columnCount ? `${numberSpoken(rowCount)} by ${numberSpoken(columnCount)} ` : "";
+    const rows = value.rows.map((row, index) => `row ${numberSpoken(index + 1)}: ${row.map(spokenFromNode).join(", ")}`).join("; ");
+    return `${dimensions}${value.spokenKind || "matrix"}${rows ? `; ${rows}` : ""}`;
+  }
   if (value.type === "roman") {
     const plain = plainFromNode(value.base);
     return UNIT_SPOKEN[plain] || spokenFromNode(value.base);
@@ -551,6 +768,13 @@ function mathmlFromNode(value) {
   if (value.type === "identifier" || value.type === "function") return `<mi>${escapeHtml(value.value)}</mi>`;
   if (value.type === "operator" || value.type === "separator") return `<mo>${escapeHtml(value.value === "-" ? "−" : value.value)}</mo>`;
   if (value.type === "text") return `<mtext>${escapeHtml(value.value)}</mtext>`;
+  if (value.type === "matrix") {
+    const tableClass = ["matrix", "determinant"].includes(value.spokenKind) ? ' class="math-matrix-table"' : "";
+    const table = `<mtable${tableClass}>${value.rows.map((row) => `<mtr>${row.map((cell) => `<mtd>${mathmlFromNode(cell)}</mtd>`).join("")}</mtr>`).join("")}</mtable>`;
+    const left = value.leftDelimiter ? `<mo fence="true" stretchy="true">${escapeHtml(value.leftDelimiter)}</mo>` : "";
+    const right = value.rightDelimiter ? `<mo fence="true" stretchy="true">${escapeHtml(value.rightDelimiter)}</mo>` : "";
+    return `<mrow>${left}${table}${right}</mrow>`;
+  }
   if (value.type === "roman") return `<mstyle mathvariant="normal">${mathmlFromNode(value.base)}</mstyle>`;
   if (value.type === "fraction") return `<mfrac>${mathmlFromNode(value.numerator)}${mathmlFromNode(value.denominator)}</mfrac>`;
   if (value.type === "root") return value.index
@@ -576,6 +800,7 @@ function mathmlFromNode(value) {
 function nodeIsEmpty(value) {
   if (!value) return true;
   if (value.type === "sequence") return value.children.every(nodeIsEmpty);
+  if (value.type === "matrix") return !value.rows.length || value.rows.every((row) => !row.length || row.every(nodeIsEmpty));
   if (["subscript", "superscript", "subsup", "accent", "roman"].includes(value.type)) return nodeIsEmpty(value.base);
   if (value.type === "prescript") return nodeIsEmpty(value.base);
   return false;
@@ -710,7 +935,7 @@ function spokenToSemanticText(value) {
     .replace(/\bminus\b|\bnegative\b/giu, "-")
     .replace(/\btimes\b/giu, "×")
     .replace(/\bover\b|\bdivided by\b|\bhalf\b|\bquarters?\b/giu, "/")
-    .replace(/\babsolute value\b/giu, "|");
+    .replace(/\babsolute value\b|\bdeterminant\b/giu, "|");
   const spokenSymbols = [...Object.values(SYMBOLS), ...Object.values(OPERATORS)]
     .sort((left, right) => right[1].length - left[1].length);
   for (const [symbol, spoken] of spokenSymbols) {
@@ -836,6 +1061,19 @@ function stringsIn(value, key = "", output = []) {
   return output;
 }
 
+function formulaSourcePattern() {
+  return /\$\$(?<display>[\s\S]*?)\$\$|\$(?<inline>[^$]+?)\$|\\\((?<parenthesized>[\s\S]*?)\\\)|\\\[(?<bracketed>[\s\S]*?)\\\]|(?<bareEnvironment>\\begin\s*\{(?<environment>[bpvV]?matrix|smallmatrix|array|cases|aligned(?:at)?|align\*?|gathered|split)\}[\s\S]*?\\end\s*\{\k<environment>\})/gu;
+}
+
+function formulaSourceFromMatch(match) {
+  return match?.groups?.display
+    || match?.groups?.inline
+    || match?.groups?.parenthesized
+    || match?.groups?.bracketed
+    || match?.groups?.bareEnvironment
+    || "";
+}
+
 export function extractFormulaSources(value) {
   const sources = [];
   const seen = new Set();
@@ -848,8 +1086,7 @@ export function extractFormulaSources(value) {
     sources.push(source);
   };
   for (const { key, value: text } of stringsIn(value)) {
-    const delimiterPattern = /\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/gu;
-    for (const match of text.matchAll(delimiterPattern)) add(match[1] || match[2] || match[3] || match[4]);
+    for (const match of text.matchAll(formulaSourcePattern())) add(formulaSourceFromMatch(match));
     if (/^(?:formula|formulaUsed|equation|equationUsed)$/iu.test(key) && !text.includes("$")) add(text);
     if (/^(?:answer|finalAnswer)$/u.test(key) && /^\s*\\(?:boxed|frac|sqrt|text|mathrm|left|begin)\b/u.test(text)) add(text);
   }
@@ -981,13 +1218,12 @@ export function renderMathText(value, { extraClass = "math-inline" } = {}) {
       return renderSemanticMath(representation, { visiblePlain: true, extraClass });
     }
   }
-  const pattern = /\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/gu;
   const output = [];
   let cursor = 0;
-  for (const match of source.matchAll(pattern)) {
+  for (const match of source.matchAll(formulaSourcePattern())) {
     output.push(escapeHtml(repairMalformedFormulaText(source.slice(cursor, match.index))));
     output.push(renderSemanticMath(
-      formulaRepresentations(match[1] || match[2] || match[3] || match[4]),
+      formulaRepresentations(formulaSourceFromMatch(match)),
       { visiblePlain: true, extraClass },
     ));
     cursor = match.index + match[0].length;
@@ -997,5 +1233,5 @@ export function renderMathText(value, { extraClass = "math-inline" } = {}) {
 }
 
 export const SEMANTIC_MATH_STYLES = `<style id="studywudy-semantic-math-styles">
-.math-semantic{max-width:100%}.math-visible{display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;vertical-align:-.12em}.math-semantic>math{font-family:Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block;max-width:max-content}.math-inline>math{display:inline math}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.math-semantic{max-width:100%}.math-visible{display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;vertical-align:-.12em}.math-semantic>math{font-family:Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block;max-width:max-content}.math-inline>math{display:inline math}.math-matrix-table>mtr>mtd{padding:.18em .42em}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 </style>`;

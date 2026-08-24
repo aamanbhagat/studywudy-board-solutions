@@ -73,7 +73,7 @@ function buildChapterPage() {
     description: runtime.searchMetadata.description,
     url: `${productionOrigin}${runtime.pathname}`,
   }).replaceAll("<", "\\u003c");
-  const body = `${runtime.experience.hub}${chapterQuestionRegister()}${runtime.experience.directory}<script type="application/ld+json">${schema}</script>`;
+  const body = `${chapterQuestionRegister()}${runtime.experience.hub}${runtime.experience.directory}<script type="application/ld+json">${schema}</script>`;
   return pageShell({
     pathname: runtime.pathname,
     title: runtime.searchMetadata.documentTitle,

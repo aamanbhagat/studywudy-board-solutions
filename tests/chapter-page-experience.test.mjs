@@ -183,14 +183,34 @@ test("exam modules appear when marks, repeat years and a mistake are explicitly 
   assert.match(markup, /Do not substitute centimetres/);
 });
 
-test("the original textbook directory is replaced after the question layout", async () => {
+test("the study-section navigation leads back to the questions first", () => {
+  const markup = renderChapterPageExperience(modelFor(fixturePayload())).hub;
+  assert.ok(markup.indexOf('href="#question-register"') < markup.indexOf('href="#chapter-overview"'));
+  assert.match(markup, />Back to questions \u2191<\/a>/u);
+});
+
+test("the original questions stay first and chapter study sections follow them", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
   assert.match(source, /details\.course-finder-directory/);
   assert.match(source, /element\.remove\(\)/);
-  assert.match(source, /element\.before\(experience\.hub/);
-  assert.match(source, /element\.after\(experience\.directory/);
+  assert.doesNotMatch(source, /element\.before\(experience\.hub/);
+  assert.match(source, /element\.after\(`\$\{experience\.hub\}\$\{experience\.directory\}`/);
   assert.match(source, /X-StudyWudy-Chapter-Experience/);
   assert.match(source, /usesMathematicsProblemLabels/);
   assert.match(source, /question-card\[data-question-type="brief"\] \.question-number small/);
   assert.match(source, /chapter-rail nav a small/);
+});
+
+test("chapter pages render every question in one register and retire page-number URLs", async () => {
+  const fs = await import("node:fs/promises");
+  const [baseSource, afterSource] = await Promise.all([
+    fs.readFile(new URL("../worker.js", import.meta.url), "utf8"),
+    fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(baseSource, /z = r\.questions\.length, A = 1;/u);
+  assert.match(baseSource, /let B = 0, C = z, D = r\.exercises\.flatMap/u);
+  assert.doesNotMatch(baseSource, /z = r\.questions\.length, A = Math\.max\(1, Math\.ceil\(z \/ 40\)\)/u);
+  assert.match(afterSource, /function unpaginatedChapterRedirect\(request, url\)/u);
+  assert.match(afterSource, /canonical\.searchParams\.delete\("page"\)/u);
+  assert.match(afterSource, /Response\.redirect\(canonical\.toString\(\), 308\)/u);
 });

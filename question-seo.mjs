@@ -1,5 +1,6 @@
 import { boardSearchName } from "./search-metadata.mjs";
 import { normalizedQuestionType } from "./question-classification.mjs";
+import { formulaRepresentations } from "./semantic-math.mjs";
 
 const QUESTION_PROMPT_OVERRIDES = Object.freeze({
   "q-tn-samacheer-kalvi-mathematics-term-1-class-4-3-001": {
@@ -40,8 +41,20 @@ const QUESTION_PROMPT_OVERRIDES = Object.freeze({
   },
 });
 
+function semanticPlainMath(value) {
+  const source = String(value || "");
+  const delimited = source.replace(
+    /\$\$([\s\S]*?)\$\$|\$([^$]+?)\$|\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/gu,
+    (_match, display, inline, parenthesized, bracketed) => ` ${formulaRepresentations(display || inline || parenthesized || bracketed).plainText} `,
+  );
+  return delimited.replace(
+    /\\begin\s*\{([bpvV]?matrix|smallmatrix|array|cases|aligned(?:at)?|align\*?|gathered|split)\}[\s\S]*?\\end\s*\{\1\}/gu,
+    (environment) => ` ${formulaRepresentations(environment).plainText} `,
+  );
+}
+
 function plainText(value) {
-  return String(value || "")
+  return semanticPlainMath(value)
     .normalize("NFKC")
     .replace(/<\/?[A-Za-z][^<>]*>/gu, " ")
     .replace(/!\[([^\]]*)\]\([^)]*\)/gu, "$1")

@@ -345,7 +345,12 @@ async function callResponsesApi({ endpoint, apiKey, model, effort, stage, instru
       if (!response.ok) {
         const message = body?.error?.message || `${response.status} ${response.statusText}`;
         const retryable = response.status === 429 || response.status >= 500;
-        if (!retryable || attempt === defaults.maxAttempts) throw new Error(message);
+        if (!retryable || attempt === defaults.maxAttempts) {
+          const apiError = new Error(message);
+          apiError.status = response.status;
+          apiError.retryable = retryable;
+          throw apiError;
+        }
         const retryAfter = Math.min(30, Math.max(1, Number(response.headers.get("retry-after") || 2 ** attempt)));
         await delay(retryAfter * 1_000);
         continue;
@@ -360,10 +365,25 @@ async function callResponsesApi({ endpoint, apiKey, model, effort, stage, instru
       };
     } catch (error) {
       lastError = error;
+      if (error?.retryable === false) throw error;
       if (attempt < defaults.maxAttempts) await delay(2 ** attempt * 1_000);
     }
   }
   throw lastError || new Error(`${model} ${stage} request failed`);
+}
+
+function isTransientGenerationError(error) {
+  if (error?.retryable === true) return true;
+  if (error?.retryable === false) return false;
+  const message = String(error?.message || error || "").toLowerCase();
+  return error?.name === "TypeError"
+    || error?.name === "TimeoutError"
+    || message.includes("fetch failed")
+    || message.includes("network")
+    || message.includes("timed out")
+    || message.includes("timeout")
+    || message.includes("socket")
+    || message.includes("connection");
 }
 
 function questionMapForBook(source, bookId) {
@@ -637,6 +657,10 @@ async function runCommand() {
         } catch (resetError) {
           fatalError ||= resetError;
           return;
+        }
+        if (isTransientGenerationError(error)) {
+          await delay(15_000);
+          continue;
         }
         fatalError ||= error;
         return;
