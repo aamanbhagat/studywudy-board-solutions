@@ -1304,7 +1304,7 @@ const BARE_TEX_SIGNAL_COMMANDS = new Set([
 
 function isBareTexFormula(value) {
   const source = String(value ?? "").trim();
-  if (!source || source.length > 600 || source.includes("```") || /<\/?[A-Za-z][^>]*>/u.test(source)) return false;
+  if (!source || source.length > 600 || source.includes("```") || source.includes("$") || /<\/?[A-Za-z][^>]*>/u.test(source)) return false;
   const commands = [...source.matchAll(/\\([A-Za-z]+|.)/gu)].map((match) => match[1]);
   if (!commands.some((command) => BARE_TEX_SIGNAL_COMMANDS.has(command))) return false;
   const formulaLikeStart = /^(?:\\|[([{]|[A-Za-z0-9](?:\s*[_^=+\-*/<>]|\s*\\))/u.test(source);

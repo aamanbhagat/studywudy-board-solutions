@@ -327,6 +327,20 @@ test("bare boxed final answers are discovered and rendered as semantic math", ()
   assert.doesNotMatch(html, /\\(?:boxed|frac)/u);
 });
 
+test("labelled inline equations are evaluated once without treating their prose line as bare TeX", () => {
+  const question = {
+    finalAnswer: {
+      blocks: [{
+        text: String.raw`(a) $\text{Green plants} \rightarrow \text{rabbit} \rightarrow \text{fox} \rightarrow \text{lion}$`,
+      }],
+    },
+  };
+  const evaluation = evaluateQuestionFormulaAccessibility(question);
+  assert.equal(evaluation.formulaCount, 1);
+  assert.equal(evaluation.complete, true);
+  assert.equal(evaluation.formulas[0].source, String.raw`\text{Green plants} \rightarrow \text{rabbit} \rightarrow \text{fox} \rightarrow \text{lion}`);
+});
+
 test("geometry words inside TeX text commands become semantic geometry symbols", () => {
   const angle = formulaRepresentations(String.raw`\text{angle}RQS={30}^{\circ}`);
   const triangle = formulaRepresentations(String.raw`\text{triangle}PQR`);

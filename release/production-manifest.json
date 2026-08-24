@@ -87635,8 +87635,8 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 78269,
-      "sha256": "9de2c580994ca86a4c7f9ce49758d5dd2dfeb032c3e2732e6fa5e749d5974dcb"
+      "bytes": 78293,
+      "sha256": "fc9e1c71b2384f1612a17f7d741137b166d1535f851616e1841fabd7de6e4c74"
     },
     {
       "path": "source-correction-ledger.mjs",
@@ -87679,5 +87679,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "b917d51bbc9d8f71058826cdb9d0531bcd9bd4f94e3cd8996e590391c5e1e523"
+  "aggregateSha256": "24d5c2a858e95de44115119c7305daf5d6aa83cdbc094d9c991b3a934b924877"
 }
