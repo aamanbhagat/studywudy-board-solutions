@@ -30,6 +30,7 @@ import {
   isLegacyQuestionId,
   questionRecordFromCatalogRow,
 } from "../question-routes.mjs";
+import { subjectAwareQuestionTypeLabel } from "../question-type-labels.mjs";
 import { isQuestionEquationReviewPending, isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { QUESTION_PAYLOAD_ASSET_MANIFEST } from "../question-payload-assets-manifest.mjs";
@@ -42,6 +43,7 @@ import {
   conciseDirectAnswer,
   findQuestionPageContext,
   QUESTION_PAGE_EXPERIENCE_STYLES,
+  QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
   renderQuestionPageExperience,
 } from "../question-page-experience.mjs";
 import {
@@ -426,7 +428,11 @@ function decodeConceptTags(value) {
 function searchQuestionCardMarkup(row) {
   const href = getQuestionUrl(questionRecordFromCatalogRow(row));
   const normalizedType = normalizedQuestionType(row);
-  const type = QUESTION_TYPE_LABELS[normalizedType] || "Answer";
+  const type = subjectAwareQuestionTypeLabel(
+    normalizedType,
+    row.subject_slug,
+    QUESTION_TYPE_LABELS[normalizedType] || "Answer",
+  );
   const tags = decodeConceptTags(row.concept_tags)
     .map((tag) => repairKnownText(row.book_id, tag.replaceAll("-", " ")))
     .slice(0, 4);
@@ -1065,7 +1071,7 @@ const STANDALONE_QUESTION_STYLES = `<style data-studywudy-question-render="canon
 .standalone-question-page .answer-page-main{min-width:0}.standalone-question-page .question-card{overflow:visible}.standalone-question-page .question-prompt>.rich-copy{display:grid;gap:.6rem}.standalone-question-page .question-prompt>.rich-copy>p{margin:0}.standalone-question-page .question-media-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}.standalone-question-page .question-media-gallery figure{margin:0}.standalone-question-page .question-media-gallery img{display:block;width:100%;height:auto;border:2px solid var(--ink);border-radius:4px;background:#fff;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-media-gallery figcaption{margin-top:9px;color:var(--ink-soft);font-size:.75rem;font-weight:700}.standalone-question-page .question-choice-list{margin:18px 0 0;padding:0}.standalone-question-page .question-choice-list li{list-style:none}.standalone-question-page .solution-body>section{padding:18px 0;border-top:1px dashed #10131661}.standalone-question-page .solution-body>section:first-of-type{border-top:0}.standalone-question-page .solution-body>section>h3{margin:0 0 10px;font-size:1rem;font-weight:950}.standalone-question-page .solution-body>section>p,.standalone-question-page .solution-body>section>.rich-copy p{margin:.45rem 0}.standalone-question-page .solution-steps>li>span.sr-only{position:absolute}.standalone-question-page .question-table-scroll{max-width:100%;overflow-x:auto;border:2px solid var(--ink);box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-table-scroll table{width:100%;min-width:560px;border-collapse:collapse;background:var(--white)}.standalone-question-page .question-table-scroll th,.standalone-question-page .question-table-scroll td{padding:11px 13px;border:1px solid var(--ink);text-align:left}.standalone-question-page .question-table-scroll th{background:var(--violet);color:#fff}.standalone-question-page .phase4-review-signal{margin:22px 0;border:3px solid var(--ink);border-left:9px solid var(--mint);border-radius:5px;background:var(--white);box-shadow:5px 6px 0 var(--ink)}.standalone-question-page .phase4-review-signal.is-pending{border-left-color:var(--gold)}.standalone-question-page .question-source-note{padding:12px;border:2px solid var(--ink);background:var(--gold-soft)}.standalone-question-page .question-trust-panel,.standalone-question-page .question-answer-summary,.standalone-question-page .question-specific-panel,.standalone-question-page .question-exercise-card{border-color:var(--ink);border-radius:5px;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-answer-summary{background:var(--white)}.standalone-question-page .question-answer-summary ol li{border-color:var(--ink);border-radius:3px;background:var(--gold-soft)}.standalone-question-page .question-answer-label,.standalone-question-page .question-specific-panel>span,.standalone-question-page .question-exercise-related header>span,.standalone-question-page .question-solution-overview>span{color:var(--violet)}.standalone-question-page .question-solution-overview{border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}.standalone-question-page .question-solution-overview li{border:1px solid var(--ink);border-radius:3px}.standalone-question-page .question-specific-panel{background:var(--white)}.standalone-question-page .question-trust-panel{border-left-width:9px;background:var(--paper-deep)}.standalone-question-page .question-trust-row,.standalone-question-page .question-human-review,.standalone-question-page .question-report-error{border-color:var(--ink);border-radius:3px}.standalone-question-page .question-exercise-card{transition:transform .16s,box-shadow .16s}.standalone-question-page .question-exercise-card:hover{box-shadow:2px 3px 0 var(--ink);transform:translate(2px,2px)}.standalone-question-page .answer-page-chapter span{margin-right:10px}.standalone-question-page .answer-context dl{margin:0}.standalone-question-page .answer-context dl div{padding:9px 0}.standalone-question-page .answer-context dt{color:var(--ink-soft);font-size:.65rem;font-weight:800;text-transform:uppercase}.standalone-question-page .answer-context dd{margin:2px 0 0;font-weight:850}.standalone-question-page .footer-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.standalone-question-page .phase5-native-links{display:grid;align-content:start;gap:8px}.standalone-question-page .footer-intro h2{color:#fff}.standalone-question-page .footer-banner strong{color:var(--ink)}
 @media(max-width:780px){.standalone-question-page .question-media-gallery{grid-template-columns:1fr}.standalone-question-page .answer-page-layout{display:block}.standalone-question-page .question-chapter-rail,.standalone-question-page .answer-context{display:none}.standalone-question-page .footer-nav{grid-template-columns:1fr 1fr}}
 @media(max-width:540px){.standalone-question-page .question-answer-summary{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .question-trust-panel{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .footer-nav{grid-template-columns:1fr}}
-</style>`;
+</style>${QUESTION_PAGE_THEME_ALIGNMENT_STYLES}`;
 
 function standaloneQuestionBreadcrumbs(row, route) {
   const items = [
@@ -1119,7 +1125,11 @@ function standaloneRelatedQuestionModel(row, catalog, route) {
     rowId: Number(row.row_id),
     href: standaloneRelatedQuestionHref(row, route),
     label: String(row.display_label || ""),
-    typeLabel: QUESTION_TYPE_LABELS[type] || "Textbook answer",
+    typeLabel: subjectAwareQuestionTypeLabel(
+      type,
+      route.subject,
+      QUESTION_TYPE_LABELS[type] || "Textbook answer",
+    ),
     chapter: reviewedChapterTitle(
       catalog.book_id,
       row.chapter_slug,
@@ -1292,7 +1302,11 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const reviewPanel = `<section class="phase4-review-signal${indexable ? "" : " is-pending"}" aria-label="Automated solution publishing check"><a href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : formulaEvaluation.formulaCount && !renderedEquationPass ? "Equation review pending" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The rendered answer passed type-specific structure, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page is noindex and excluded from sitemaps, search results and quality-screened samples until every publishing check passes."}</span></section>`;
   const snippetExclusion = experience?.snippetEligible === false ? " data-nosnippet" : "";
   const questionType = normalizedQuestionType(question);
-  const questionTypeLabel = QUESTION_TYPE_LABELS[questionType] || "Textbook answer";
+  const questionTypeLabel = subjectAwareQuestionTypeLabel(
+    questionType,
+    route.subject,
+    QUESTION_TYPE_LABELS[questionType] || "Textbook answer",
+  );
   const chapterNumber = String(Number(catalog.chapter_number) || "").padStart(2, "0");
   const solutionHeadingId = `${route.question}-solution-heading`;
   const promptTitle = questionPrompt(catalog);
@@ -1407,7 +1421,7 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
   if (!ready || requestMethod === "HEAD" || typeof HTMLRewriter !== "function") return { response, ready };
 
   const solutionHeading = experience.solutionOverview.includes("worked step") ? "Step-by-step solution" : "Answer and explanation";
-  const questionExperienceStyles = `${QUESTION_PAGE_EXPERIENCE_STYLES}${experience.semanticLinks ? SEMANTIC_LINK_GRAPH_STYLES : ""}`;
+  const questionExperienceStyles = `${QUESTION_PAGE_EXPERIENCE_STYLES}${QUESTION_PAGE_THEME_ALIGNMENT_STYLES}${experience.semanticLinks ? SEMANTIC_LINK_GRAPH_STYLES : ""}`;
   const rewriter = new HTMLRewriter()
     .on("head", {
       element(element) {
@@ -1609,6 +1623,7 @@ function chapterSolutionLinksResponse(response, url) {
   const contentType = response.headers.get("content-type") || "";
   if (!chapter || !response.ok || !contentType.includes("text/html") || typeof HTMLRewriter !== "function") return response;
   const questionUrlStack = [];
+  const usesMathematicsProblemLabels = chapter.subjectSlug === "mathematics";
   const descriptiveElectrostaticsAnchors = chapter.boardSlug === "maharashtra-board"
     && chapter.classNumber === 12
     && chapter.subjectSlug === "physics"
@@ -1640,6 +1655,18 @@ function chapterSolutionLinksResponse(response, url) {
         element.tagName = "a";
         element.setAttribute("href", currentQuestion.href);
         element.removeAttribute("aria-hidden");
+      },
+    })
+    .on('.question-card[data-question-type="brief"] .question-number small', {
+      element(element) {
+        if (usesMathematicsProblemLabels) element.setInnerContent("Problem");
+      },
+    })
+    .on(".chapter-rail nav a small", {
+      text(text) {
+        if (usesMathematicsProblemLabels && text.text.trim().toLocaleLowerCase("en-IN") === "brief") {
+          text.replace("Problem");
+        }
       },
     })
     .on(".solution-page-button > span", {

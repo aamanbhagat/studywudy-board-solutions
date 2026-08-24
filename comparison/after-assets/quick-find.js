@@ -158,6 +158,7 @@ function mountQuickFind() {
 
   let activeIndex = 0;
   let requestId = 0;
+  let previewCatalogPromise;
 
   function isSeniorGrade() {
     return state.grade?.id === "class-11" || state.grade?.id === "class-12";
@@ -334,11 +335,41 @@ function mountQuickFind() {
     });
   }
 
+  function isStaticPreview() {
+    return Boolean(document.querySelector('meta[name="studywudy-preview"][content="static-vercel-qa"]'));
+  }
+
+  async function previewItems(index) {
+    previewCatalogPromise ||= fetch("/preview-data/quick-find.json", {
+      headers: { accept: "application/json" },
+    }).then(async (response) => {
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || !contentType.includes("json")) throw new Error("Preview choices are unavailable");
+      return response.json();
+    });
+    const catalog = await previewCatalogPromise;
+    const step = steps()[index];
+    const key = [state.board?.id, state.grade?.id, state.stream?.id].filter(Boolean).join("|");
+    let items = [];
+    if (step.key === "board") items = catalog.boards || [];
+    if (step.key === "grade") items = catalog.grades?.[state.board?.id] || [];
+    if (step.key === "stream") items = catalog.streams?.[key] || [];
+    if (step.key === "subject") items = catalog.subjects?.[key] || [];
+    return { items, limited: false };
+  }
+
   async function fetchItems(index, search = "") {
-    const response = await fetch(`/api/quick-find?${paramsFor(index, search)}`);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load choices");
-    return data;
+    const response = await fetch(`/api/quick-find?${paramsFor(index, search)}`, {
+      headers: { accept: "application/json" },
+    });
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("json")) {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load choices");
+      return data;
+    }
+    if (isStaticPreview()) return previewItems(index);
+    throw new Error("Choices could not load. Refresh the page and try again.");
   }
 
   async function loadStep(index, search = "") {

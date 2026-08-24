@@ -1,11 +1,11 @@
 {
   "format": "studywudy-static-vercel-preview-v1",
   "branch": "codex/studywudy-quality-overhaul-2026-08-21",
-  "source": "local-workerd-with-backup-d1",
+  "source": "static-snapshots-with-local-fixtures",
   "cloudflareProductionBindingsUsed": false,
   "robotsPolicy": "noindex, nofollow, noarchive",
-  "routeCount": 85,
-  "assetCount": 48,
+  "routeCount": 142,
+  "assetCount": 52,
   "routes": [
     {
       "route": "/",
@@ -138,6 +138,348 @@
       "sha256": "2b578f4c8cbee2c3af6f4b23f1eb88247323ffa5d5c18b3a4a2b6cab648b242c",
       "htmlBytes": 44761,
       "gzipBytes": 9517
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics",
+      "sha256": "e03b9c065b6826852a6182bf07eda48d7eb7f12d23826933a7e9b73f361cc4cd",
+      "htmlBytes": 72988,
+      "gzipBytes": 9439
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12",
+      "sha256": "573231fab38e3ad6a9e2660feaba4a22198ea064a5743d2a99fa38bcea635e2e",
+      "htmlBytes": 28363,
+      "gzipBytes": 7105
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic",
+      "sha256": "f521cd3e69e2082f09ad5e04db8b1762490169516323986b7937518ac01bdebd",
+      "htmlBytes": 129055,
+      "gzipBytes": 16312
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-001",
+      "sha256": "72ee8dc142af253657126792bd0355130b82254b9acd8c3245dd8c7f713f92a0",
+      "htmlBytes": 49847,
+      "gzipBytes": 10140
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-002",
+      "sha256": "03b8f14e0bc9b019d6443392c68b998b89b733dcc3126a6cd23a6319e34bd97e",
+      "htmlBytes": 54415,
+      "gzipBytes": 10522
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-003",
+      "sha256": "65f1b589875a7aab95592f5f8f1a8f222826a5d086fe114ee5d86fa2302f441a",
+      "htmlBytes": 49733,
+      "gzipBytes": 10087
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-004",
+      "sha256": "434681072d574c060941b54ad8a8cc13fc5d17d9ae8cea4f78bc0d9575db6de1",
+      "htmlBytes": 53925,
+      "gzipBytes": 10634
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-005",
+      "sha256": "a7a638749f23bfbfa625c12690d8d7cbe776efd2160a5b6272fb195ec7ed6c71",
+      "htmlBytes": 49728,
+      "gzipBytes": 10062
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-006",
+      "sha256": "c6fbda3cdb18282a4f718bc05bdae8322150c836b1d3f656e27cfdd0b84b6098",
+      "htmlBytes": 52570,
+      "gzipBytes": 10637
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-007",
+      "sha256": "f8c58acbe50ef33324bc80654a0541033dd240b5184a9368be39c2bca9374773",
+      "htmlBytes": 55251,
+      "gzipBytes": 10564
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-008",
+      "sha256": "82ddb146fae87dd22ab7038cdee00da945fdeadb1fc5c8fa54d5fe4c8de86c6d",
+      "htmlBytes": 52034,
+      "gzipBytes": 10485
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-009",
+      "sha256": "1e127ee88a1b8776730f2e9e1a3313c70d325600c33d6cb254842af1e240d81a",
+      "htmlBytes": 49859,
+      "gzipBytes": 10079
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-010",
+      "sha256": "92e118f17f7ae8816cd727563e083cf396a1c5fca4ae707bb5a6bf87c2e13677",
+      "htmlBytes": 49573,
+      "gzipBytes": 10056
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-011",
+      "sha256": "fc7296b2c3e349d7917e3ccea91c92795e12bc65eb450bb552c89b870ad6a8e7",
+      "htmlBytes": 51420,
+      "gzipBytes": 10287
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-012",
+      "sha256": "4e565301faacc8d331969a5ea352bdee01aac51e286f9c65d9410c8a89c43268",
+      "htmlBytes": 49855,
+      "gzipBytes": 10067
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-013",
+      "sha256": "870036ca9dc86e4d366a512f51ae5733068a59488e0b4344f2994309c0f73578",
+      "htmlBytes": 52761,
+      "gzipBytes": 10567
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-014",
+      "sha256": "c58e79df5e98fc391ea930e9322b6c71bb382794c7a21685a6d7b52257d4b234",
+      "htmlBytes": 54539,
+      "gzipBytes": 10624
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-015",
+      "sha256": "bcb8be7a79e307d20f85ff65ceeca51036c24cd2c35565a980dc3b5da1cee63a",
+      "htmlBytes": 50581,
+      "gzipBytes": 10244
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-016",
+      "sha256": "b03574ec8b9ecadb67c2a734a550a228e747b5bfeb6434a99897336489ad630e",
+      "htmlBytes": 51898,
+      "gzipBytes": 10122
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-017",
+      "sha256": "a58a0ae997002fb0e2256255fb5ceb54f4c267d40441a14528c06c26aee165ee",
+      "htmlBytes": 52312,
+      "gzipBytes": 10185
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-018",
+      "sha256": "38d88eac731cab0e1db00fa559f07e6428965b238ae0a9923cf60b1ebf1b4a26",
+      "htmlBytes": 54672,
+      "gzipBytes": 10312
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-019",
+      "sha256": "888df70fa2d1d00ee6281b29ad285458d5ef9f8d50dd90374baddbbbe4e3c78e",
+      "htmlBytes": 52353,
+      "gzipBytes": 10273
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-020",
+      "sha256": "f6b61f573187b77cca9780197e87a6be4352be4ae9f85e00ac972917b6c44bdd",
+      "htmlBytes": 50545,
+      "gzipBytes": 10133
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-021",
+      "sha256": "f6064e4ad953fa6217b74077fd8df531bfe397af75d6387bc9291fd84c645fae",
+      "htmlBytes": 49268,
+      "gzipBytes": 10021
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-022",
+      "sha256": "004361b0ede5071fad325051f1ae25512236f1d904e7baa90af07a0c1962fdaa",
+      "htmlBytes": 51997,
+      "gzipBytes": 10311
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-023",
+      "sha256": "322e040b757c8266195ff4eabd1d26728fe9614401f90cb9840a3e1526833e92",
+      "htmlBytes": 49521,
+      "gzipBytes": 10048
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-024",
+      "sha256": "bce757359e0c9300fb015b87ef2c19eb044fde6b69da7af1bd7e3ad70ca8e479",
+      "htmlBytes": 50948,
+      "gzipBytes": 10279
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-025",
+      "sha256": "b0b7525b8826b481df54dab79bbf6443ebe027f95b0c4bbadc5a961d7ce61db0",
+      "htmlBytes": 50913,
+      "gzipBytes": 10335
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-026",
+      "sha256": "4b4275dffcb26e27f77a0c822734b01da8c3923fe50c124624d1167c0a149a15",
+      "htmlBytes": 50380,
+      "gzipBytes": 10227
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-027",
+      "sha256": "6bb41644bbe8e8222955d72a7f481425409f0f3443fc2b0b502e34201cf67244",
+      "htmlBytes": 51087,
+      "gzipBytes": 10319
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-028",
+      "sha256": "28291d31b97962f35655c66cc3bbc464fcd97eaee92be29cc4d01bf19dd5fdba",
+      "htmlBytes": 50460,
+      "gzipBytes": 10065
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-029",
+      "sha256": "c8e0190da6d2c03c4101ec4e8a8fdf1ef4f39e9f8580bb635cb65476e7942f0a",
+      "htmlBytes": 50949,
+      "gzipBytes": 10234
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-030",
+      "sha256": "3c3054fa321a660f64c16bb15e95088bd239a80944e8b3ecd0ee7ff295e36d24",
+      "htmlBytes": 50292,
+      "gzipBytes": 10167
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-031",
+      "sha256": "8433b28eb5fd1a2f2a38d0ce66e603927c284d9e5a2d9db49cdb0607fc0c77d0",
+      "htmlBytes": 50669,
+      "gzipBytes": 10171
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-032",
+      "sha256": "57e55479fefe1e8349fddd2a88cbc2954b967232c1a5e185e82790c9240e075f",
+      "htmlBytes": 51345,
+      "gzipBytes": 10272
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-033",
+      "sha256": "6f9ceb03a5c2281075fec9a2daec7ae20c8e5a20dabfee0f5bed5de0d3ab5991",
+      "htmlBytes": 51138,
+      "gzipBytes": 10224
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-034",
+      "sha256": "d3022b1a75f6dfa3b85d5d914b805372c6c26230812095408464684ea24544b0",
+      "htmlBytes": 51056,
+      "gzipBytes": 10268
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-035",
+      "sha256": "3072927a0ee3b79d8db310b4b9788cd2f7d1aca6fdd6b933dcbdd3e1a7c3b6b7",
+      "htmlBytes": 53458,
+      "gzipBytes": 10399
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-036",
+      "sha256": "2f9f0806736ace49e87bf2cd64a338951acecf80fa2f2f93e99d98b63841fbf3",
+      "htmlBytes": 53350,
+      "gzipBytes": 10488
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-037",
+      "sha256": "0beb02309f32a6cb096381a704c1603c045d5c8df548ccef61490a923c61981c",
+      "htmlBytes": 53222,
+      "gzipBytes": 10474
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-038",
+      "sha256": "abb570ef26822a0ce847d8551f1d814a94aed8d79185c7942572597ad0462b28",
+      "htmlBytes": 49914,
+      "gzipBytes": 10036
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-039",
+      "sha256": "672070a329dd2c7e9fcd3ad3e7a0055de05f97aae7f7eccc3b0d3eac0c97bce7",
+      "htmlBytes": 52815,
+      "gzipBytes": 10282
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-040",
+      "sha256": "e4eb5fe2cdc3840956fb1771c3b3fab39ce3ca4c93d40e14549cc1dc8dee5716",
+      "htmlBytes": 50949,
+      "gzipBytes": 10083
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-051",
+      "sha256": "38548b89427dc943aefa95e541979eb06891949da32a21cc7da2c4396b3876a2",
+      "htmlBytes": 58409,
+      "gzipBytes": 10894
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-056",
+      "sha256": "4bd9349aec35bcdf0bf0c986f73592d66ccd2995578cca613fd560ea0fb3e26e",
+      "htmlBytes": 61601,
+      "gzipBytes": 11384
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-059",
+      "sha256": "3b9f9c726814ffc3b84eb95a667d126f6cc073c10d164364f7fc4f3fbd259d2a",
+      "htmlBytes": 53928,
+      "gzipBytes": 10319
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-100",
+      "sha256": "12d232a2a33efcf406abbf9ce0b1ebf66be1819a25d6bffdff15f8ad85fb9959",
+      "htmlBytes": 56662,
+      "gzipBytes": 10414
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-102",
+      "sha256": "b48fc809b7dd992719ea60211340c8135350a541e54977a05499b35197d3c2e8",
+      "htmlBytes": 59326,
+      "gzipBytes": 10620
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-103",
+      "sha256": "7b7e7ec857cba31dcf6bae02381b6447aeb6da9bfba5cd3095dc010fc5c31648",
+      "htmlBytes": 60098,
+      "gzipBytes": 10715
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-119",
+      "sha256": "45304378a5e567b8f1fd5e5cbd51b5a9b9b806c1ea5a4c5cee11c8103b75866b",
+      "htmlBytes": 67730,
+      "gzipBytes": 11605
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-130",
+      "sha256": "af989f91ca0cf36916c40924995a2caf220d89eb1e743434e60f9afc67b96824",
+      "htmlBytes": 68362,
+      "gzipBytes": 11442
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-174",
+      "sha256": "5740d17c64fca4862d7c376757fada4fecad9aae5698e8268f57cf07038bfdc2",
+      "htmlBytes": 54987,
+      "gzipBytes": 10598
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-177",
+      "sha256": "25102a56ad9094b4485f28dcd3579bd015cb39f746049a08c712b59181c7b4b9",
+      "htmlBytes": 61571,
+      "gzipBytes": 11015
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-179",
+      "sha256": "edbe2697012ea67f0f3c3f88d4a12ef9e2bdc79b04c1504a47cbb556f11a371c",
+      "htmlBytes": 64943,
+      "gzipBytes": 11118
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-182",
+      "sha256": "af14fc78848470c9ef076d4676921d8c6d7e0311fc2c8f376ddbe7137cf8c4d7",
+      "htmlBytes": 54062,
+      "gzipBytes": 10328
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-183",
+      "sha256": "0695aa4fa85e9b5fc31006e358551b5599e42556d73dbe4bad40a341201cf3c4",
+      "htmlBytes": 54356,
+      "gzipBytes": 10368
+    },
+    {
+      "route": "/maharashtra-board/class-12/mathematics/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12/mathematical-logic/questions/q-msb-balbharati-mathematics-and-statistics-1-arts-and-science-standard-12-1-193",
+      "sha256": "28f07bf5904089be03b15eb20b4cca089a2316d5dfadc2ff78dfb7e530fd3f4a",
+      "htmlBytes": 71546,
+      "gzipBytes": 12127
     },
     {
       "route": "/maharashtra-board/class-12/physics",

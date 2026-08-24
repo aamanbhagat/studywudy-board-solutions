@@ -6,6 +6,18 @@ export const ELECTROSTATICS_BASE =
 export const PHYSICS_BOOK_BASE =
   "/maharashtra-board/class-12/physics/balbharati-physics-standard-12";
 
+export const MATHEMATICS_SUBJECT_BASE =
+  "/maharashtra-board/class-12/mathematics";
+
+export const MATHEMATICAL_LOGIC_BOOK_BASE =
+  `${MATHEMATICS_SUBJECT_BASE}/balbharati-mathematics-and-statistics-1-arts-and-science-standard-12`;
+
+export const MATHEMATICAL_LOGIC_BASE =
+  `${MATHEMATICAL_LOGIC_BOOK_BASE}/mathematical-logic`;
+
+export const MATHEMATICAL_LOGIC_QUESTIONS_BASE =
+  `${MATHEMATICAL_LOGIC_BASE}/questions`;
+
 export const CORE_PREVIEW_ROUTES = Object.freeze([
   "/",
   "/boards",
@@ -13,6 +25,9 @@ export const CORE_PREVIEW_ROUTES = Object.freeze([
   "/maharashtra-board",
   "/maharashtra-board/class-12",
   "/maharashtra-board/class-12/physics",
+  MATHEMATICS_SUBJECT_BASE,
+  MATHEMATICAL_LOGIC_BOOK_BASE,
+  MATHEMATICAL_LOGIC_BASE,
   PHYSICS_BOOK_BASE,
   ELECTROSTATICS_BASE,
   `${ELECTROSTATICS_BASE}/study`,

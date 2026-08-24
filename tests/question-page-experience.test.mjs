@@ -5,9 +5,11 @@ import {
   buildQuestionPageExperience,
   conciseDirectAnswer,
   findQuestionPageContext,
+  QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
   renderQuestionPageExperience,
 } from "../question-page-experience.mjs";
 import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
+import { subjectAwareQuestionTypeLabel } from "../question-type-labels.mjs";
 
 const route = Object.freeze({
   board: "maharashtra-board",
@@ -167,6 +169,48 @@ test("direct answers stay type-aware", () => {
   assert.equal(conciseDirectAnswer({ type: "numerical", finalAnswer: "The acceleration is 9.8 m/s²." }), "The acceleration is 9.8 m/s².");
 });
 
+test("Mathematics brief records use the student-facing Problem label", () => {
+  assert.equal(subjectAwareQuestionTypeLabel("brief", "mathematics", "Brief answer"), "Problem");
+  assert.equal(subjectAwareQuestionTypeLabel("brief", "physics", "Brief answer"), "Brief answer");
+  assert.equal(subjectAwareQuestionTypeLabel("numerical", "mathematics", "Numerical"), "Numerical");
+
+  const payload = fixturePayload();
+  const question = payload.chapters[0].exercises[0].questions[0];
+  question.type = "brief";
+  question.correctChoiceId = undefined;
+  question.answer = "The required result follows from the given relation.";
+  const mathematicsRoute = { ...route, subject: "mathematics" };
+  const context = findQuestionPageContext(payload, mathematicsRoute.chapter, mathematicsRoute.question);
+  const model = buildQuestionPageExperience({
+    payload,
+    context,
+    route: mathematicsRoute,
+    catalog: { ...catalog, subject_name: "Mathematics" },
+    reviewedAt: 1_787_270_400,
+  });
+  assert.equal(model.questionTypeLabel, "Problem");
+  assert.match(renderQuestionPageExperience(model).aboveFold, /Question 1 · Problem/);
+});
+
+test("question study sections share the StudyWudy answer-sheet theme", () => {
+  assert.match(
+    QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
+    /\.standalone-question-page \.question-answer-summary\{[\s\S]*?border:3px solid var\(--question-ink\);[\s\S]*?background:var\(--question-white\);/u,
+  );
+  assert.match(
+    QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
+    /\.standalone-question-page \.phase4-review-signal\{[\s\S]*?display:grid;[\s\S]*?border-left:9px solid var\(--question-green\);/u,
+  );
+  assert.match(
+    QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
+    /\.standalone-question-page \.question-trust-panel::before\{[\s\S]*?linear-gradient/u,
+  );
+  assert.match(
+    QUESTION_PAGE_THEME_ALIGNMENT_STYLES,
+    /\.standalone-question-page \.question-exercise-card\{[\s\S]*?box-shadow:var\(--question-shadow\);/u,
+  );
+});
+
 test("the final Worker layer fails indexing closed when the experience is unavailable", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
   assert.match(source, /questionPageExperienceResponse/);
@@ -186,6 +230,7 @@ test("the bounded question renderer preserves the original StudyWudy page theme"
   assert.match(source, /class=\"question-chapter-rail\"/);
   assert.match(source, /class=\"answer-context\"/);
   assert.match(source, /class=\"footer-banner\"/);
+  assert.match(source, /QUESTION_PAGE_THEME_ALIGNMENT_STYLES/);
   assert.match(source, /canonical-single-pass-v2-themed/);
   assert.doesNotMatch(source, /--ink:#17231d;--green:#174d31;--paper:#f7f2e8/);
 });

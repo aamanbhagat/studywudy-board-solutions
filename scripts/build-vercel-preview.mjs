@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { buildQuickFindPreviewCatalog } from "./quick-find-preview-data.mjs";
 import { previewSnapshotRelativePath } from "./vercel-preview-routes.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
@@ -9,6 +10,7 @@ const previewRoot = resolve(repositoryRoot, "vercel-preview");
 const snapshotsRoot = resolve(previewRoot, "snapshots");
 const previewAssetsRoot = resolve(previewRoot, "assets");
 const outputRoot = resolve(repositoryRoot, "vercel-dist");
+const previewDatabase = resolve(repositoryRoot, "../data/d1/studywudy-content.sqlite3");
 
 const excludedAssetRoots = new Set(["monitoring", "pages", "sitemaps"]);
 const excludedAssetFiles = new Set(["robots.txt", "sitemap.xml"]);
@@ -73,7 +75,12 @@ async function main() {
   );
 
   await mkdir(resolve(outputRoot, "preview-scope"), { recursive: true });
+  await mkdir(resolve(outputRoot, "preview-data"), { recursive: true });
   await writeFile(resolve(outputRoot, "preview-scope/index.html"), scopeHtml);
+  await writeFile(
+    resolve(outputRoot, "preview-data/quick-find.json"),
+    `${JSON.stringify(buildQuickFindPreviewCatalog(previewDatabase))}\n`,
+  );
   await writeFile(resolve(outputRoot, "404.html"), unavailableHtml);
   await writeFile(resolve(outputRoot, "robots.txt"), "User-agent: *\nDisallow: /\n");
   await writeFile(resolve(outputRoot, "preview-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

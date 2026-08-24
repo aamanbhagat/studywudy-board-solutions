@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
+import { CHAPTER_PAGE_EXPERIENCE_STYLES } from "../chapter-page-experience.mjs";
+import { QUESTION_PAGE_THEME_ALIGNMENT_STYLES } from "../question-page-experience.mjs";
 import {
   CORE_PREVIEW_ROUTES,
   ELECTROSTATICS_BASE,
+  MATHEMATICAL_LOGIC_BASE,
+  MATHEMATICAL_LOGIC_QUESTIONS_BASE,
   PHYSICS_BOOK_BASE,
   PREVIEW_BRANCH,
   normalizePreviewRoute,
@@ -20,7 +24,7 @@ const snapshotRoot = resolve(previewRoot, "snapshots");
 const previewAssetRoot = resolve(previewRoot, "assets");
 const localR2Root = resolve(repositoryRoot, "../data/r2/objects");
 const branchUrl = `https://github.com/aamanbhagat/studywudy-board-solutions/tree/${PREVIEW_BRANCH}`;
-const referencedBoardlyMedia = new Set();
+const referencedPreviewMedia = new Set();
 const referencedCatalogArtwork = new Set();
 
 const htmlEscape = (value) => String(value)
@@ -66,6 +70,10 @@ function makePreviewSafe(html) {
     .replaceAll("/icon-512.png", "/preview-assets/studywudy-preview.svg")
     .replaceAll("/apple-touch-icon.png", "/preview-assets/studywudy-preview.svg")
     .replace(
+      /\/catalog-artwork\/books\/(?:cards\/(?:mobile-108x150\/)?|)([a-z0-9-]+)--(class-\d+)--[a-z0-9-]+--([a-z0-9-]+)\.webp/giu,
+      "/catalog-artwork/books/covers/$1/$2/$3.webp",
+    )
+    .replace(
       /\/catalog-artwork\/subjects\/(?:heroes-96x96|cards-128x128)\/([a-z0-9-]+)\.webp/giu,
       (_match, slug) => {
         referencedCatalogArtwork.add(slug);
@@ -73,9 +81,9 @@ function makePreviewSafe(html) {
       },
     );
 
-  for (const match of transformed.matchAll(/\/boardly-media\/[^"'()\s<>]+/giu)) {
+  for (const match of transformed.matchAll(/\/(?:boardly-media|studywudy-media)\/[^"'()\s<>]+/giu)) {
     const mediaPath = new URL(match[0], "https://preview.invalid").pathname;
-    referencedBoardlyMedia.add(mediaPath);
+    referencedPreviewMedia.add(mediaPath);
   }
 
   if (!/name=(?:"robots"|'robots')/iu.test(transformed)) {
@@ -84,6 +92,30 @@ function makePreviewSafe(html) {
   transformed = transformed.replace(/<\/head>/iu, `${previewHeadMarkup()}</head>`);
   transformed = transformed.replace(/(<body\b[^>]*>)/iu, `$1${previewBodyMarkup()}`);
   return transformed;
+}
+
+function applyLocalRouteUpdates(route, html) {
+  const normalizedRoute = normalizePreviewRoute(route);
+  if (normalizedRoute !== MATHEMATICAL_LOGIC_BASE
+    && !normalizedRoute.startsWith(`${MATHEMATICAL_LOGIC_QUESTIONS_BASE}/`)) return html;
+
+  const themed = normalizedRoute === MATHEMATICAL_LOGIC_BASE
+    ? html.replace(
+      /<style id="chapter-page-experience-styles">[\s\S]*?<\/style>/u,
+      CHAPTER_PAGE_EXPERIENCE_STYLES,
+    )
+    : html;
+
+  const aligned = normalizedRoute.startsWith(`${MATHEMATICAL_LOGIC_QUESTIONS_BASE}/`)
+    ? themed
+      .replace(/<style id="question-page-theme-alignment-styles">[\s\S]*?<\/style>/u, "")
+      .replace(/<\/head>/iu, `${QUESTION_PAGE_THEME_ALIGNMENT_STYLES}</head>`)
+    : themed;
+
+  return aligned
+    .replaceAll("Brief answer", "Problem")
+    .replaceAll("brief answer", "problem")
+    .replaceAll("<small>brief</small>", "<small>Problem</small>");
 }
 
 function catalogArtworkSvg(slug) {
@@ -105,8 +137,8 @@ function previewMarkSvg() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc"><title id="title">StudyWudy preview</title><desc id="desc">An open study book with a verification check</desc><rect width="128" height="128" rx="26" fill="#17211d"/><path d="M22 34c17-5 31-1 42 8v58c-11-9-25-13-42-8V34Zm84 0c-17-5-31-1-42 8v58c11-9 25-13 42-8V34Z" fill="#f8f4e9" stroke="#bfe8d0" stroke-width="4" stroke-linejoin="round"/><path d="m76 67 8 8 18-22" fill="none" stroke="#1a8054" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-async function writePreviewAssets() {
-  await rm(previewAssetRoot, { recursive: true, force: true });
+async function writePreviewAssets({ reset = true } = {}) {
+  if (reset) await rm(previewAssetRoot, { recursive: true, force: true });
   await mkdir(resolve(previewAssetRoot, "preview-assets/catalog"), { recursive: true });
   await writeFile(
     resolve(previewAssetRoot, "preview-assets/studywudy-preview.svg"),
@@ -120,32 +152,62 @@ async function writePreviewAssets() {
     );
   }
 
-  for (const mediaPath of [...referencedBoardlyMedia].sort()) {
-    const source = resolve(localR2Root, `.${mediaPath.slice("/boardly-media".length)}`);
+  for (const mediaPath of [...referencedPreviewMedia].sort()) {
+    const publicPrefix = mediaPath.startsWith("/studywudy-media/")
+      ? "/studywudy-media"
+      : "/boardly-media";
+    const source = resolve(localR2Root, `.${mediaPath.slice(publicPrefix.length)}`);
     const destination = resolve(previewAssetRoot, `.${mediaPath}`);
     await mkdir(dirname(destination), { recursive: true });
     await copyFile(source, destination);
   }
 }
 
+async function countFiles(directory) {
+  let count = 0;
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    count += entry.isDirectory() ? await countFiles(resolve(directory, entry.name)) : 1;
+  }
+  return count;
+}
+
 async function fetchHtml(route) {
   const url = new URL(route, sourceOrigin);
-  const response = await fetch(url, {
-    headers: {
-      accept: "text/html,application/xhtml+xml",
-      "user-agent": "StudyWudy-Vercel-Preview-Generator/1.0",
-    },
-  });
-  const contentType = response.headers.get("content-type") || "";
-  if (response.status !== 200 || !contentType.includes("text/html")) {
-    throw new Error(`${route} returned ${response.status} ${contentType || "without content type"}`);
+  const maxAttempts = 4;
+  let lastFailure = "request did not complete";
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          accept: "text/html,application/xhtml+xml",
+          "user-agent": "StudyWudy-Vercel-Preview-Generator/1.0",
+        },
+        signal: AbortSignal.timeout(12_000),
+      });
+      const contentType = response.headers.get("content-type") || "";
+      if (response.status === 200 && contentType.includes("text/html")) {
+        return applyLocalRouteUpdates(route, await response.text());
+      }
+      lastFailure = `${response.status} ${contentType || "without content type"}`;
+      await response.body?.cancel();
+      if (response.status < 500 && response.status !== 429) break;
+    } catch (error) {
+      lastFailure = error instanceof Error ? error.message : String(error);
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 350 * attempt));
+    }
   }
-  return response.text();
+
+  throw new Error(`${route} returned ${lastFailure} after ${maxAttempts} attempts`);
 }
 
 async function discoverRoutes() {
-  const [chapterHtml, searchHtml] = await Promise.all([
+  const [chapterHtml, mathematicalLogicHtml, searchHtml] = await Promise.all([
     fetchHtml(ELECTROSTATICS_BASE),
+    fetchHtml(MATHEMATICAL_LOGIC_BASE),
     fetchHtml("/search"),
   ]);
   const discovered = new Set(CORE_PREVIEW_ROUTES);
@@ -154,6 +216,10 @@ async function discoverRoutes() {
     const suffix = route.slice(PHYSICS_BOOK_BASE.length + 1);
     const isBookChapter = route.startsWith(`${PHYSICS_BOOK_BASE}/`) && suffix && !suffix.includes("/");
     if (isBookChapter || route.startsWith(`${ELECTROSTATICS_BASE}/`)) discovered.add(route);
+  }
+
+  for (const route of internalHtmlRoutes(mathematicalLogicHtml)) {
+    if (route.startsWith(`${MATHEMATICAL_LOGIC_QUESTIONS_BASE}/q-`)) discovered.add(route);
   }
 
   let questionBankSamples = 0;
@@ -168,11 +234,22 @@ async function discoverRoutes() {
 }
 
 async function main() {
-  const routes = await discoverRoutes();
-  await rm(snapshotRoot, { recursive: true, force: true });
+  const requestedRoutes = String(process.env.STUDYWUDY_PREVIEW_ROUTES || "")
+    .split(",")
+    .map((route) => route.trim())
+    .filter(Boolean)
+    .map(normalizePreviewRoute);
+  const incremental = requestedRoutes.length > 0;
+  const routes = incremental ? requestedRoutes : await discoverRoutes();
+  if (!incremental) await rm(snapshotRoot, { recursive: true, force: true });
   await mkdir(snapshotRoot, { recursive: true });
 
-  const records = [];
+  const existingManifest = incremental
+    ? JSON.parse(await readFile(resolve(previewRoot, "manifest.json"), "utf8"))
+    : null;
+  const recordsByRoute = new Map(
+    (existingManifest?.routes || []).map((record) => [normalizePreviewRoute(record.route), record]),
+  );
   for (const [index, route] of routes.entries()) {
     const html = makePreviewSafe(await fetchHtml(route));
     const compressed = gzipSync(html, { level: 9 });
@@ -180,7 +257,7 @@ async function main() {
     const outputPath = resolve(snapshotRoot, relativePath);
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, compressed);
-    records.push({
+    recordsByRoute.set(route, {
       route,
       sha256: createHash("sha256").update(html).digest("hex"),
       htmlBytes: Buffer.byteLength(html),
@@ -190,16 +267,20 @@ async function main() {
   }
   process.stdout.write("\n");
 
-  await writePreviewAssets();
+  await writePreviewAssets({ reset: !incremental });
+
+  const records = [...recordsByRoute.values()]
+    .sort((left, right) => left.route.localeCompare(right.route));
 
   const manifest = {
+    ...(existingManifest || {}),
     format: "studywudy-static-vercel-preview-v1",
     branch: PREVIEW_BRANCH,
-    source: "local-workerd-with-backup-d1",
+    source: incremental ? "static-snapshots-with-local-fixtures" : "local-workerd-with-backup-d1",
     cloudflareProductionBindingsUsed: false,
     robotsPolicy: "noindex, nofollow, noarchive",
     routeCount: records.length,
-    assetCount: referencedBoardlyMedia.size + referencedCatalogArtwork.size + 1,
+    assetCount: await countFiles(previewAssetRoot),
     routes: records,
   };
   await writeFile(resolve(previewRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

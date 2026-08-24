@@ -45,8 +45,8 @@
     },
     {
       "path": "chapter-page-experience.mjs",
-      "bytes": 40995,
-      "sha256": "cfbd7e89e49f108ea2841bdc8d8f2a7e43d22765cd73aef067a0263575f08bfb"
+      "bytes": 50372,
+      "sha256": "c8928a6d4175f8faac18e83e0c7f5ccab7aa813264fca731cfcf06da5f4cb45f"
     },
     {
       "path": "choice-quality.mjs",
@@ -84110,8 +84110,8 @@
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
-      "bytes": 45238,
-      "sha256": "1086e45d86071b022df26a7d59849d09eaeea8c4b3c9067067530b1cf212b022"
+      "bytes": 54615,
+      "sha256": "3d933e56738a2bca0da1df07995a97cdb95e82de8993f195c5ce9337a9c12794"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
@@ -84190,8 +84190,8 @@
     },
     {
       "path": "comparison/after-assets/quick-find.js",
-      "bytes": 19251,
-      "sha256": "7a8ef6cd852ab466e044888ccbd8465b1895981528b262da53917d5c92c483cf"
+      "bytes": 20661,
+      "sha256": "1e82975184b4758531e8933e7d53dfc9c202db6871bdb01b7d96458402ec35b8"
     },
     {
       "path": "comparison/after-assets/robots.txt",
@@ -84380,8 +84380,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 157719,
-      "sha256": "b7ef526132801f323fedfd5473ec6470065e06dafa7dab6d1defd696f801679e"
+      "bytes": 158648,
+      "sha256": "c64c620b064d56955dc8eda6b50e048fe9f1dd52491e83684e744d50bd90bbc2"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -84490,8 +84490,8 @@
     },
     {
       "path": "question-page-experience.mjs",
-      "bytes": 36862,
-      "sha256": "e0013aac8bf5194d050c60032184b526978c0111f362d9b321af13423214195e"
+      "bytes": 49936,
+      "sha256": "dab00922a403cb6978454e74938ef6534e31db0ff03d79df2cae648df3d7eb04"
     },
     {
       "path": "question-payload-assets-manifest.mjs",
@@ -84517,6 +84517,11 @@
       "path": "question-showcase-manifest.mjs",
       "bytes": 11643,
       "sha256": "e8af324d8e173e7e05cf868d55673c7879fed36d39fb07cf472f736a357711c5"
+    },
+    {
+      "path": "question-type-labels.mjs",
+      "bytes": 482,
+      "sha256": "96b549b6ab0fcd7d04e865b07d17fb8ce5e0ac4ba25c5b3611a4333306cb0d47"
     },
     {
       "path": "render-consistency.mjs",
@@ -84584,5 +84589,5 @@
       "sha256": "270e3a2d2668eea53a5a54a20aae4b3eb9ecb9a2d2a956f05aea1a69ba1f6658"
     }
   ],
-  "aggregateSha256": "e76f6784648a346c2239e2b52fdd5e8da8a06ae06cd7bff84727129fd3520731"
+  "aggregateSha256": "1d1a8d6d3812109ba64102ffac90cc1d7e20e26de3df88c53eb0757edeecde2d"
 }

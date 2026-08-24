@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildChapterPageExperience,
+  CHAPTER_PAGE_EXPERIENCE_STYLES,
   findChapterPageContext,
   renderChapterPageExperience,
 } from "../chapter-page-experience.mjs";
@@ -142,6 +143,36 @@ test("unsupported marks, past-paper and mistake claims stay off the page", () =>
   assert.doesNotMatch(markup, /<h3>Source-recorded student mistakes<\/h3>/);
 });
 
+test("exam preparation uses the warm chapter surface instead of a dark panel", () => {
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-exam-prep\{[\s\S]*?background:var\(--hub-white\);[\s\S]*?color:var\(--hub-ink\)/u,
+  );
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-exam-prep \.chapter-evidence-grid>article:nth-child\(2\)\{background:var\(--hub-blue-soft\)\}/u,
+  );
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-evidence-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/u,
+  );
+});
+
+test("formula cards use light math bands and compact question references", () => {
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-formula-grid article\{[\s\S]*?--formula-accent:var\(--hub-blue\);[\s\S]*?background:var\(--hub-white\);/u,
+  );
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-formula-equation\{[\s\S]*?border-left:4px solid var\(--formula-accent\);[\s\S]*?background:var\(--formula-tint\)!important;[\s\S]*?color:var\(--hub-navy\)!important;/u,
+  );
+  assert.match(
+    CHAPTER_PAGE_EXPERIENCE_STYLES,
+    /\.chapter-formula-uses a,\.chapter-formula-uses span\{[\s\S]*?min-height:1\.7rem;[\s\S]*?border-radius:999px;/u,
+  );
+});
+
 test("exam modules appear when marks, repeat years and a mistake are explicitly recorded", () => {
   const model = modelFor(fixturePayload({ examEvidence: true }));
   const markup = renderChapterPageExperience(model).hub;
@@ -159,4 +190,7 @@ test("the original textbook directory is replaced after the question layout", as
   assert.match(source, /element\.before\(experience\.hub/);
   assert.match(source, /element\.after\(experience\.directory/);
   assert.match(source, /X-StudyWudy-Chapter-Experience/);
+  assert.match(source, /usesMathematicsProblemLabels/);
+  assert.match(source, /question-card\[data-question-type="brief"\] \.question-number small/);
+  assert.match(source, /chapter-rail nav a small/);
 });
