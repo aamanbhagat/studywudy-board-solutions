@@ -260,6 +260,19 @@ test("solution content does not repeat visible answer, explanation, or step head
   assert.match(source, /<h2 class="solution-kicker solution-kicker-green"[^>]*>\$\{escapeHtmlAttribute\(solutionLabel\)\}<\/h2>/u);
 });
 
+test("structured long answers keep readable paragraph and list spacing", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /section\[aria-label="Answer"\]\{display:flow-root\}/u);
+  assert.match(source, /section\[aria-label="Answer"\]>p[^\n]*margin:0 0 \.9rem/u);
+  assert.match(source, /function standaloneAnswerSectionLabels\(markup\)/u);
+  assert.match(source, /<p class="answer-section-label"><strong>\$1<\/strong><\/p>/u);
+  assert.match(source, /standaloneAnswerSectionLabels\(standaloneQuestionContent\(question\.answer, bookId\)\)/u);
+  assert.match(source, /p\.answer-section-label\{margin-top:1\.15rem;margin-bottom:\.35rem\}/u);
+  assert.match(source, /section\[aria-label="Answer"\]>ul\{list-style:disc\}/u);
+  assert.match(source, /section\[aria-label="Answer"\]>ol\{list-style:decimal\}/u);
+  assert.match(source, /li\+li\{margin-top:\.65rem\}/u);
+});
+
 test("the green solution label is concise except where worked steps are required", () => {
   const descriptive = { type: "detailed", prompt: "Describe the process of double fertilization." };
   assert.equal(questionSolutionLabel(descriptive, { subject: "biology" }), "Solution");
