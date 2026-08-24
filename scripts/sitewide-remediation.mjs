@@ -25,6 +25,7 @@ const defaults = Object.freeze({
   batchSize: 6,
   interval: 2_000,
   maxAttempts: 3,
+  maxBatchAttempts: 6,
   models: Object.freeze({
     draft: "gpt-5.6-luna",
     validate: "gpt-5.6-terra",
@@ -95,8 +96,17 @@ function statusSnapshot(database) {
     FROM remediation_events WHERE event = 'batch_completed'`).get();
   const latestBatch = database.prepare(`SELECT
     COALESCE(NULLIF(CAST(json_extract(detail_json, '$.concurrency') AS INTEGER), 0), 1) AS concurrency,
-    row_count AS batch_size
+    row_count AS batch_size,
+    recorded_at
     FROM remediation_events WHERE event = 'batch_completed' ORDER BY id DESC LIMIT 1`).get();
+  const queue = database.prepare(`SELECT
+    SUM(CASE WHEN status IN ('drafting', 'validating', 'adjudicating') THEN 1 ELSE 0 END) AS active_rows,
+    SUM(CASE WHEN status = 'pending' AND source_review_required = 0
+      AND (thin_content_risk = 1 OR issue_family = 'content' OR issue_family = 'math') THEN 1 ELSE 0 END) AS eligible_pending
+    FROM remediation_pages`).get();
+  const recentFailureCount = Number(database.prepare(`SELECT COUNT(*) AS count
+    FROM remediation_events
+    WHERE event = 'batch_failed' AND recorded_at >= ?`).get(Math.floor(Date.now() / 1_000) - 900)?.count || 0);
   const activeConcurrency = Number(latestBatch?.concurrency || 1);
   const rateWindow = database.prepare(`SELECT
     SUM(row_count) AS processed_rows,
@@ -113,6 +123,11 @@ function statusSnapshot(database) {
     + Number(statuses.blocked || 0) + Number(statuses.failed || 0);
   const remainingQueue = Math.max(0, initialProblems - terminal - Number(statuses.source_review_required || 0));
   const now = Math.floor(Date.now() / 1_000);
+  const activeRows = Number(queue.active_rows || 0);
+  const eligiblePending = Number(queue.eligible_pending || 0);
+  const lastCompletedAt = Number(latestBatch?.recorded_at || 0);
+  const secondsSinceLastCompletedBatch = lastCompletedAt ? Math.max(0, now - lastCompletedAt) : null;
+  const workerState = activeRows > 0 ? "RUNNING" : eligiblePending > 0 ? "PAUSED" : "COMPLETE";
   const elapsed = event.started_at ? Math.max(1, now - Number(event.started_at)) : 0;
   const processedRows = Number(event.processed_rows || 0);
   const rateWindowRows = Number(rateWindow.processed_rows || processedRows);
@@ -146,6 +161,14 @@ function statusSnapshot(database) {
       preexistingEnrichment: Number(totals.enrichment_available || 0),
     },
     statuses,
+    health: {
+      workerState,
+      activeRows,
+      eligiblePending,
+      recentFailureCount,
+      lastCompletedAt: lastCompletedAt || null,
+      secondsSinceLastCompletedBatch,
+    },
     throughput: {
       processedRows,
       rowsPerMinute: Number((ratePerSecond * 60).toFixed(2)),
@@ -181,6 +204,11 @@ function printStatus(snapshot, json = false) {
     line("Thin-content risk", snapshot.risks.thinContent.toLocaleString("en-IN")),
     line("Technical SEO risk", snapshot.risks.technicalSeo.toLocaleString("en-IN")),
     line("Source-review blockers", snapshot.risks.sourceReviewRequired.toLocaleString("en-IN")),
+    line("Worker activity", snapshot.health.workerState),
+    line("Active rows", snapshot.health.activeRows.toLocaleString("en-IN")),
+    line("Eligible rows waiting", snapshot.health.eligiblePending.toLocaleString("en-IN")),
+    line("Last completed batch age", snapshot.health.secondsSinceLastCompletedBatch == null ? "never" : seconds(snapshot.health.secondsSinceLastCompletedBatch)),
+    line("Batch failures (15 min)", snapshot.health.recentFailureCount.toLocaleString("en-IN")),
     line("Rows processed", snapshot.throughput.processedRows.toLocaleString("en-IN")),
     line("Parallel workers", snapshot.throughput.concurrency.toLocaleString("en-IN")),
     line("Last completed batch", snapshot.throughput.batchSize.toLocaleString("en-IN")),
@@ -386,6 +414,20 @@ function isTransientGenerationError(error) {
     || message.includes("connection");
 }
 
+function isSystemicRunnerError(error) {
+  const status = Number(error?.status || 0);
+  if ([401, 403, 404].includes(status)) return true;
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("invalid api key")
+    || message.includes("incorrect api key")
+    || message.includes("unauthorized")
+    || message.includes("permission denied")
+    || message.includes("database disk image is malformed")
+    || message.includes("database or disk is full")
+    || message.includes("source database is missing")
+    || message.includes("sitewide inventory is missing");
+}
+
 function questionMapForBook(source, bookId) {
   const chunks = source.prepare(
     "SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index",
@@ -481,6 +523,7 @@ async function runCommand() {
   };
   const batchSize = Math.max(1, Math.min(12, Number(options.get("--batch-size") || defaults.batchSize)));
   const concurrency = Math.max(1, Math.min(32, Number(options.get("--concurrency") || 1)));
+  const maxBatchAttempts = Math.max(2, Math.min(20, Number(options.get("--max-batch-attempts") || defaults.maxBatchAttempts)));
   const limit = options.get("--limit") ? Math.max(1, Number(options.get("--limit"))) : Number.POSITIVE_INFINITY;
   const database = new DatabaseSync(inventoryPath);
   const source = new DatabaseSync(sourcePath, { readOnly: true });
@@ -491,6 +534,13 @@ async function runCommand() {
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
   const staleBefore = Math.floor(Date.now() / 1_000) - 3_600;
   database.prepare("UPDATE remediation_pages SET status = 'pending', locked_at = NULL WHERE status IN ('drafting','validating','adjudicating') AND COALESCE(locked_at, 0) < ?").run(staleBefore);
+  database.prepare("UPDATE remediation_pages SET status = 'failed', locked_at = NULL, error = COALESCE(error, 'Maximum batch attempts exhausted') WHERE status = 'pending' AND attempts >= ?").run(maxBatchAttempts);
+  event.run(Math.floor(Date.now() / 1_000), "runner_started", null, 0, 0, 0, 0, JSON.stringify({
+    pid: process.pid,
+    concurrency,
+    batchSize,
+    maxBatchAttempts,
+  }));
   const questionMapCache = new Map();
   const maximumCachedBooks = Math.max(4, concurrency * 2);
   const questionMap = (bookId) => {
@@ -515,17 +565,19 @@ async function runCommand() {
     try {
       const book = database.prepare(`SELECT book_id, COUNT(*) AS count FROM remediation_pages
         WHERE status = 'pending' AND source_review_required = 0
+          AND attempts < ?
           AND (thin_content_risk = 1 OR issue_family = 'content' OR issue_family = 'math')
-        GROUP BY book_id ORDER BY MIN(row_id) LIMIT 1`).get();
+        GROUP BY book_id ORDER BY MIN(row_id) LIMIT 1`).get(maxBatchAttempts);
       if (!book) {
         database.exec("COMMIT");
         return null;
       }
       const rows = database.prepare(`SELECT * FROM remediation_pages
         WHERE status = 'pending' AND source_review_required = 0
+          AND attempts < ?
           AND (thin_content_risk = 1 OR issue_family = 'content' OR issue_family = 'math')
           AND book_id = ?
-        ORDER BY row_id LIMIT ?`).all(book.book_id, Math.min(batchSize, limit - claimed));
+        ORDER BY row_id LIMIT ?`).all(maxBatchAttempts, book.book_id, Math.min(batchSize, limit - claimed));
       if (!rows.length) {
         database.exec("COMMIT");
         return null;
@@ -543,13 +595,16 @@ async function runCommand() {
 
   function resetBatch(rows, error) {
     const failedAt = Math.floor(Date.now() / 1_000);
-    const reset = database.prepare("UPDATE remediation_pages SET status = 'pending', locked_at = NULL, error = ?, updated_at = ? WHERE row_id = ?");
+    const reset = database.prepare("UPDATE remediation_pages SET status = CASE WHEN attempts >= ? THEN 'failed' ELSE 'pending' END, locked_at = NULL, error = ?, updated_at = ? WHERE row_id = ?");
     database.exec("BEGIN IMMEDIATE");
     try {
-      for (const row of rows) reset.run(String(error), failedAt, row.row_id);
+      for (const row of rows) reset.run(maxBatchAttempts, String(error), failedAt, row.row_id);
       event.run(failedAt, "batch_failed", null, rows.length, 0, 0, 0, JSON.stringify({
         rowIds: rows.map((row) => Number(row.row_id)),
         concurrency,
+        systemic: isSystemicRunnerError(error),
+        transient: isTransientGenerationError(error),
+        maxBatchAttempts,
         error: String(error),
       }));
       database.exec("COMMIT");
@@ -647,7 +702,13 @@ async function runCommand() {
 
   async function workerLoop(workerId) {
     while (!fatalError) {
-      const rows = claimBatch();
+      let rows;
+      try {
+        rows = claimBatch();
+      } catch (error) {
+        fatalError ||= error;
+        return;
+      }
       if (!rows) return;
       try {
         await processBatch(rows, workerId);
@@ -658,12 +719,18 @@ async function runCommand() {
           fatalError ||= resetError;
           return;
         }
+        if (isSystemicRunnerError(error)) {
+          fatalError ||= error;
+          return;
+        }
         if (isTransientGenerationError(error)) {
           await delay(15_000);
           continue;
         }
-        fatalError ||= error;
-        return;
+        // A malformed or batch-specific model response must not stop unrelated
+        // workers. The affected rows are retried until maxBatchAttempts, then
+        // isolated as failed so the rest of the corpus keeps progressing.
+        await delay(2_000);
       }
     }
   }
@@ -672,6 +739,15 @@ async function runCommand() {
     await Promise.all(Array.from({ length: concurrency }, (_, index) => workerLoop(index + 1)));
     if (fatalError) throw fatalError;
   } finally {
+    try {
+      event.run(Math.floor(Date.now() / 1_000), "runner_stopped", null, processed, 0, 0, 0, JSON.stringify({
+        pid: process.pid,
+        fatal: Boolean(fatalError),
+        error: fatalError ? String(fatalError) : null,
+      }));
+    } catch {
+      // Preserve the original worker failure if the database itself is unavailable.
+    }
     source.close();
     database.close();
   }

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const scriptUrl = new URL("../scripts/sitewide-remediation.mjs", import.meta.url);
+const supervisorUrl = new URL("../scripts/sitewide-remediation-supervisor.mjs", import.meta.url);
 
 test("sitewide remediation uses Luna, Terra and Sol with a protected-content invariant", async () => {
   const source = await readFile(scriptUrl, "utf8");
@@ -35,4 +36,26 @@ test("status does not call an AI-approved row fixed before re-audit", async () =
   assert.match(source, /workerId,[\s\S]*?concurrency,[\s\S]*?batchSize: rows\.length/u);
   assert.match(source, /const rateWindow = database\.prepare/u);
   assert.match(source, /const rateWindowRows = Number\(rateWindow\.processed_rows/u);
+  assert.match(source, /Worker activity/u);
+  assert.match(source, /Eligible rows waiting/u);
+  assert.match(source, /secondsSinceLastCompletedBatch/u);
+});
+
+test("a malformed model batch is isolated instead of stopping all workers", async () => {
+  const source = await readFile(scriptUrl, "utf8");
+  assert.match(source, /function isSystemicRunnerError/u);
+  assert.match(source, /attempts < \?/u);
+  assert.match(source, /Maximum batch attempts exhausted/u);
+  assert.match(source, /A malformed or batch-specific model response must not stop unrelated/u);
+  assert.match(source, /if \(isSystemicRunnerError\(error\)\)/u);
+});
+
+test("the supervisor restarts workers, recovers orphaned rows and reads secrets outside the repo", async () => {
+  const source = await readFile(supervisorUrl, "utf8");
+  assert.match(source, /function recoverOrphanedRows/u);
+  assert.match(source, /state, "RESTARTING"|writeState\("RESTARTING"/u);
+  assert.match(source, /find-generic-password/u);
+  assert.match(source, /AZURE_FOUNDRY_API_KEY/u);
+  assert.match(source, /Math\.min\(300_000/u);
+  assert.doesNotMatch(source, /2wCQSk72/u);
 });

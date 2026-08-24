@@ -77,6 +77,7 @@
     "status:sitewide": "node scripts/sitewide-remediation.mjs status --watch",
     "status:sitewide:once": "node scripts/sitewide-remediation.mjs status",
     "remediate:sitewide": "node scripts/sitewide-remediation.mjs run",
+    "remediate:sitewide:supervised": "node scripts/sitewide-remediation-supervisor.mjs",
     "apply:sitewide-remediation": "node scripts/sitewide-remediation.mjs apply",
     "audit:phase4:runtime": "node scripts/phase4-runtime-audit.mjs",
     "audit:chapter-pages": "node scripts/chapter-page-experience-audit.mjs",
