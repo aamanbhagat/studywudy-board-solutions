@@ -15,31 +15,103 @@ const ASCII_TO_SUBSCRIPT = Object.freeze(Object.fromEntries(Object.entries(SUBSC
 
 const SYMBOLS = Object.freeze({
   alpha: ["α", "alpha"], beta: ["β", "beta"], gamma: ["γ", "gamma"], delta: ["δ", "delta"],
-  Delta: ["Δ", "capital delta"], epsilon: ["ε", "epsilon"], varepsilon: ["ε", "epsilon"],
+  Gamma: ["Γ", "capital gamma"], Delta: ["Δ", "capital delta"], Theta: ["Θ", "capital theta"],
+  Lambda: ["Λ", "capital lambda"], Pi: ["Π", "capital pi"], Psi: ["Ψ", "capital psi"],
+  epsilon: ["ε", "epsilon"], varepsilon: ["ε", "epsilon"],
   zeta: ["ζ", "zeta"], eta: ["η", "eta"], theta: ["θ", "theta"], kappa: ["κ", "kappa"],
   lambda: ["λ", "lambda"], mu: ["μ", "mu"], nu: ["ν", "nu"], xi: ["ξ", "xi"],
   tau: ["τ", "tau"], pi: ["π", "pi"], upsilon: ["υ", "upsilon"], chi: ["χ", "chi"], psi: ["ψ", "psi"],
   rho: ["ρ", "rho"], sigma: ["σ", "sigma"], Sigma: ["Σ", "sum"], phi: ["φ", "phi"],
-  Phi: ["Φ", "capital phi"], omega: ["ω", "omega"], Omega: ["Ω", "ohm"],
-  infty: ["∞", "infinity"], degree: ["°", "degrees"], circ: ["°", "degrees"],
+  varphi: ["φ", "phi"], Phi: ["Φ", "capital phi"], omega: ["ω", "omega"], Omega: ["Ω", "ohm"],
+  partial: ["∂", "partial derivative"], nabla: ["∇", "nabla"], ell: ["ℓ", "ell"],
+  hbar: ["ℏ", "h bar"], aleph: ["ℵ", "aleph"], imath: ["ı", "dotless i"], jmath: ["ȷ", "dotless j"],
+  AA: ["Å", "angstrom"], infty: ["∞", "infinity"], degree: ["°", "degrees"], circ: ["°", "degrees"],
 });
 const OPERATORS = Object.freeze({
   times: ["×", "times"], cdot: ["·", "times"], pm: ["±", "plus or minus"],
-  mp: ["∓", "minus or plus"], le: ["≤", "less than or equal to"], leq: ["≤", "less than or equal to"],
+  div: ["÷", "divided by"], mp: ["∓", "minus or plus"],
+  le: ["≤", "less than or equal to"], leq: ["≤", "less than or equal to"], leqslant: ["⩽", "less than or equal to"],
   ge: ["≥", "greater than or equal to"], geq: ["≥", "greater than or equal to"],
-  neq: ["≠", "not equal to"], approx: ["≈", "approximately equal to"],
-  sum: ["Σ", "sum"], int: ["∫", "integral"], oint: ["∮", "closed surface integral"],
-  cap: ["∩", "intersection"], parallel: ["∥", "is parallel to"],
+  neq: ["≠", "not equal to"], ne: ["≠", "not equal to"], nleq: ["≰", "not less than or equal to"],
+  approx: ["≈", "approximately equal to"], sim: ["∼", "is similar to"], nsim: ["≁", "is not similar to"],
+  simeq: ["≃", "is asymptotically equal to"], cong: ["≅", "is congruent to"], ncong: ["≇", "is not congruent to"],
+  equiv: ["≡", "is equivalent to"], propto: ["∝", "is proportional to"],
+  ll: ["≪", "is much less than"], gg: ["≫", "is much greater than"], lesssim: ["≲", "is less than or similar to"],
+  gtrsim: ["≳", "is greater than or similar to"], lessgtr: ["≶", "is less than or greater than"],
+  gtrless: ["≷", "is greater than or less than"], lt: ["<", "less than"], nless: ["≮", "is not less than"],
+  sum: ["Σ", "sum"], prod: ["∏", "product"], int: ["∫", "integral"], oint: ["∮", "closed surface integral"],
+  bigcup: ["⋃", "big union"], bigcap: ["⋂", "big intersection"], bigvee: ["⋁", "big logical or"],
+  cap: ["∩", "intersection"], cup: ["∪", "union"], setminus: ["∖", "set minus"],
+  in: ["∈", "is an element of"], notin: ["∉", "is not an element of"],
+  subset: ["⊂", "is a subset of"], subseteq: ["⊆", "is a subset of or equal to"], subsetneq: ["⊊", "is a proper subset of"],
+  nsubseteq: ["⊈", "is not a subset of or equal to"], supset: ["⊃", "is a superset of"], supseteq: ["⊇", "is a superset of or equal to"],
+  emptyset: ["∅", "empty set"], varnothing: ["∅", "empty set"],
+  parallel: ["∥", "is parallel to"], nparallel: ["∦", "is not parallel to"], perp: ["⊥", "is perpendicular to"],
+  mid: ["∣", "divides"], nmid: ["∤", "does not divide"],
   angle: ["∠", "angle"], triangle: ["△", "triangle"],
-  to: ["→", "to"], rightarrow: ["→", "to"], leftarrow: ["←", "from"],
-  Rightarrow: ["⇒", "implies"], implies: ["⇒", "implies"], Leftarrow: ["⇐", "is implied by"],
-  Leftrightarrow: ["⇔", "is equivalent to"],
+  square: ["□", "square"], Box: ["□", "square"], blacksquare: ["■", "end of proof"],
+  diamond: ["◇", "diamond"], bigcirc: ["○", "circle"], bowtie: ["⋈", "bow tie"],
+  checkmark: ["✓", "check mark"], bullet: ["•", "bullet"], star: ["⋆", "star"], ast: ["∗", "asterisk"],
+  spadesuit: ["♠", "spade"], heartsuit: ["♥", "heart"], diamondsuit: ["♦", "diamond"], clubsuit: ["♣", "club"],
+  oplus: ["⊕", "direct sum"], ominus: ["⊖", "circled minus"], otimes: ["⊗", "tensor product"], odot: ["⊙", "circled dot"],
+  to: ["→", "to"], rightarrow: ["→", "to"], longrightarrow: ["⟶", "to"],
+  leftarrow: ["←", "from"], longleftarrow: ["⟵", "from"], leftrightarrow: ["↔", "corresponds to"],
+  longleftrightarrow: ["⟷", "corresponds to"], mapsto: ["↦", "maps to"], longmapsto: ["⟼", "maps to"],
+  uparrow: ["↑", "increases"], downarrow: ["↓", "decreases"], nearrow: ["↗", "increases"], searrow: ["↘", "decreases"],
+  Downarrow: ["⇓", "downward implication"],
+  nrightarrow: ["↛", "does not proceed to"], curvearrowright: ["↷", "curves to"], rightleftarrows: ["⇄", "is reversible with"],
+  Rightarrow: ["⇒", "implies"], Longrightarrow: ["⟹", "implies"], implies: ["⇒", "implies"],
+  nRightarrow: ["⇏", "does not imply"], Leftarrow: ["⇐", "is implied by"],
+  Leftrightarrow: ["⇔", "is equivalent to"], Longleftrightarrow: ["⟺", "is equivalent to"], iff: ["⇔", "if and only if"],
   rightleftharpoons: ["⇌", "is in equilibrium with"],
+  vee: ["∨", "logical or"], lor: ["∨", "logical or"], wedge: ["∧", "logical and"], land: ["∧", "logical and"],
+  neg: ["¬", "logical not"], lnot: ["¬", "logical not"], forall: ["∀", "for all"], exists: ["∃", "there exists"],
+  nexists: ["∄", "there does not exist"], therefore: ["∴", "therefore"], because: ["∵", "because"],
+  colon: [":", "colon"], backslash: ["\\", "backslash"], prime: ["′", "prime"], ddagger: ["‡", "double dagger"],
+  dashv: ["⊣", "is implied by"], vdash: ["⊢", "proves"], top: ["⊤", "true"],
+  lvert: ["|", "absolute value"], rvert: ["|", "absolute value"], vert: ["|", "vertical bar"],
+  lVert: ["‖", "norm"], rVert: ["‖", "norm"], langle: ["⟨", "left angle bracket"], rangle: ["⟩", "right angle bracket"],
+  lfloor: ["⌊", "floor"], rfloor: ["⌋", "floor"], lceil: ["⌈", "ceiling"], rceil: ["⌉", "ceiling"],
+  lbrace: ["{", "left brace"], rbrace: ["}", "right brace"], diagup: ["/", "slash"],
+  cdots: ["⋯", "and so on"], ldots: ["…", "and so on"], dots: ["…", "and so on"], vdots: ["⋮", "and so on vertically"],
+  frown: ["⌢", "arc"], succ: ["≻", "succeeds"],
 });
-const IGNORED_COMMANDS = new Set(["left", "right", "big", "Big", "bigg", "Bigg", "displaystyle", "textstyle"]);
+const IGNORED_COMMANDS = new Set([
+  "left", "right", "middle", "big", "Big", "bigg", "Bigg", "bigl", "bigr", "Bigl", "Bigr",
+  "displaystyle", "textstyle", "scriptstyle", "limits", "nolimits", "Large", "rm",
+]);
 const SPACING_COMMANDS = new Set([",", ";", ":", "!", "quad", "qquad", " "]);
-const ROMAN_COMMANDS = new Set(["mathrm", "textrm", "operatorname"]);
-const FUNCTION_COMMANDS = new Set(["sin", "cos", "tan", "cot", "sec", "csc", "log", "ln", "exp", "min", "max"]);
+const STYLE_COMMANDS = Object.freeze({
+  mathrm: "normal", textrm: "normal", operatorname: "normal", mathbf: "bold", boldsymbol: "bold",
+  mathbb: "double-struck", mathcal: "script", mathscr: "script", mathfrak: "fraktur", mathsf: "sans-serif",
+  mathtt: "monospace", mathit: "italic",
+});
+const TEXT_STYLE_COMMANDS = Object.freeze({ textbf: "bold", textit: "italic", texttt: "monospace" });
+const FUNCTION_COMMANDS = new Set([
+  "sin", "cos", "tan", "cot", "coth", "sec", "csc", "cosec", "sinh", "cosh", "tanh",
+  "arcsin", "arccos", "arctan", "log", "ln", "exp", "lim", "min", "max", "inf", "sup", "det", "gcd", "deg", "arg", "dim", "Re", "Im",
+]);
+const ACCENT_COMMANDS = Object.freeze({
+  vec: "→", overrightarrow: "→", underrightarrow: "→", overleftarrow: "←", overleftrightarrow: "↔", underleftrightarrow: "↔",
+  hat: "^", widehat: "^", tilde: "~", widetilde: "~", bar: "¯", overline: "¯", underline: "_", dot: "˙", ddot: "¨",
+});
+const STRUCTURAL_COMMANDS = new Set([
+  "begin", "end", "frac", "dfrac", "tfrac", "binom", "dbinom", "boxed", "ce", "sqrt",
+  "overset", "stackrel", "underset", "overbrace", "underbrace", "xrightarrow", "xRightarrow", "xrightleftharpoons",
+  "cancel", "smash", "mathrel", "mathbin", "phantom", "hspace", "tag", "pmod", "bmod", "mod", "bond",
+  "not", "centernot", "substack", "text", "choose", "atop", "newline", "cr", "hline", "toprule", "midrule", "bottomrule",
+]);
+export const SUPPORTED_TEX_COMMANDS = Object.freeze([...new Set([
+  ...Object.keys(SYMBOLS), ...Object.keys(OPERATORS), ...Object.keys(STYLE_COMMANDS), ...Object.keys(TEXT_STYLE_COMMANDS),
+  ...FUNCTION_COMMANDS, ...Object.keys(ACCENT_COMMANDS), ...IGNORED_COMMANDS, ...SPACING_COMMANDS, ...STRUCTURAL_COMMANDS,
+])].sort());
+const SUPPORTED_TEX_COMMAND_SET = new Set(SUPPORTED_TEX_COMMANDS);
+
+export function unsupportedTexCommands(value) {
+  return Object.freeze([...new Set([...String(value ?? "").matchAll(/\\([A-Za-z]+|.)/gu)]
+    .map((match) => match[1])
+    .filter((command) => /[A-Za-z]/u.test(command) && !SUPPORTED_TEX_COMMAND_SET.has(command)))].sort());
+}
 const TABLE_ENVIRONMENTS = Object.freeze({
   matrix: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "matrix" }),
   smallmatrix: Object.freeze({ leftDelimiter: "", rightDelimiter: "", spokenKind: "matrix" }),
@@ -70,10 +142,11 @@ const INVALID_RENDERED_MATH_PATTERNS = Object.freeze([
   Object.freeze(["emptyFractionNumerator", /\\frac\s*\{\s*\}\s*\{/u]),
   Object.freeze(["emptyFractionDenominator", /\\frac\s*\{[^{}]+\}\s*\{\s*\}/u]),
   Object.freeze(["invalidRuntimeToken", /\b(?:undefined|NaN)\b|\[object Object\]/u]),
-  Object.freeze(["proseAndSplitIntoIdentifiers", /<mi>a<\/mi>\s*<mi>n<\/mi>\s*<mi>d<\/mi>/iu]),
-  Object.freeze(["proseParallelogramSplitIntoIdentifiers", /<mi>i<\/mi>\s*<mi>s<\/mi>\s*<mi>a<\/mi>(?:\s*<mi>[a-z]<\/mi>){13}/iu]),
+  Object.freeze(["proseAndSplitIntoIdentifiers", /<mrow>\s*<mi>a<\/mi>\s*<mi>n<\/mi>\s*<mi>d<\/mi>\s*<\/mrow>/iu]),
+  Object.freeze(["proseParallelogramSplitIntoIdentifiers", /<mrow>\s*<mi>i<\/mi>\s*<mi>s<\/mi>\s*<mi>a<\/mi>(?:\s*<mi>[a-z]<\/mi>){13}\s*<\/mrow>/iu]),
   Object.freeze(["matrixEnvironmentCommandLeak", /(?:^|[^\\])\b(?:begin|end)\s*(?:[bpvV]?matrix|smallmatrix|array|cases|aligned(?:at)?|align|gathered|split)\b/iu]),
   Object.freeze(["matrixEnvironmentMathmlCommandLeak", /<mtext>(?:begin|end)<\/mtext>(?:\s*<mi>[^<]+<\/mi>){3,12}/iu]),
+  Object.freeze(["rawTexCommandLeak", /<mtext>\s*\\[A-Za-z]+<\/mtext>/iu]),
 ]);
 
 export function invalidRenderedMathFound(value) {
@@ -342,7 +415,7 @@ class TexParser {
         closed = true;
         break;
       }
-      if (!stop && ["}", "]"].includes(this.source[this.index])) {
+      if (!stop && this.source[this.index] === "}") {
         this.errors.push(`unexpectedClosingDelimiter:${this.source[this.index]}`);
         this.index += 1;
         continue;
@@ -420,7 +493,10 @@ class TexParser {
     const end = depth === 0 ? this.index - 1 : this.index;
     return this.source.slice(start, end)
       .replace(/\\(?:text|mathrm|textrm|operatorname)\s*\{([^{}]*)\}/gu, "$1")
+      .replace(/\\(?:quad|qquad|enspace|thinspace)\b|\\[ ,;:!]/gu, " ")
       .replace(/\\[ ,;:!]/gu, " ")
+      .replace(/\\([A-Za-z]+)\b/gu, (full, command) => SYMBOLS[command]?.[0] || OPERATORS[command]?.[0] || full)
+      .replace(/\s*([·×])\s*/gu, "$1")
       .replace(/\s+/gu, " ")
       .trim();
   }
@@ -515,7 +591,9 @@ class TexParser {
     }
     if (character === "{") {
       this.index += 1;
-      return this.parse("}");
+      const group = this.parse("}");
+      group.explicitGroup = true;
+      return group;
     }
     if (character === "\\") {
       const command = this.readCommand();
@@ -531,14 +609,82 @@ class TexParser {
           denominator: this.readGroup("fractionDenominator"),
         });
       }
+      if (["binom", "dbinom"].includes(command)) {
+        return node("binomial", {
+          numerator: this.readGroup("binomialNumerator"),
+          denominator: this.readGroup("binomialDenominator"),
+        });
+      }
       if (command === "boxed") return this.readGroup();
-      if (command === "ce") return node("roman", { base: this.readGroup() });
+      if (command === "ce") {
+        const chemistry = this.readRawGroup("chemicalFormula")
+          .replace(/\s*\^\s*$/u, " \\uparrow")
+          .replace(/\s*_\s*$/u, " \\downarrow");
+        const parser = new TexParser(chemistry);
+        const base = parser.parse();
+        this.errors.push(...parser.errors.map((error) => `ce:${error}`));
+        return node("roman", { base });
+      }
       if (command === "sqrt") {
         const index = this.readOptionalGroup();
         return node("root", { index, radicand: this.readGroup() });
       }
-      if (["vec", "hat", "bar", "overline"].includes(command)) {
-        return node("accent", { accent: command, base: this.readGroup() });
+      if (ACCENT_COMMANDS[command]) {
+        return node("accent", { accent: command, mark: ACCENT_COMMANDS[command], base: this.readGroup() });
+      }
+      if (["overset", "stackrel", "underset"].includes(command)) {
+        return node("overunder", {
+          position: command === "underset" ? "under" : "over",
+          annotation: this.readGroup("annotation"),
+          base: this.readGroup("annotatedBase"),
+        });
+      }
+      if (["overbrace", "underbrace"].includes(command)) {
+        return node("brace", { position: command === "underbrace" ? "under" : "over", base: this.readGroup() });
+      }
+      if (["xrightarrow", "xRightarrow", "xrightleftharpoons"].includes(command)) {
+        const below = this.readOptionalGroup();
+        const above = this.readGroup("arrowLabel");
+        const arrow = command === "xRightarrow" ? "⇒" : command === "xrightleftharpoons" ? "⇌" : "→";
+        return node("extensibleArrow", { arrow, above, below });
+      }
+      if (["cancel", "smash", "mathrel", "mathbin"].includes(command)) {
+        const base = this.readGroup();
+        return command === "cancel" ? node("cancel", { base }) : base;
+      }
+      if (command === "phantom") return node("phantom", { base: this.readGroup() });
+      if (command === "hspace") {
+        this.readRawGroup("horizontalSpace");
+        return node("space", { width: "1em" });
+      }
+      if (["tag", "pmod", "bmod", "mod"].includes(command)) {
+        const argument = command === "tag" || command === "pmod" ? this.readGroup() : null;
+        if (command === "tag") return node("text", { value: `(${plainFromNode(argument)})`, word: true });
+        const value = argument ? plainFromNode(argument) : "mod";
+        return node("text", { value: argument ? `(mod ${value})` : "mod", word: true });
+      }
+      if (command === "bond") {
+        const bond = this.readRawGroup("bond").trim();
+        const value = bond.includes("...") ? "⋯" : bond.includes("#") ? "≡" : bond.includes("=") ? "=" : "−";
+        return node("operator", { value, spoken: "bond" });
+      }
+      if (["not", "centernot"].includes(command)) {
+        const base = this.parseAtom();
+        const negated = Object.freeze({
+          "=": "≠", "≡": "≢", "∈": "∉", "∣": "∤", "∥": "∦", "⊆": "⊈", "⊂": "⊄", "∼": "≁", "≅": "≇", "→": "↛", "⇒": "⇏",
+        })[base?.value];
+        if (negated) return node("operator", { value: negated, spoken: `not ${base.spoken || base.value}` });
+        return node("negated", { base });
+      }
+      if (command === "substack") {
+        const body = this.readRawGroup("substack");
+        const rows = splitTableSource(body).map((row) => row.map((rawCell) => {
+          const parser = new TexParser(rawCell);
+          const parsed = parser.parse();
+          this.errors.push(...parser.errors.map((error) => `substack:${error}`));
+          return parsed;
+        }));
+        return node("matrix", { environment: "substack", rows, leftDelimiter: "", rightDelimiter: "", spokenKind: "stack" });
       }
       if (command === "text") {
         const value = this.readTextGroup();
@@ -548,14 +694,32 @@ class TexParser {
         }
         return node("text", { value, word: true });
       }
-      if (ROMAN_COMMANDS.has(command)) return node("roman", { base: this.readGroup() });
+      if (TEXT_STYLE_COMMANDS[command]) {
+        return node("styled", {
+          variant: TEXT_STYLE_COMMANDS[command],
+          base: node("text", { value: this.readTextGroup(), word: true }),
+        });
+      }
+      if (["mathrm", "textrm", "operatorname"].includes(command)) return node("roman", { base: this.readGroup() });
+      if (STYLE_COMMANDS[command]) return node("styled", { variant: STYLE_COMMANDS[command], base: this.readGroup() });
       if (SYMBOLS[command]) return node("identifier", { value: SYMBOLS[command][0], spoken: SYMBOLS[command][1] });
       if (OPERATORS[command]) return node("operator", { value: OPERATORS[command][0], spoken: OPERATORS[command][1] });
       if (FUNCTION_COMMANDS.has(command)) return node("function", { value: command });
-      if (IGNORED_COMMANDS.has(command) || SPACING_COMMANDS.has(command)) return this.parseAtom();
-      if (command === "\\" || command === "newline") return node("separator", { value: ";" });
+      if (command === "choose") return node("operator", { value: "C", spoken: "choose" });
+      if (command === "atop") return node("separator", { value: ";" });
+      if (SPACING_COMMANDS.has(command)) {
+        const width = command === "qquad" ? "2em" : command === "quad" ? "1em" : ".28em";
+        return node("space", { width });
+      }
+      if (IGNORED_COMMANDS.has(command)) return this.parseAtom();
+      if (command === "\\" || command === "newline" || command === "") return node("separator", { value: ";" });
       if (["{", "}"].includes(command)) return node("operator", { value: command, spoken: command });
-      return node("text", { value: command, unknown: true });
+      if (["%", "#", "&", "_", "|"].includes(command)) {
+        const spoken = { "%": "percent", "#": "number sign", "&": "and", "_": "underscore", "|": "vertical bar" }[command];
+        return node(command === "_" ? "text" : "operator", { value: command, spoken });
+      }
+      this.errors.push(`unknownCommand:${command || "backslash"}`);
+      return node("text", { value: command ? `\\${command}` : "\\", unknown: true });
     }
     if (/\d/u.test(character)) {
       const start = this.index;
@@ -563,8 +727,23 @@ class TexParser {
       return node("number", { value: this.source.slice(start, this.index) });
     }
     if (/[A-Za-z]/u.test(character)) {
-      this.index += 1;
-      return node("identifier", { value: character, spoken: character });
+      const start = this.index;
+      while (/[A-Za-z]/u.test(this.source[this.index] || "")) this.index += 1;
+      const value = this.source.slice(start, this.index);
+      const nextCharacter = this.source[this.index] || "";
+      const precededByWhitespace = /\s/u.test(this.source[start - 1] || "");
+      const followedByExplicitSpace = /^\\(?:[ ,;:!]|quad\b|qquad\b)/u.test(this.source.slice(this.index));
+      const followedByWordBoundary = /[\s,;:.!?()'"\-]/u.test(nextCharacter);
+      const looksLikeSymbolSequence = /^(?:[A-Z][a-z]?)+$/u.test(value);
+      const continuedIdentifierRun = /[A-Za-z]/u.test(this.source[start - 1] || "");
+      const separatedWord = value.length > 1
+        && !looksLikeSymbolSequence
+        && !continuedIdentifierRun
+        && !/[\d_^]/u.test(nextCharacter)
+        && (followedByWordBoundary || followedByExplicitSpace || (precededByWhitespace && !nextCharacter));
+      if (separatedWord) return node("text", { value, word: true });
+      this.index = start + 1;
+      return node("identifier", { value: this.source[start], spoken: this.source[start] });
     }
     const unicodeSymbol = Object.values(SYMBOLS).find(([symbol]) => symbol === character);
     if (unicodeSymbol) {
@@ -647,7 +826,7 @@ function plainFromNode(value) {
     const body = value.rows.map((row) => row.map((cell) => plainFromNode(cell).replace(/^−\s+/u, "−")).join(", ")).join("; ");
     return `${value.leftDelimiter || ""}${body}${value.rightDelimiter || ""}`;
   }
-  if (value.type === "roman") return plainFromNode(value.base);
+  if (["roman", "styled", "phantom", "cancel", "negated"].includes(value.type)) return plainFromNode(value.base);
   if (value.type === "fraction") {
     const compoundSequence = (part) => part?.type === "sequence" && part.children.length > 1;
     const fractionPart = (part, forceGrouping = false) => {
@@ -657,10 +836,17 @@ function plainFromNode(value) {
     const groupProductDenominator = compoundSequence(value.numerator) && compoundSequence(value.denominator);
     return `(${fractionPart(value.numerator)}/${fractionPart(value.denominator, groupProductDenominator)})`;
   }
+  if (value.type === "binomial") return `(${plainFromNode(value.numerator)} choose ${plainFromNode(value.denominator)})`;
   if (value.type === "root") return value.index
     ? `root(${plainFromNode(value.index)}, ${plainFromNode(value.radicand)})`
     : `√(${plainFromNode(value.radicand)})`;
-  if (value.type === "accent") return plainFromNode(value.base);
+  if (value.type === "accent" || value.type === "brace") return plainFromNode(value.base);
+  if (value.type === "overunder") return `${plainFromNode(value.base)} ${plainFromNode(value.annotation)}`.trim();
+  if (value.type === "extensibleArrow") {
+    const label = [plainFromNode(value.below), plainFromNode(value.above)].filter(Boolean).join(", ");
+    return `${value.arrow}${label ? `(${label})` : ""}`;
+  }
+  if (value.type === "space") return " ";
   if (value.type === "prescript") {
     const superscript = value.presuperscript
       ? compactScript(value.presuperscript, ASCII_TO_SUPERSCRIPT) || `^(${plainFromNode(value.presuperscript)})`
@@ -728,6 +914,9 @@ function spokenFromNode(value) {
     const plain = plainFromNode(value.base);
     return UNIT_SPOKEN[plain] || spokenFromNode(value.base);
   }
+  if (value.type === "styled" || value.type === "phantom" || value.type === "cancel" || value.type === "negated") {
+    return `${value.type === "negated" ? "not " : ""}${spokenFromNode(value.base)}`.trim();
+  }
   if (value.type === "fraction") {
     const numerator = plainFromNode(value.numerator);
     const denominator = plainFromNode(value.denominator);
@@ -736,10 +925,18 @@ function spokenFromNode(value) {
     if (numerator === "3" && denominator === "4") return "three quarters";
     return `${spokenFromNode(value.numerator)} over ${spokenFromNode(value.denominator)}`;
   }
+  if (value.type === "binomial") return `${spokenFromNode(value.numerator)} choose ${spokenFromNode(value.denominator)}`;
   if (value.type === "root") return value.index
     ? `${spokenFromNode(value.index)} root of ${spokenFromNode(value.radicand)}`
     : `square root of ${spokenFromNode(value.radicand)}`;
-  if (value.type === "accent") return `${value.accent === "vec" ? "vector" : value.accent} ${spokenFromNode(value.base)}`;
+  if (value.type === "accent") return `${["vec", "overrightarrow"].includes(value.accent) ? "vector" : value.accent} ${spokenFromNode(value.base)}`;
+  if (value.type === "brace") return spokenFromNode(value.base);
+  if (value.type === "overunder") return `${spokenFromNode(value.base)} annotated ${spokenFromNode(value.annotation)}`;
+  if (value.type === "extensibleArrow") {
+    const label = [spokenFromNode(value.below), spokenFromNode(value.above)].filter(Boolean).join(" and ");
+    return `${value.arrow === "⇒" ? "implies" : value.arrow === "⇌" ? "is in equilibrium with" : "to"}${label ? ` ${label}` : ""}`;
+  }
+  if (value.type === "space") return "";
   if (value.type === "prescript") {
     const base = spokenFromNode(value.base);
     const superscript = value.presuperscript ? `superscript ${spokenFromNode(value.presuperscript)}` : "";
@@ -776,14 +973,38 @@ function mathmlFromNode(value) {
     return `<mrow>${left}${table}${right}</mrow>`;
   }
   if (value.type === "roman") return `<mstyle mathvariant="normal">${mathmlFromNode(value.base)}</mstyle>`;
+  if (value.type === "styled") return `<mstyle mathvariant="${escapeHtml(value.variant)}">${mathmlFromNode(value.base)}</mstyle>`;
   if (value.type === "fraction") return `<mfrac>${mathmlFromNode(value.numerator)}${mathmlFromNode(value.denominator)}</mfrac>`;
+  if (value.type === "binomial") {
+    return `<mrow><mo fence="true">(</mo><mfrac linethickness="0">${mathmlFromNode(value.numerator)}${mathmlFromNode(value.denominator)}</mfrac><mo fence="true">)</mo></mrow>`;
+  }
   if (value.type === "root") return value.index
     ? `<mroot>${mathmlFromNode(value.radicand)}${mathmlFromNode(value.index)}</mroot>`
     : `<msqrt>${mathmlFromNode(value.radicand)}</msqrt>`;
   if (value.type === "accent") {
-    const mark = value.accent === "vec" ? "→" : value.accent === "hat" ? "^" : "¯";
-    return `<mover accent="true">${mathmlFromNode(value.base)}<mo>${mark}</mo></mover>`;
+    const position = ["underline", "underrightarrow", "underleftrightarrow"].includes(value.accent) ? "munder" : "mover";
+    return `<${position} accent="true">${mathmlFromNode(value.base)}<mo>${escapeHtml(value.mark)}</mo></${position}>`;
   }
+  if (value.type === "brace") {
+    const element = value.position === "under" ? "munder" : "mover";
+    const mark = value.position === "under" ? "⏟" : "⏞";
+    return `<${element} accent="true">${mathmlFromNode(value.base)}<mo stretchy="true">${mark}</mo></${element}>`;
+  }
+  if (value.type === "overunder") {
+    const element = value.position === "under" ? "munder" : "mover";
+    return `<${element}>${mathmlFromNode(value.base)}${mathmlFromNode(value.annotation)}</${element}>`;
+  }
+  if (value.type === "extensibleArrow") {
+    const base = `<mo stretchy="true">${escapeHtml(value.arrow)}</mo>`;
+    if (value.above && value.below) return `<munderover>${base}${mathmlFromNode(value.below)}${mathmlFromNode(value.above)}</munderover>`;
+    if (value.above) return `<mover>${base}${mathmlFromNode(value.above)}</mover>`;
+    if (value.below) return `<munder>${base}${mathmlFromNode(value.below)}</munder>`;
+    return base;
+  }
+  if (value.type === "phantom") return `<mphantom>${mathmlFromNode(value.base)}</mphantom>`;
+  if (value.type === "cancel") return `<menclose notation="updiagonalstrike">${mathmlFromNode(value.base)}</menclose>`;
+  if (value.type === "negated") return `<menclose notation="updiagonalstrike">${mathmlFromNode(value.base)}</menclose>`;
+  if (value.type === "space") return `<mspace width="${escapeHtml(value.width || "1em")}"/>`;
   if (value.type === "prescript") {
     if (!value.base) {
       if (value.presuperscript) return `<msup><mrow></mrow>${mathmlFromNode(value.presuperscript)}</msup>`;
@@ -801,7 +1022,7 @@ function nodeIsEmpty(value) {
   if (!value) return true;
   if (value.type === "sequence") return value.children.every(nodeIsEmpty);
   if (value.type === "matrix") return !value.rows.length || value.rows.every((row) => !row.length || row.every(nodeIsEmpty));
-  if (["subscript", "superscript", "subsup", "accent", "roman"].includes(value.type)) return nodeIsEmpty(value.base);
+  if (["subscript", "superscript", "subsup", "accent", "roman", "styled", "brace", "cancel", "negated"].includes(value.type)) return nodeIsEmpty(value.base);
   if (value.type === "prescript") return nodeIsEmpty(value.base);
   return false;
 }
@@ -813,7 +1034,7 @@ function structuralAstErrors(value, output = []) {
     if (nodeIsEmpty(value.denominator)) output.push("emptyFractionDenominator");
   }
   if (value.type === "prescript" && nodeIsEmpty(value.base)) output.push("scriptWithoutBase");
-  if (["subscript", "superscript", "subsup"].includes(value.type) && nodeIsEmpty(value.base)) output.push("scriptWithoutBase");
+  if (["subscript", "superscript", "subsup"].includes(value.type) && nodeIsEmpty(value.base) && !value.base?.explicitGroup) output.push("scriptWithoutBase");
   for (const nested of Object.values(value)) {
     if (nested && typeof nested === "object") {
       if (Array.isArray(nested)) nested.forEach((child) => structuralAstErrors(child, output));
@@ -1031,7 +1252,7 @@ export function validateFormulaRepresentations(record) {
     spokenSemanticTokensPreserved: spokenTokenCheck.complete,
     mathmlSemanticTokensPreserved: mathmlTokenCheck.complete,
     renderedMathHasNoInvalidPatterns: invalidRenderedMath.length === 0,
-    crawlerPlainContainsNoRawTex: !/(?:\$\$?|\\(?:frac|varepsilon|epsilon|int|left|right|begin|end)\b)/u.test(rawPlain),
+    crawlerPlainContainsNoRawTex: !/(?:\$\$?|\\[A-Za-z]+\b)/u.test(rawPlain),
   });
   const missing = Object.entries(checks).filter(([, pass]) => !pass).map(([name]) => name);
   return Object.freeze({
@@ -1074,6 +1295,25 @@ function formulaSourceFromMatch(match) {
     || "";
 }
 
+const BARE_TEX_SIGNAL_COMMANDS = new Set([
+  ...Object.keys(SYMBOLS), ...Object.keys(OPERATORS), ...FUNCTION_COMMANDS,
+  "frac", "dfrac", "tfrac", "binom", "dbinom", "sqrt", "boxed", "ce", "begin",
+  ...Object.keys(ACCENT_COMMANDS), "overset", "underset", "stackrel", "overbrace", "underbrace",
+  "xrightarrow", "xRightarrow", "xrightleftharpoons",
+]);
+
+function isBareTexFormula(value) {
+  const source = String(value ?? "").trim();
+  if (!source || source.length > 600 || source.includes("```") || /<\/?[A-Za-z][^>]*>/u.test(source)) return false;
+  const commands = [...source.matchAll(/\\([A-Za-z]+|.)/gu)].map((match) => match[1]);
+  if (!commands.some((command) => BARE_TEX_SIGNAL_COMMANDS.has(command))) return false;
+  const formulaLikeStart = /^(?:\\|[([{]|[A-Za-z0-9](?:\s*[_^=+\-*/<>]|\s*\\))/u.test(source);
+  const standaloneFormulaCommand = /^\\(?:boxed|frac|dfrac|tfrac|binom|dbinom|sqrt|ce|begin|text|mathrm|mathbf|mathbb|mathcal)\b/u.test(source);
+  const mathematicalRelation = /[=<>+×÷−≠≤≥]|\\(?:sim|nsim|equiv|iff|vee|lor|wedge|land|in|notin|subset|subseteq|supset|supseteq|perp|parallel|nparallel|mid|nmid|to|rightarrow|Rightarrow|Longrightarrow|implies|propto|cong|ne|neq|le|leq|ge|geq)\b/u.test(source);
+  if (!formulaLikeStart || (!standaloneFormulaCommand && !mathematicalRelation && commands.length < 2)) return false;
+  return validateFormulaStructure(source).complete;
+}
+
 export function extractFormulaSources(value) {
   const sources = [];
   const seen = new Set();
@@ -1087,6 +1327,7 @@ export function extractFormulaSources(value) {
   };
   for (const { key, value: text } of stringsIn(value)) {
     for (const match of text.matchAll(formulaSourcePattern())) add(formulaSourceFromMatch(match));
+    for (const line of text.split(/\r?\n/gu)) if (isBareTexFormula(line)) add(line);
     if (/^(?:formula|formulaUsed|equation|equationUsed)$/iu.test(key) && !text.includes("$")) add(text);
     if (/^(?:answer|finalAnswer)$/u.test(key) && /^\s*\\(?:boxed|frac|sqrt|text|mathrm|left|begin)\b/u.test(text)) add(text);
   }
@@ -1212,23 +1453,33 @@ export function renderMarkdownEmphasisMarkup(value) {
 export function renderMathText(value, { extraClass = "math-inline" } = {}) {
   const source = String(value ?? "");
   const trimmed = source.trim();
-  if (/^\\(?:boxed|frac|sqrt|text|mathrm|left|begin)\b/u.test(trimmed)) {
+  if (isBareTexFormula(trimmed)) {
     const representation = formulaRepresentations(trimmed);
     if (validateFormulaRepresentations(representation).complete) {
       return renderSemanticMath(representation, { visiblePlain: true, extraClass });
     }
   }
+  const renderUnmatched = (valueToRender) => valueToRender
+    .split(/(\r?\n)/u)
+    .map((line) => {
+      if (/^\r?\n$/u.test(line) || !isBareTexFormula(line)) return escapeHtml(repairMalformedFormulaText(line));
+      const leading = line.match(/^\s*/u)?.[0] || "";
+      const trailing = line.match(/\s*$/u)?.[0] || "";
+      const formula = line.slice(leading.length, line.length - trailing.length || undefined);
+      return `${escapeHtml(leading)}${renderSemanticMath(formulaRepresentations(formula), { visiblePlain: true, extraClass })}${escapeHtml(trailing)}`;
+    })
+    .join("");
   const output = [];
   let cursor = 0;
   for (const match of source.matchAll(formulaSourcePattern())) {
-    output.push(escapeHtml(repairMalformedFormulaText(source.slice(cursor, match.index))));
+    output.push(renderUnmatched(source.slice(cursor, match.index)));
     output.push(renderSemanticMath(
       formulaRepresentations(formulaSourceFromMatch(match)),
       { visiblePlain: true, extraClass },
     ));
     cursor = match.index + match[0].length;
   }
-  output.push(escapeHtml(repairMalformedFormulaText(source.slice(cursor))));
+  output.push(renderUnmatched(source.slice(cursor)));
   return renderMarkdownEmphasisMarkup(output.join(""));
 }
 

@@ -204,6 +204,27 @@ test("combined geometry proof statements keep logical operators and prose as Mat
   }
 });
 
+test("logical equivalence commands and bare TeX lines render without command leakage", () => {
+  const source = String.raw`\sim(p \vee q) \vee (\sim p \wedge q) \equiv {\sim p}`;
+  const representation = formulaRepresentations(source);
+  assert.equal(representation.plainText, "∼ (p ∨ q) ∨ (∼ p ∧ q) ≡ ∼ p");
+  assert.match(representation.mathml, /<mo>∼<\/mo>/u);
+  assert.match(representation.mathml, /<mo>∨<\/mo>/u);
+  assert.match(representation.mathml, /<mo>∧<\/mo>/u);
+  assert.match(representation.mathml, /<mo>≡<\/mo>/u);
+  assert.doesNotMatch(representation.mathml, /<mtext>\\?(?:sim|vee|wedge|equiv)<\/mtext>/u);
+  assert.equal(validateFormulaRepresentations(representation).complete, true);
+
+  const bareLine = renderMathText(String.raw`(\sim p \wedge \sim q) \vee (\sim p \wedge q)`);
+  assert.match(bareLine, /<math\b/u);
+  assert.doesNotMatch(bareLine, /\\(?:sim|vee|wedge)\b/u);
+
+  const styled = formulaRepresentations(String.raw`\mathbf{T}\qquad\textbf{[RHS]}`);
+  assert.match(styled.mathml, /mathvariant="bold"/u);
+  assert.match(styled.mathml, /<mtext>\[RHS\]<\/mtext>/u);
+  assert.doesNotMatch(styled.mathml, /<mtext>\\?(?:mathbf|textbf)<\/mtext>/u);
+});
+
 test("legacy degree labels map back to canonical angle formulae instead of placeholders", () => {
   const source = String.raw`\angle RQS=180^\circ-\angle QRS-\angle QSR=180^\circ-75^\circ-75^\circ=30^\circ`;
   const lookup = buildCanonicalFormulaLookup({ formula: source });

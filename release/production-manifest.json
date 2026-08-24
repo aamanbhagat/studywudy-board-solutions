@@ -45,8 +45,8 @@
     },
     {
       "path": "chapter-page-experience.mjs",
-      "bytes": 50372,
-      "sha256": "c8928a6d4175f8faac18e83e0c7f5ccab7aa813264fca731cfcf06da5f4cb45f"
+      "bytes": 50383,
+      "sha256": "05b13d6eed04d48b262ab6f2fe16bc46ee70309693f172cedc91e627df5a73a7"
     },
     {
       "path": "choice-quality.mjs",
@@ -86930,8 +86930,8 @@
     },
     {
       "path": "comparison/after-assets/pages/corpus-quality/chapter-electric-field-and-potential/index.html",
-      "bytes": 66367,
-      "sha256": "710008292fabc2a348c55b38b6f91d5dcf700d893a111951ac2ea5af3aaeb157"
+      "bytes": 66354,
+      "sha256": "ed280991cd38b910b7206e7ff0bcb6b1240df15edb52183c945a692518465460"
     },
     {
       "path": "comparison/after-assets/pages/corpus-quality/chapter-friction/index.html",
@@ -86950,8 +86950,8 @@
     },
     {
       "path": "comparison/after-assets/pages/corpus-quality/quadratic-equations/index.html",
-      "bytes": 31182,
-      "sha256": "f426836a10fcf5856b49ed53ef14826a480a4d15e09383cf974031f2ac40a95d"
+      "bytes": 31185,
+      "sha256": "0d8f4e627b34d36dd9c8bad28263dadc01d9e68b6081ae12aaf69dfed7ddbc1f"
     },
     {
       "path": "comparison/after-assets/pages/corpus-quality/source-review-127683/index.html",
@@ -87155,78 +87155,78 @@
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/answer-writing/index.html",
-      "bytes": 26311,
-      "sha256": "dddda46e0464b7728d081aecd28853599f81622d472c2523fb6e43424d1d8541"
+      "bytes": 26358,
+      "sha256": "0b572bb7056e26844a77c43831657423a98bf58d6bfa1b113b9c878e26fbf8df"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
-      "bytes": 54679,
-      "sha256": "57e935bb09012d8621fce40e371f3985a79f315f60659656dcb5a242dc86081e"
+      "bytes": 54744,
+      "sha256": "d921e01ce3e3258cfd61000d6cd5b490c580b22dcf17991be0c39360b1afcafa"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
-      "bytes": 26327,
-      "sha256": "864d4da44a4a79a74bdc19178c410169f801c032c115d7a8da4d3024a0762688"
+      "bytes": 26374,
+      "sha256": "18d9079f1c9e382823b6232dde1831dc41ea8ff16f25150a983459b0c92f7b2d"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-series/index.html",
-      "bytes": 26435,
-      "sha256": "0f9204682cd4b11467e87c415d6b884a1e724d592f8b86d78dbcfd594e82af52"
+      "bytes": 26482,
+      "sha256": "dd8b7099d4723dd8cdf0da15c87d8337623331bc1bbe18c58fa606bbc825cce7"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/coulombs-law/index.html",
-      "bytes": 26480,
-      "sha256": "d2823248547d4015c23962ecba8cb4b93287e94ed5f4b4b8be8b47c45754aaa8"
+      "bytes": 26527,
+      "sha256": "d40b6c9c1a5f697db66526c5ebe4c7772d14448ff39bc7ec62f2c3f5190483ef"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/dielectric-slab-in-capacitor/index.html",
-      "bytes": 25920,
-      "sha256": "bbc793f4350f9587dd8de7265240c645083e1165c4a51567dfe6b83ea9da1448"
+      "bytes": 25967,
+      "sha256": "ca1a9c5e74047271fb2ed02156d0457c9811588b03cd7547cc12c5031652cf0f"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/electric-potential/index.html",
-      "bytes": 28763,
-      "sha256": "489c9c4a50036d8c19c902c2182ac632afb28420e238d4be4dff52003d16510b"
+      "bytes": 28815,
+      "sha256": "745335b665c5c55f36fbbc7bc35330db99121b9558a5f6520950107a40747e03"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/energy-stored-in-capacitor/index.html",
-      "bytes": 26625,
-      "sha256": "ea3e8f1b6fe2a01bc370edcf3a483a0ed5ada7aea4cca7910da30233e5b2f610"
+      "bytes": 26672,
+      "sha256": "0dc2cc734f71554b20b11def9e49254914b0305dd03ab1174398f2bbc9dc28f3"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/gauss-law/index.html",
-      "bytes": 26997,
-      "sha256": "560c7a5fcb8bada41347ab2dd92c932d1a3ebc9180ae79cac9410465683afd8c"
+      "bytes": 27044,
+      "sha256": "2ad855b261cce7b45185c705280d421c04932f15c1eab59f10347d6e78172db5"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/parallel-plate-capacitance/index.html",
-      "bytes": 25899,
-      "sha256": "5c614577bd52cc3a29ff9e38b51f3d2416c3df5cb656b589f98c0c91e607f81d"
+      "bytes": 25946,
+      "sha256": "b1a331b09310f249ef99831e39a3a619c4980a7fee538e7a073deea34a9752f2"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/important-questions/index.html",
-      "bytes": 25480,
-      "sha256": "484c794517813ca8391e486ceaebb1f94f6b41bc3ed45ee4033698e741104dd9"
+      "bytes": 25527,
+      "sha256": "c77d3ee7f77333de4f823219b960b01f7f635c6ac9327748584f38a9e75b716b"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/practice/index.html",
-      "bytes": 29687,
-      "sha256": "6c9dee10db7d48805ddd2e5cdd30df93fb306e3efe2844506433ee968bb0c6e2"
+      "bytes": 29737,
+      "sha256": "092efef49ed253857d8e63c4a88596d973ba4492dcd0f67ee0db7c624ee36b81"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/previous-year-questions/index.html",
-      "bytes": 23520,
-      "sha256": "a9e0b0461260676b79d4f579225a050e0b0154775b677d84e910a1d49be79e5d"
+      "bytes": 23567,
+      "sha256": "1bde9654d68ecdfc4ff25be74e5b5da9dac7618914b01fb17cc82493e3470b03"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/revision/index.html",
-      "bytes": 32631,
-      "sha256": "7b433f3d871b7bc2ee43fcca3b12b7b344ef73290a7094434deec4a03c0af572"
+      "bytes": 32683,
+      "sha256": "93094e87aae1b8241cf963c78ee6ecd06c89afa9a32136d60bac0329e91dc67d"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/study/index.html",
-      "bytes": 27482,
-      "sha256": "895ab41a99952e23f0507dc806e69f9c211e23a4b2ccf1de5e49e653d0d18206"
+      "bytes": 27529,
+      "sha256": "0a80d97f3ec8559ff7e182cf37634635909e40a5af73c8426dd320bc4c68d6c4"
     },
     {
       "path": "comparison/after-assets/pages/tamil-nadu-board/index.html",
@@ -87260,8 +87260,8 @@
     },
     {
       "path": "comparison/after-assets/sitemaps/hierarchy.xml.gz",
-      "bytes": 84192,
-      "sha256": "d819f39f8dd56926cdee90f75b16b278045589b41609ca2e6c110318bf6a822b"
+      "bytes": 68798,
+      "sha256": "a6f8be0551fb100d4801106b7e0b126a4b086e918d03c90d548388807d13e941"
     },
     {
       "path": "comparison/after-assets/sitemaps/priority-question-pilot.xml",
@@ -87440,8 +87440,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 201932,
-      "sha256": "47c813b361d9811ce5702cd4c3be5e5a8454670b8afe971ef05a099d5312221a"
+      "bytes": 204250,
+      "sha256": "e1aac3a095e1e4a6df9645018227680ff5d049b77a265fc27e4f52566a5ec59e"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87465,8 +87465,8 @@
     },
     {
       "path": "corpus-quality-manifest.mjs",
-      "bytes": 1882,
-      "sha256": "910b586b97dc9fa17135d8d43a58bebf6deb46399ce8db60dc3fb9dd7769e4f9"
+      "bytes": 1896,
+      "sha256": "d9f73a26860d7f52dd806651ace9e7be18f00f5241c2eee18cf992db3e879ef7"
     },
     {
       "path": "corpus-quality.mjs",
@@ -87495,8 +87495,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 11365,
-      "sha256": "49136bca7e200ffffee75b5999e7651c92eab7c2014379684dfbb69e85807d11"
+      "bytes": 11432,
+      "sha256": "f65986a2f665aae3ed691f0f9cd7abd2ee5c30c1e14f740297f9a38e62c14f38"
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
@@ -87585,8 +87585,8 @@
     },
     {
       "path": "question-seo.mjs",
-      "bytes": 15714,
-      "sha256": "95f110e0d39876fd69caac306c6f779abdac24ac2a3d7b4090528112313a1d11"
+      "bytes": 16359,
+      "sha256": "accd8aa6a6008a555286986342073f3a8b4a1d9098069d948c1e9ef3d0637f7e"
     },
     {
       "path": "question-showcase-manifest.mjs",
@@ -87595,8 +87595,8 @@
     },
     {
       "path": "question-solution-label.mjs",
-      "bytes": 1374,
-      "sha256": "7fdc607a10717462113d8cec01b1f9cb4ffeef1a0c91109b061c89789b0b2907"
+      "bytes": 2546,
+      "sha256": "bbc8224c56c9e105569fa4c1b440c76994d23c1d72d5abc6caa95a98b08b44f2"
     },
     {
       "path": "question-solution-media.mjs",
@@ -87635,8 +87635,8 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 50240,
-      "sha256": "5417cdbd95082139df0ffa3e5135f49e25f34de78c5ea2a99f69578c24c5d787"
+      "bytes": 78269,
+      "sha256": "9de2c580994ca86a4c7f9ce49758d5dd2dfeb032c3e2732e6fa5e749d5974dcb"
     },
     {
       "path": "source-correction-ledger.mjs",
@@ -87670,8 +87670,8 @@
     },
     {
       "path": "worker.js",
-      "bytes": 6740727,
-      "sha256": "2d3908ff13c98e61fd51177d1aa8e3f3018b6c0b24534bbb99cfde482e63e8a5"
+      "bytes": 6740019,
+      "sha256": "1fc80f3a2a6d4e9ac9d8ded14a67073b9b29739212f52d28d3f11efb09f34c83"
     },
     {
       "path": "wrangler.production.jsonc",
@@ -87679,5 +87679,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "5272ce6fb9a2298ca17d33338b34f54359249a14c13854ea026f1a22b258f2d8"
+  "aggregateSha256": "26f9602948ea645025f40a9d6d560828957957307a0e339a0b149379b49bf0d3"
 }

@@ -72,6 +72,7 @@
     "audit:source-integrity": "pnpm run build:source-integrity",
     "audit:phase4": "node scripts/phase4-content-gate.mjs --source-db ../data/d1/studywudy-content.sqlite3 --output audits/phase-4/content-gate-audit.json --manifest-output phase4-publish-manifest.mjs",
     "audit:sitewide": "node scripts/phase4-content-gate.mjs --source-db ../data/d1/studywudy-content.sqlite3 --output audits/sitewide/content-gate.json --inventory-db audits/sitewide/sitewide-remediation.sqlite3",
+    "audit:sitewide:math": "node scripts/sitewide-math-audit.mjs",
     "export:sitewide-problems": "node scripts/sitewide-remediation.mjs export",
     "status:sitewide": "node scripts/sitewide-remediation.mjs status --watch",
     "status:sitewide:once": "node scripts/sitewide-remediation.mjs status",

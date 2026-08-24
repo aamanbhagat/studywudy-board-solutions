@@ -12,6 +12,34 @@ function questionPromptText(question) {
     .trim();
 }
 
+function solutionFieldText(value) {
+  return contentToText(value)
+    .normalize("NFKC")
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/[*_`]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+export function questionHasRepeatedProofPresentation(question, finalAnswer = question?.finalAnswer) {
+  if (!Array.isArray(question?.steps) || question.steps.length === 0) return false;
+  if (!solutionFieldText(finalAnswer)) return false;
+
+  const narrative = [question?.answer, question?.explanation]
+    .map(solutionFieldText)
+    .filter(Boolean)
+    .join(" ");
+  if (!narrative) return false;
+
+  const proofContext = `${questionPromptText(question)} ${narrative}`;
+  const wordCount = narrative.match(/[\p{L}\p{N}]+/gu)?.length || 0;
+  const hasProofIntent = /\b(?:prove|proof|show\s+that|hence\s+proved|thus\s+proved)\b/iu.test(proofContext);
+  const hasProofDevelopment = /\b(?:assumption|given|lhs|rhs|step\s*1|first\s+show)\b/iu.test(narrative);
+  const hasProofConclusion = /\b(?:conclusion|hence\s+proved|thus\s+proved|therefore\s+proved|equals?\s+rhs)\b/iu.test(narrative);
+
+  return wordCount >= 55 && hasProofIntent && hasProofDevelopment && hasProofConclusion;
+}
+
 export function questionNeedsStepByStepSolution(question, route = {}) {
   const subject = String(
     route.subject

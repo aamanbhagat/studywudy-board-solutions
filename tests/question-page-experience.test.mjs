@@ -10,7 +10,11 @@ import {
 } from "../question-page-experience.mjs";
 import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
 import { subjectAwareQuestionTypeLabel } from "../question-type-labels.mjs";
-import { questionNeedsStepByStepSolution, questionSolutionLabel } from "../question-solution-label.mjs";
+import {
+  questionHasRepeatedProofPresentation,
+  questionNeedsStepByStepSolution,
+  questionSolutionLabel,
+} from "../question-solution-label.mjs";
 import { placeQuestionSolutionMedia } from "../question-solution-media.mjs";
 import { MAX_RELATED_QUESTIONS, MIN_RELATED_QUESTIONS, relatedQuestionTargetCount } from "../related-question-count.mjs";
 import { buildCompletedFillBlank } from "../fill-blank-completion.mjs";
@@ -236,6 +240,9 @@ test("the bounded question renderer preserves the original StudyWudy page theme"
   assert.match(source, /class=\"footer-banner\"/);
   assert.match(source, /QUESTION_PAGE_THEME_ALIGNMENT_STYLES/);
   assert.match(source, /canonical-single-pass-v2-themed/);
+  assert.match(source, /Same solution · clearer view/);
+  assert.match(source, /The method and answer are unchanged\./);
+  assert.match(source, /\.solution-body section:has\(>\.same-solution-divider\)\{[^}]*border-top:3px solid var\(--ink\)!important/);
   assert.match(source, /placeQuestionSolutionMedia/);
   assert.match(source, /data-solution-media-placement="\$\{escapeHtmlAttribute\(placement\)\}"/u);
   assert.doesNotMatch(source, /<div>\$\{solutionMarkup\}<\/div>\$\{solutionMedia\}/u);
@@ -261,6 +268,34 @@ test("the green solution label is concise except where worked steps are required
   assert.equal(questionSolutionLabel({ type: "brief", prompt: "State the result." }, { subject: "mathematics" }), "Step-by-step solution");
   assert.equal(questionSolutionLabel({ type: "numerical", prompt: "Find the current." }, { subject: "physics" }), "Step-by-step solution");
   assert.equal(questionSolutionLabel({ type: "brief", prompt: "Derive the required expression." }, { subject: "physics" }), "Step-by-step solution");
+});
+
+test("the clearer-view divider appears only for a complete proof repeated in three representations", () => {
+  const repeatedProof = {
+    prompt: "Using rules in logic, prove the following statement.",
+    answer: {
+      kind: "blocks",
+      blocks: [
+        { kind: "paragraph", text: "Proof: We prove the statement using the standard logical equivalence laws." },
+        { kind: "paragraph", text: "Assumption: p and q are propositions. Start with the LHS and apply De Morgan's Law." },
+        { kind: "paragraph", text: "Step 1: Rewrite the LHS, distribute the common term, and use the complement law. This gives the required RHS without changing the original expression." },
+        { kind: "paragraph", text: "Conclusion: The LHS equals RHS. Hence proved." },
+      ],
+    },
+    steps: [{ content: "Start with LHS" }, { content: "Apply the laws" }],
+    finalAnswer: "The identity is proved.",
+  };
+  const ordinaryWorkedAnswer = {
+    prompt: "Check whether the following matrix is invertible or not.",
+    answer: "The matrix is invertible because its determinant equals 1.",
+    steps: [{ content: "Write the determinant" }, { content: "Apply the identity" }],
+    finalAnswer: "The determinant is non-zero, so the matrix is invertible.",
+  };
+
+  assert.equal(questionHasRepeatedProofPresentation(repeatedProof), true);
+  assert.equal(questionHasRepeatedProofPresentation(ordinaryWorkedAnswer), false);
+  assert.equal(questionHasRepeatedProofPresentation({ ...repeatedProof, finalAnswer: null }), false);
+  assert.equal(questionHasRepeatedProofPresentation({ ...repeatedProof, steps: [] }), false);
 });
 
 test("solution figures are placed at their relevant explanation instead of the answer end", () => {
