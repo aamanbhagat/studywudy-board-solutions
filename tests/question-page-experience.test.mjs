@@ -437,6 +437,7 @@ test("every bounded question page keeps the original layout and places paginatio
   assert.doesNotMatch(source, /Start of chapter|End of chapter|is-disabled/u);
   assert.match(source, /priority-question-pagination-item\.is-next\{grid-column:2[^\n]*background:#0757d8;color:var\(--white\);text-align:right\}/u);
   assert.match(source, /priority-question-pagination-item\.is-previous\{grid-column:1[^\n]*text-align:left\}/u);
+  assert.doesNotMatch(source, /@media\(max-width:640px\)[^\n]*priority-question-pagination\{grid-template-columns:1fr\}/u);
   assert.match(source, /directionLabel = isPrevious \? "Previous" : "Next"/u);
   assert.match(source, /\? `← Question \$\{escapeHtmlAttribute\(card\.label\)\}`[\s\S]*?: `Question \$\{escapeHtmlAttribute\(card\.label\)\} →`/u);
   assert.match(source, /inlineSolutionOverview = ""/u);
