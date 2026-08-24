@@ -384,6 +384,23 @@ test("the bounded renderer draws imported match-column prompts as accessible sit
   assert.match(source, /\$\{STANDALONE_QUESTION_STYLES\}\$\{QUESTION_COLUMN_TABLE_STYLES\}/u);
 });
 
+test("overflowing tables expose a theme-matched scrollbar that appears during use and fades when idle", async () => {
+  const fs = await import("node:fs/promises");
+  const source = await fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
+  const runtime = await fs.readFile(new URL("../comparison/after-assets/horizontal-scroll-cue.js", import.meta.url), "utf8");
+  assert.match(source, /HORIZONTAL_SCROLL_CUE_RELEASE = "horizontal-scroll-cue-v1"/u);
+  assert.match(source, /data-studywudy-horizontal-scroll="runtime"/u);
+  assert.match(source, /question-horizontal-scroll-cue\.is-visible\{opacity:1\}/u);
+  assert.match(source, /prefers-reduced-motion:reduce/u);
+  assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_STYLES\}/u);
+  assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_RUNTIME\}<\/body>/u);
+  assert.match(runtime, /scrollWidth - scroller\.clientWidth/u);
+  assert.match(runtime, /thumb\.style\.left/u);
+  assert.match(runtime, /addEventListener\("scroll", \(\) => show\(state\)/u);
+  assert.match(runtime, /IntersectionObserver/u);
+  assert.match(runtime, /classList\.remove\("is-visible"\)/u);
+});
+
 test("the bounded renderer restores publishing-gated related question sections", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
   assert.match(source, /standaloneEligibleRelatedQuestions/);
