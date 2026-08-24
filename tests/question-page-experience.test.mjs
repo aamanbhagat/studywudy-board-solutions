@@ -10,6 +10,10 @@ import {
 } from "../question-page-experience.mjs";
 import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
 import { subjectAwareQuestionTypeLabel } from "../question-type-labels.mjs";
+import { questionNeedsStepByStepSolution, questionSolutionLabel } from "../question-solution-label.mjs";
+import { placeQuestionSolutionMedia } from "../question-solution-media.mjs";
+import { MAX_RELATED_QUESTIONS, MIN_RELATED_QUESTIONS, relatedQuestionTargetCount } from "../related-question-count.mjs";
+import { buildCompletedFillBlank } from "../fill-blank-completion.mjs";
 
 const route = Object.freeze({
   board: "maharashtra-board",
@@ -232,7 +236,117 @@ test("the bounded question renderer preserves the original StudyWudy page theme"
   assert.match(source, /class=\"footer-banner\"/);
   assert.match(source, /QUESTION_PAGE_THEME_ALIGNMENT_STYLES/);
   assert.match(source, /canonical-single-pass-v2-themed/);
+  assert.match(source, /placeQuestionSolutionMedia/);
+  assert.match(source, /data-solution-media-placement="\$\{escapeHtmlAttribute\(placement\)\}"/u);
+  assert.doesNotMatch(source, /<div>\$\{solutionMarkup\}<\/div>\$\{solutionMedia\}/u);
   assert.doesNotMatch(source, /--ink:#17231d;--green:#174d31;--paper:#f7f2e8/);
+});
+
+test("solution content does not repeat visible answer, explanation, or step headings", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.doesNotMatch(source, /<h3>Answers?<\/h3>/u);
+  assert.doesNotMatch(source, /<h3>Explanation<\/h3>/u);
+  assert.doesNotMatch(source, /<h3>Step-by-step solution<\/h3>/u);
+  assert.match(source, /<section aria-label="Answer">/u);
+  assert.match(source, /<section aria-label="Explanation">/u);
+  assert.match(source, /<section aria-label="Solution steps">/u);
+  assert.match(source, /<h2 class="solution-kicker solution-kicker-green"[^>]*>\$\{escapeHtmlAttribute\(solutionLabel\)\}<\/h2>/u);
+});
+
+test("the green solution label is concise except where worked steps are required", () => {
+  const descriptive = { type: "detailed", prompt: "Describe the process of double fertilization." };
+  assert.equal(questionSolutionLabel(descriptive, { subject: "biology" }), "Solution");
+  assert.equal(questionNeedsStepByStepSolution(descriptive, { subject: "biology" }), false);
+  assert.equal(questionSolutionLabel({ ...descriptive, steps: [{ content: "First step" }] }, { subject: "biology" }), "Step-by-step solution");
+  assert.equal(questionSolutionLabel({ type: "brief", prompt: "State the result." }, { subject: "mathematics" }), "Step-by-step solution");
+  assert.equal(questionSolutionLabel({ type: "numerical", prompt: "Find the current." }, { subject: "physics" }), "Step-by-step solution");
+  assert.equal(questionSolutionLabel({ type: "brief", prompt: "Derive the required expression." }, { subject: "physics" }), "Step-by-step solution");
+});
+
+test("solution figures are placed at their relevant explanation instead of the answer end", () => {
+  const media = '<div class="question-media-gallery" data-solution-media-placement="contextual-v1">Figure</div>';
+  const referenced = placeQuestionSolutionMedia({
+    solutionMarkup: "<section><p>Opening text.</p><p>The diagram illustrates the two views.</p><p>Continue here.</p></section>",
+    mediaMarkup: media,
+    question: { prompt: "Describe the seed." },
+  });
+  assert.ok(referenced.indexOf("diagram illustrates") < referenced.indexOf(media));
+  assert.ok(referenced.indexOf(media) < referenced.indexOf("Continue here"));
+
+  const definitionFallback = placeQuestionSolutionMedia({
+    solutionMarkup: "<section><p>Double Fertilization</p><p>Double fertilization is the process in which two fusion events occur within the embryo sac.</p><p>Step-by-Step Process</p></section>",
+    mediaMarkup: media,
+    question: { prompt: "Describe the process of double fertilization." },
+  });
+  assert.ok(definitionFallback.indexOf("two fusion events") < definitionFallback.indexOf(media));
+  assert.ok(definitionFallback.indexOf(media) < definitionFallback.indexOf("Step-by-Step Process"));
+  assert.equal((definitionFallback.match(/data-solution-media-placement/gu) || []).length, 1);
+});
+
+test("related-question targets vary deterministically from eight through twenty", () => {
+  const counts = Array.from({ length: 13 }, (_, index) => relatedQuestionTargetCount({ rowId: index + 1 }));
+  assert.equal(Math.min(...counts), MIN_RELATED_QUESTIONS);
+  assert.equal(Math.max(...counts), MAX_RELATED_QUESTIONS);
+  assert.equal(new Set(counts).size, 13);
+  assert.equal(relatedQuestionTargetCount({ rowId: 212031 }), relatedQuestionTargetCount({ rowId: 212031 }));
+});
+
+test("fill-in-the-blank answer insertions remain bold and gain a sitewide underline", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /function standaloneQuestionUsesFillBlanks\(question\)/u);
+  assert.match(source, /fill\\s\+in\\s\+the\\s\+blanks\?/u);
+  assert.match(source, /data-question-answer-format="fill-blank"/u);
+  assert.match(source, /\.question-card\[data-question-answer-format="fill-blank"\] \.solution-body>div strong\{font-weight:950;text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:3px;/u);
+  assert.match(source, /<strong class="fill-blank-answer">/u);
+});
+
+test("short fill-blank records render the complete original sentence with highlighted answers", () => {
+  const single = buildCompletedFillBlank({
+    prompt: { kind: "blocks", blocks: [
+      { kind: "paragraph", text: "**Fill in the blank:**" },
+      { kind: "paragraph", text: "The whorl ________is green that protects the flower until it opens." },
+    ] },
+    answer: "Calyx",
+  });
+  assert.deepEqual(single.answers, ["Calyx"]);
+  assert.equal(`${single.parts[0]}${single.answers[0]}${single.parts[1]}`, "The whorl Calyx is green that protects the flower until it opens.");
+
+  const multiple = buildCompletedFillBlank({
+    prompt: "Fill in the blanks: The ______ are coloured. Flowers produce ______ or ______.",
+    answer: "The **petals** are coloured. Flowers produce **nectar** or **fragrance**.",
+  });
+  assert.deepEqual(multiple.answers, ["petals", "nectar", "fragrance"]);
+  assert.equal(`${multiple.parts[0]}${multiple.answers[0]}${multiple.parts[1]}${multiple.answers[1]}${multiple.parts[2]}${multiple.answers[2]}${multiple.parts[3]}`, "The petals are coloured. Flowers produce nectar or fragrance.");
+
+  const leadingBlank = buildCompletedFillBlank({
+    prompt: "**Fill in the blanks:** ______ hormone initiate rooting.",
+    answer: "Auxin",
+  });
+  assert.equal(`${leadingBlank.parts[0]}${leadingBlank.answers[0]}${leadingBlank.parts[1]}`, "Auxin hormone initiate rooting.");
+
+  const correctChoice = buildCompletedFillBlank({
+    prompt: "Fill in the blank: First Five Year Plan of ........ commenced in 1956.",
+    choices: [{ id: "a", content: "Pakistan" }, { id: "b", content: "China" }],
+    correctChoiceId: "a",
+  });
+  assert.equal(`${correctChoice.parts[0]}${correctChoice.answers[0]}${correctChoice.parts[1]}`, "First Five Year Plan of Pakistan commenced in 1956.");
+});
+
+test("the bounded renderer draws imported match-column prompts as accessible sitewide tables", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /import \{ parseColumnTablePrompt \} from "\.\.\/question-column-table\.mjs"/u);
+  assert.match(source, /function standaloneColumnTable\(value, bookId\)/u);
+  assert.match(source, /function standaloneQuestionBlocks\(blocks, bookId\)/u);
+  assert.match(source, /paragraphRun\.map\(\(block\) => block\.text\)\.join\("\\n"\)/u);
+  assert.match(source, /return standaloneQuestionBlocks\(value\.blocks \|\| \[\], bookId\)/u);
+  assert.match(source, /class="question-table-scroll question-column-table-scroll" role="region" tabindex="0"/u);
+  assert.match(source, /<caption class="sr-only">Items to match between textbook columns<\/caption>/u);
+  assert.match(source, /scope="colgroup"/u);
+  assert.match(source, /QUESTION_COLUMN_TABLE_STYLES/u);
+  assert.match(source, /data-studywudy-column-table="sitewide-v1"/u);
+  assert.match(source, /\.question-table-scroll\{max-width:100%;margin:12px 0 20px;/u);
+  assert.match(source, /\.question-column-table-scroll\{margin:12px 0 20px;/u);
+  assert.match(source, /\$\{STANDALONE_QUESTION_STYLES\}\$\{QUESTION_COLUMN_TABLE_STYLES\}/u);
 });
 
 test("the bounded renderer restores publishing-gated related question sections", async () => {
@@ -247,4 +361,86 @@ test("the bounded renderer restores publishing-gated related question sections",
   assert.match(source, /standalone_related_questions_failed/);
   assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 64/);
   assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 96/);
+  assert.match(source, /relatedQuestionTargetCount\(\{ rowId, questionId: route\.question \}\)/u);
+  assert.match(source, /\.slice\(0, relatedTargetCount\)/u);
+  assert.match(source, /data-related-question-count=/u);
+  assert.match(source, /data-related-question-target=/u);
+});
+
+test("related-question cards include source thumbnails without decoding every related payload", async () => {
+  const fs = await import("node:fs/promises");
+  const source = await fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
+  const builder = await fs.readFile(new URL("../scripts/build-question-payload-assets.mjs", import.meta.url), "utf8");
+  const manifest = JSON.parse(await fs.readFile(new URL("../comparison/after-assets/__studywudy_payloads/manifest.json", import.meta.url), "utf8"));
+  assert.match(source, /loadRelatedQuestionMediaIndex/);
+  assert.match(source, /related-media\.json/u);
+  assert.match(source, /class="related-media"><img alt=/u);
+  assert.match(source, /decoding="async"[\s\S]*loading="lazy"/u);
+  assert.match(source, /standaloneMediaUrl\(mediaSource\)/u);
+  assert.match(builder, /promptMedia\.find\(\(item\) => item\?\.url \|\| item\?\.fallbackUrl\)/u);
+  assert.ok(manifest.relatedMediaQuestionCount > 19_000);
+  assert.ok(manifest.relatedMediaAssetBytes > 0);
+});
+
+test("every bounded question page keeps the original layout and places pagination before related questions", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /data-studywudy-question-structure="sitewide-v1"/u);
+  assert.match(source, /standalonePriorityQuestionPagination/);
+  assert.match(source, /aria-label="Previous and next questions"/);
+  assert.match(source, /sitewideFlow = `\$\{questionArticle\}\$\{standalonePriorityQuestionPagination[\s\S]*?\$\{priorityPrimaryRelated\}\$\{priorityFollowOn\}`/u);
+  assert.match(source, /const previousRow = sameChapterRows/u);
+  assert.match(source, /const nextRow = sameChapterRows/u);
+  assert.match(source, /Publishing eligibility controls recommendations and indexing/u);
+  assert.match(source, /"x-studywudy-question-experience": "sitewide-question-first-v1"/u);
+  assert.match(source, /heroSummary = ""/u);
+  assert.match(source, /layoutSidebars = standaloneQuestionChapterRail\(catalog, route\)/u);
+  assert.match(source, /contextSidebar = standaloneQuestionContext\(catalog, route\)/u);
+  assert.doesNotMatch(source, /data-studywudy-question-priority="pilot-v1"\] \.answer-page-layout\{display:block\}/u);
+  assert.doesNotMatch(source, /data-studywudy-question-priority="pilot-v1"\] \.question-chapter-rail[^\n]*display:none/u);
+  assert.match(source, /if \(!card\) return ""/u);
+  assert.match(source, /paginationItems\.length === 1 \? "has-single-item" : "has-two-items"/u);
+  assert.doesNotMatch(source, /Start of chapter|End of chapter|is-disabled/u);
+  assert.match(source, /priority-question-pagination-item\.is-next\{grid-column:2[^\n]*background:#0757d8;color:var\(--white\);text-align:right\}/u);
+  assert.match(source, /priority-question-pagination-item\.is-previous\{grid-column:1[^\n]*text-align:left\}/u);
+  assert.match(source, /directionLabel = isPrevious \? "Previous" : "Next"/u);
+  assert.match(source, /\? `← Question \$\{escapeHtmlAttribute\(card\.label\)\}`[\s\S]*?: `Question \$\{escapeHtmlAttribute\(card\.label\)\} →`/u);
+  assert.match(source, /inlineSolutionOverview = ""/u);
+  assert.match(source, /inlineSolutionSupplement = ""/u);
+  assert.match(source, /sourceVerifiedPanels = priorityQuestionSourceVerified/u);
+  assert.match(source, /enrichmentPanel = standaloneQuestionEnrichmentPanel/u);
+  assert.match(source, /priorityFollowOn = `\$\{relocatedSolutionDetails\}\$\{enrichmentPanel\}\$\{sourceVerifiedPanels\}\$\{reviewPanel\}/u);
+  assert.match(source, /priority-question-study-details" aria-label="Additional solution details"/u);
+  assert.match(source, /navigation: Object\.freeze\(\{ previous: null, next: null \}\)/u);
+  assert.match(source, /if \(!card\) return ""/u);
+});
+
+test("the Biology question-one pilot has a source-verified, route-scoped search release", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"));
+  assert.match(source, /PRIORITY_QUESTION_PILOT_ROW_ID = 212031/u);
+  assert.match(source, /priority-question-official-source-review-v2/u);
+  assert.match(source, /https:\/\/books\.ebalbharati\.in\/pdfs\/1203030421\.pdf/u);
+  assert.match(source, /3b8c6215b968acbab0cde678daf8bbdbc6cd5cffac230f3aeac1f23fba8c37f5/u);
+  assert.match(source, /questionPages: "Textbook page 16 · PDF page 26"/u);
+  assert.match(source, /conceptPages: "Textbook pages 6–8 · PDF pages 16–18"/u);
+  assert.match(source, /choiceText: "Large quantities of pollens"/u);
+  assert.match(source, /Producing pollen in large numbers is an adaptation of wind-pollinated flowers/u);
+  assert.match(source, /Dry pollen is associated with wind pollination/u);
+  assert.match(source, /Colour attracts insects at the flower level/u);
+  assert.match(source, /priorityQuestionPilotSourceMatches/u);
+  assert.match(source, /publishingManifestEligible \|\| priorityQuestionSourceVerified/u);
+  assert.match(source, /priority-question-official-source dl div\{min-width:0/u);
+  assert.match(source, /priority-question-official-source dd code\{display:block;max-width:100%;overflow-wrap:anywhere;word-break:break-word/u);
+  assert.match(source, /source-verified-pilot-complete/u);
+  assert.match(source, /Each incorrect option now has textbook-backed reasoning/u);
+  assert.doesNotMatch(source, /standard distractor-by-distractor explanation check remains transparently unmet/u);
+  assert.match(source, /meta property="og:type" content="website"/u);
+  assert.match(source, /meta name="twitter:description"/u);
+  assert.match(source, /renderBreadcrumbStructuredData\(standaloneQuestionBreadcrumbItems/u);
+  assert.match(source, /\.pattern-code\{color:#064fc5\}/u);
+  assert.match(source, /prefers-reduced-motion:reduce/u);
+  assert.match(source, /data:image\/svg\+xml/u);
+  assert.match(source, /priorityQuestionPilotSitemapResponse/u);
+  assert.match(source, /\/sitemaps\/priority-question-pilot\.xml/u);
+  assert.match(source, /publicFaviconResponse/u);
+  assert.match(source, /content-type": "image\/svg\+xml; charset=utf-8"/u);
 });

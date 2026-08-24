@@ -27,6 +27,7 @@
       "/__studywudy_payloads/*",
       "/studywudy-media/*",
       "/boardly-media/*",
+      "/catalog-artwork/*",
       "/about",
       "/about/*",
       "/privacy",

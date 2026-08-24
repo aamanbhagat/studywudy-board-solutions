@@ -36,9 +36,15 @@ import {
   isSourceTextIntegrityRowPassed,
 } from "../source-text-integrity.mjs";
 import { SOURCE_TEXT_INTEGRITY_MANIFEST } from "../source-text-integrity-manifest.mjs";
+import {
+  applyQuestionEnrichmentForQuality,
+  normalizeQuestionEnrichment,
+  questionEnrichmentHasPublishableContent,
+  QUESTION_ENRICHMENT_POLICY_VERSION,
+} from "../question-enrichment.mjs";
 
-const POLICY_VERSION = "phase4-v14-source-input-integrity";
-const QUESTION_PAGE_EXPERIENCE_VERSION = "question-specific-trust-v2";
+const POLICY_VERSION = "phase4-v15-source-bounded-enrichment";
+const QUESTION_PAGE_EXPERIENCE_VERSION = "sitewide-question-first-v1";
 const SIMILARITY_THRESHOLD = 0.85;
 const SIMILARITY_SHINGLE_SIZE = 5;
 const SIMILARITY_METRIC = "exact Jaccard over normalized 5-word answer shingles within duplicate-intent groups";
@@ -72,6 +78,7 @@ const sourcePath = resolve(root, args.get("--source-db") || "../data/d1/studywud
 const applyPath = args.get("--apply-to") ? resolve(root, args.get("--apply-to")) : null;
 const outputPath = resolve(root, args.get("--output") || "audits/phase-4/content-gate-audit.json");
 const manifestPath = args.get("--manifest-output") ? resolve(root, args.get("--manifest-output")) : null;
+const inventoryPath = args.get("--inventory-db") ? resolve(root, args.get("--inventory-db")) : null;
 const reviewedAt = args.get("--reviewed-at") ? Math.floor(Date.parse(args.get("--reviewed-at")) / 1_000) : Math.floor(Date.now() / 1_000);
 if (!Number.isFinite(reviewedAt) || reviewedAt <= 0) throw new Error("--reviewed-at must be an ISO date-time");
 
@@ -140,6 +147,23 @@ function recordMissingChecks(stats, completeness) {
 }
 
 const source = new DatabaseSync(sourcePath, { readOnly: true });
+const enrichmentByKey = new Map();
+if (source.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'question_enrichments'").get()) {
+  for (const row of source.prepare(`SELECT book_id, chapter_slug, question_id, content_gzip,
+    genuine_unique_words, confidence, factual_pass, quality_pass
+    FROM question_enrichments WHERE factual_pass = 1 AND quality_pass = 1`).iterate()) {
+    try {
+      const content = JSON.parse(gunzipSync(Buffer.from(row.content_gzip)).toString("utf8"));
+      const enrichment = normalizeQuestionEnrichment({ ...content, confidence: Number(row.confidence) });
+      if (questionEnrichmentHasPublishableContent(enrichment)) {
+        enrichmentByKey.set(`${row.book_id}:${row.chapter_slug}:${row.question_id}`, enrichment);
+      }
+    } catch {
+      // Malformed enrichment rows remain excluded. The protected source question
+      // still runs through the normal fail-closed checks below.
+    }
+  }
+}
 const bookIds = source.prepare("SELECT DISTINCT book_id FROM catalog_book_chunks ORDER BY book_id").all();
 const metadataRows = source.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id,
   q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
@@ -177,7 +201,9 @@ for (const { book_id: bookId } of bookIds) {
         if (!rowId) throw new Error(`Content question is missing catalog metadata: ${key}`);
 
         const normalizedType = normalizedQuestionType(question);
-        const qualityQuestion = normalizedType === question.type ? question : { ...question, type: normalizedType };
+        const normalizedQuestion = normalizedType === question.type ? question : { ...question, type: normalizedType };
+        const enrichment = enrichmentByKey.get(key) || null;
+        const qualityQuestion = applyQuestionEnrichmentForQuality(normalizedQuestion, enrichment);
         const answerBody = renderedAnswerText(qualityQuestion);
         const answerTokens = lexicalTokens(answerBody);
         const promptText = contentToText(question.prompt);
@@ -208,8 +234,8 @@ for (const { book_id: bookId } of bookIds) {
         } catch {
           canonicalPass = false;
         }
-        const equationPass = equationsAreReadable(question) && simpleArithmeticIsAccurate(question);
-        const formulaEvaluation = evaluateQuestionFormulaAccessibility(question, { includeRepresentations: false });
+        const equationPass = equationsAreReadable(qualityQuestion) && simpleArithmeticIsAccurate(qualityQuestion);
+        const formulaEvaluation = evaluateQuestionFormulaAccessibility(qualityQuestion, { includeRepresentations: false });
         const formulaAccessibility = {
           complete: formulaEvaluation.complete,
           formulaCount: formulaEvaluation.formulaCount,
@@ -281,6 +307,8 @@ for (const { book_id: bookId } of bookIds) {
           questionPageExperiencePass,
           languageQualityPass,
           sourceTextIntegrityPass,
+          enrichmentAvailable: Boolean(enrichment),
+          enrichmentPolicyVersion: enrichment ? QUESTION_ENRICHMENT_POLICY_VERSION : null,
           sameExerciseNavigationAvailable: (exercise.questions || []).length > 1,
           explicitCommonMistakeAvailable: Boolean(question.commonStudentMistake || question.commonMistake || question.examinerWarning || question.mistakeToAvoid),
           explicitAlternativeMethodAvailable: Boolean(question.alternativeMethod || question.alternativeMethods || question.otherMethod),
@@ -288,7 +316,10 @@ for (const { book_id: bookId } of bookIds) {
           policyExclusion,
           eligibleBeforeEquivalence,
           intentGroup: `${bookId}:${chapter.slug}:${normalizeIntent(promptText)}`,
-          shingles: shingleSet(answerTokens, promptTokens),
+          // Similarity is evaluated only for records that pass every preceding
+          // gate. Avoid retaining hundreds of thousands of unused Set objects;
+          // the sitewide inventory otherwise pushes Node past its default heap.
+          shingles: eligibleBeforeEquivalence ? shingleSet(answerTokens, promptTokens) : null,
           maxSimilarity: 0,
           nearestQuestionKey: null,
           equivalentPagePass: true,
@@ -501,7 +532,7 @@ const formatAudit = SUPPORTED_ANSWER_TYPES.map((type) => {
 });
 
 const gateFailureCounts = new Map();
-for (const record of records.filter((candidate) => !candidate.gatePassed)) {
+function gateFailureReasons(record) {
   const reasons = [
     ...(!record.sourceTextIntegrityPass ? ["sourceTextIntegrity"] : []),
     ...record.completeness.missing.map((check) => `answer:${check}`),
@@ -518,7 +549,184 @@ for (const record of records.filter((candidate) => !candidate.gatePassed)) {
     ...(!record.equivalentPagePass ? ["equivalentPage"] : []),
     ...(record.policyExclusion ? ["policyExclusion"] : []),
   ];
+  return [...new Set(reasons)].sort();
+}
+
+for (const record of records.filter((candidate) => !candidate.gatePassed)) {
+  const reasons = gateFailureReasons(record);
   for (const reason of new Set(reasons)) gateFailureCounts.set(reason, (gateFailureCounts.get(reason) || 0) + 1);
+}
+
+if (inventoryPath) {
+  mkdirSync(dirname(inventoryPath), { recursive: true });
+  const inventory = new DatabaseSync(inventoryPath);
+  inventory.exec(`PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    CREATE TABLE IF NOT EXISTS remediation_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS remediation_pages (
+      row_id INTEGER PRIMARY KEY,
+      book_id TEXT NOT NULL,
+      chapter_slug TEXT NOT NULL,
+      question_id TEXT NOT NULL,
+      pathname TEXT NOT NULL UNIQUE,
+      question_type TEXT NOT NULL,
+      baseline_gate_passed INTEGER NOT NULL,
+      current_gate_passed INTEGER NOT NULL,
+      rendered_unique_words INTEGER NOT NULL,
+      genuine_unique_words INTEGER NOT NULL,
+      issue_count INTEGER NOT NULL,
+      issues_json TEXT NOT NULL,
+      issue_hash TEXT NOT NULL,
+      issue_family TEXT NOT NULL,
+      risk_level TEXT NOT NULL,
+      thin_content_risk INTEGER NOT NULL,
+      technical_seo_risk INTEGER NOT NULL,
+      source_review_required INTEGER NOT NULL,
+      enrichment_available INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      draft_json TEXT,
+      validation_json TEXT,
+      final_json TEXT,
+      model_history_json TEXT,
+      error TEXT,
+      locked_at INTEGER,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS remediation_pages_status_idx ON remediation_pages(status, book_id, row_id);
+    CREATE INDEX IF NOT EXISTS remediation_pages_issue_family_idx ON remediation_pages(issue_family, status);
+    CREATE INDEX IF NOT EXISTS remediation_pages_thin_idx ON remediation_pages(thin_content_risk, status);
+    CREATE TABLE IF NOT EXISTS remediation_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recorded_at INTEGER NOT NULL,
+      event TEXT NOT NULL,
+      model TEXT,
+      row_count INTEGER NOT NULL DEFAULT 0,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      detail_json TEXT
+    );`);
+  const inventoryColumns = new Set(inventory.prepare("PRAGMA table_info(remediation_pages)").all().map((column) => column.name));
+  if (!inventoryColumns.has("baseline_gate_passed")) {
+    inventory.exec("ALTER TABLE remediation_pages ADD COLUMN baseline_gate_passed INTEGER NOT NULL DEFAULT 0");
+    inventory.exec("UPDATE remediation_pages SET baseline_gate_passed = current_gate_passed");
+  }
+  const upsert = inventory.prepare(`INSERT INTO remediation_pages (
+    row_id, book_id, chapter_slug, question_id, pathname, question_type,
+    baseline_gate_passed, current_gate_passed, rendered_unique_words, genuine_unique_words,
+    issue_count, issues_json, issue_hash, issue_family, risk_level,
+    thin_content_risk, technical_seo_risk, source_review_required,
+    enrichment_available, status, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(row_id) DO UPDATE SET
+    book_id = excluded.book_id,
+    chapter_slug = excluded.chapter_slug,
+    question_id = excluded.question_id,
+    pathname = excluded.pathname,
+    question_type = excluded.question_type,
+    current_gate_passed = excluded.current_gate_passed,
+    rendered_unique_words = excluded.rendered_unique_words,
+    genuine_unique_words = excluded.genuine_unique_words,
+    issue_count = excluded.issue_count,
+    issues_json = excluded.issues_json,
+    issue_hash = excluded.issue_hash,
+    issue_family = excluded.issue_family,
+    risk_level = excluded.risk_level,
+    thin_content_risk = excluded.thin_content_risk,
+    technical_seo_risk = excluded.technical_seo_risk,
+    source_review_required = excluded.source_review_required,
+    enrichment_available = excluded.enrichment_available,
+    status = CASE
+      WHEN excluded.current_gate_passed = 1 AND remediation_pages.baseline_gate_passed = 0 THEN 'verified_fixed'
+      WHEN excluded.current_gate_passed = 1 THEN 'already_passed'
+      WHEN remediation_pages.issue_hash = excluded.issue_hash
+        AND remediation_pages.status IN ('approved', 'blocked', 'failed', 'seo_consolidated') THEN remediation_pages.status
+      ELSE excluded.status
+    END,
+    draft_json = CASE WHEN remediation_pages.issue_hash = excluded.issue_hash THEN remediation_pages.draft_json ELSE NULL END,
+    validation_json = CASE WHEN remediation_pages.issue_hash = excluded.issue_hash THEN remediation_pages.validation_json ELSE NULL END,
+    final_json = CASE WHEN remediation_pages.issue_hash = excluded.issue_hash THEN remediation_pages.final_json ELSE NULL END,
+    model_history_json = CASE WHEN remediation_pages.issue_hash = excluded.issue_hash THEN remediation_pages.model_history_json ELSE NULL END,
+    error = CASE WHEN remediation_pages.issue_hash = excluded.issue_hash THEN remediation_pages.error ELSE NULL END,
+    locked_at = NULL,
+    updated_at = excluded.updated_at`);
+  const now = Math.floor(Date.now() / 1_000);
+  inventory.exec("BEGIN IMMEDIATE");
+  try {
+    for (const record of records) {
+      const reasons = record.gatePassed ? [] : gateFailureReasons(record);
+      const sourceReviewRequired = reasons.some((reason) => /^(?:sourceTextIntegrity|multilingualTextQuality|authoritativeTextbookMapping|policyExclusion)$/u.test(reason));
+      const technicalSeoRisk = reasons.some((reason) => /^(?:selfCanonical|distinctIntent|equivalentPage|questionPageExperience)$/u.test(reason));
+      const thinContentRisk = reasons.some((reason) => /^(?:answer:|semanticAnswer:|usefulContext)/u.test(reason));
+      const mathRisk = reasons.some((reason) => /^(?:equations|formulaAccessibility:|answer:(?:formula|substitution|units|arithmetic|arithmeticAccuracy|readableEquations))/u.test(reason));
+      const issueFamily = sourceReviewRequired ? "source" : mathRisk ? "math" : technicalSeoRisk ? "technical-seo" : "content";
+      const riskLevel = sourceReviewRequired || mathRisk ? "high" : technicalSeoRisk ? "medium" : "standard";
+      const issueJson = JSON.stringify(reasons);
+      const issueHash = createHash("sha256").update(issueJson).digest("hex");
+      // Exact duplicate-intent pages are already kept out of indexable output,
+      // sitemaps and quality samples while remaining available to students.
+      // Treat that as an SEO consolidation, not as a content-generation job.
+      const seoConsolidated = !record.gatePassed
+        && record.equivalentPagePass === false
+        && !sourceReviewRequired
+        && !thinContentRisk
+        && !mathRisk;
+      const status = record.gatePassed
+        ? "already_passed"
+        : sourceReviewRequired
+          ? "source_review_required"
+          : seoConsolidated
+            ? "seo_consolidated"
+            : "pending";
+      upsert.run(
+        record.rowId,
+        record.bookId,
+        record.chapterSlug,
+        record.questionId,
+        record.canonicalPath,
+        record.type,
+        record.gatePassed ? 1 : 0,
+        record.gatePassed ? 1 : 0,
+        record.renderedUniqueWords,
+        record.genuineUniqueWords,
+        reasons.length,
+        issueJson,
+        issueHash,
+        issueFamily,
+        riskLevel,
+        thinContentRisk ? 1 : 0,
+        technicalSeoRisk ? 1 : 0,
+        sourceReviewRequired ? 1 : 0,
+        record.enrichmentAvailable ? 1 : 0,
+        status,
+        now,
+      );
+    }
+    inventory.prepare("DELETE FROM remediation_pages WHERE updated_at <> ?").run(now);
+    const meta = inventory.prepare(`INSERT INTO remediation_meta(key, value) VALUES (?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
+    const metadata = {
+      policy_version: POLICY_VERSION,
+      enrichment_policy_version: QUESTION_ENRICHMENT_POLICY_VERSION,
+      source_database: sourcePath,
+      generated_at: new Date(now * 1_000).toISOString(),
+      corpus_count: records.length,
+      gate_passed_count: gatePassedCount,
+      review_required_count: records.length - gatePassedCount,
+      enrichment_available_count: records.filter((record) => record.enrichmentAvailable).length,
+    };
+    for (const [key, value] of Object.entries(metadata)) meta.run(key, String(value));
+    inventory.exec("COMMIT");
+  } catch (error) {
+    inventory.exec("ROLLBACK");
+    inventory.close();
+    throw error;
+  }
+  inventory.close();
 }
 
 const report = {
@@ -526,6 +734,7 @@ const report = {
   sourceDatabase: sourcePath,
   appliedDatabase: applyPath,
   generatedManifest: manifestPath,
+  generatedInventory: inventoryPath,
   pipelineFinding: {
     currentGateLocation: "scripts/phase4-content-gate.mjs and the generated row-indexability bitset",
     currentFailBehavior: "fail closed for corrupt or unverified source inputs before evaluating incomplete, unmapped, malformed, non-canonical, non-distinct or substantially equivalent atomic question pages",
@@ -581,6 +790,11 @@ const report = {
     explicitAlternativeMethodCount: records.filter((record) => record.explicitAlternativeMethodAvailable).length,
     previousYearMetadataCount: records.filter((record) => record.previousYearMetadataAvailable).length,
     optionalSectionPolicy: "Render only when the current question or mapped exercise contains supporting source data; never synthesize a repeated filler paragraph.",
+  },
+  enrichment: {
+    policyVersion: QUESTION_ENRICHMENT_POLICY_VERSION,
+    availableCount: records.filter((record) => record.enrichmentAvailable).length,
+    qualityUse: "Supplemental content participates in completeness and semantic checks without replacing protected question, option or answer fields.",
   },
   sourceTextIntegrity: {
     policyVersion: SOURCE_TEXT_INTEGRITY_POLICY_VERSION,

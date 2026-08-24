@@ -615,8 +615,10 @@
   ],
   "chapterCount": 7715,
   "questionCount": 299458,
+  "relatedMediaQuestionCount": 19243,
+  "relatedMediaAssetBytes": 3929864,
   "decodedBytes": 920165124,
   "compressedBytes": 345282194,
   "indexBytes": 3686076,
-  "contentSha256": "184fc5487ba7f7dd5257ebd3eeb6b931a4b053f636c3c13446942e90da80ecf7"
+  "contentSha256": "635b3627a49ff5a8ed334f32934dc6c12265d69812a24d6e128190360449304a"
 }

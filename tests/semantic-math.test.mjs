@@ -272,6 +272,28 @@ test("shared rich-text rendering derives every route's equation markup from the 
   assert.doesNotMatch(markup, />\$\$|>\$/u);
 });
 
+test("shared rich-text rendering converts nested Markdown emphasis without leaking markers", () => {
+  const markup = renderMathText("The diagram illustrates a **dicot seed (bean – *Phaseolus vulgaris*)** in two views.");
+  assert.equal(
+    markup,
+    "The diagram illustrates a <strong>dicot seed (bean – <em>Phaseolus vulgaris</em>)</strong> in two views.",
+  );
+  assert.doesNotMatch(markup, /\*Phaseolus vulgaris\*/u);
+  assert.equal(renderMathText("***Important***"), "<strong><em>Important</em></strong>");
+});
+
+test("shared emphasis rendering preserves multiplication, identifiers, escaped markers and safe HTML", () => {
+  assert.equal(renderMathText("a*b*c and seed_coat_type"), "a*b*c and seed_coat_type");
+  assert.equal(renderMathText(String.raw`\*literal\*`), "&#42;literal&#42;");
+  assert.equal(renderMathText("<script>*safe*</script>"), "&lt;script&gt;<em>safe</em>&lt;/script&gt;");
+});
+
+test("Markdown emphasis may safely wrap semantic mathematics", () => {
+  const markup = renderMathText("**Use $V=Q/C$ now**");
+  assert.match(markup, /^<strong>Use <span[^>]+><math[\s\S]+<\/math><\/span> now<\/strong>$/u);
+  assert.doesNotMatch(markup, /\*\*/u);
+});
+
 test("the Worker replaces legacy glyph trees with one semantic representation", async () => {
   const source = await readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
   assert.match(source, /ast-mathml-authoritative-v7-geometry-symbols/u);

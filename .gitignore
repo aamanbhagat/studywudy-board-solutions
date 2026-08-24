@@ -22,5 +22,11 @@ audits/phase-5/*.json
 audits/phase-6/*.json
 audits/phase-6/*.ndjson
 audits/phase-6/lighthouse/
+audits/sitewide/*.json
+audits/sitewide/*.ndjson.gz
+audits/sitewide/*.sqlite3
+audits/sitewide/*.sqlite3-shm
+audits/sitewide/*.sqlite3-wal
+!audits/sitewide/README.md
 
 .DS_Store

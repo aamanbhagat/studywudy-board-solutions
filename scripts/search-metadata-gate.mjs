@@ -102,7 +102,10 @@ function normalized(value) {
 
 function duplicateGroups(field) {
   const groups = new Map();
+  const seenPaths = new Set();
   for (const record of records) {
+    if (seenPaths.has(record.path)) continue;
+    seenPaths.add(record.path);
     const key = normalized(record[field]);
     const group = groups.get(key) || [];
     group.push({ type: record.type, path: record.path, value: record[field] });
@@ -143,8 +146,8 @@ const titleLengths = records.map((record) => [...record.documentTitle].length);
 const descriptionLengths = records.map((record) => [...record.description].length);
 const exactTemplates = {
   subject: targetSubject?.documentTitle === "Maharashtra Board Class 12 Physics Solutions and Question Bank | StudyWudy",
-  textbook: targetBook?.documentTitle === "Balbharati Class 12 Physics Solutions – All 16 Chapters | StudyWudy",
-  chapter: targetChapter?.documentTitle === "Maharashtra Board Class 12 Physics Chapter 8 Electrostatics Solutions | StudyWudy",
+  textbook: targetBook?.documentTitle === "Balbharati Physics Class 12 Solutions – All 16 Chapters | StudyWudy",
+  chapter: targetChapter?.documentTitle === "Balbharati Physics Class 12 Chapter 8: Electrostatics Solutions – Maharashtra Board | StudyWudy",
   normalizedQuestionType: targetQuestionTitle === "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8 | StudyWudy",
 };
 const descriptionEvidence = {
@@ -165,6 +168,12 @@ const report = {
   exactTemplates,
   descriptionEvidence,
   duplicateTitleGroups: duplicateTitles.length,
+  duplicateTitleCompositions: Object.fromEntries([...duplicateTitles.reduce((counts, group) => {
+    const composition = [...new Set(group.map((entry) => entry.type))].sort().join("+");
+    counts.set(composition, (counts.get(composition) || 0) + 1);
+    return counts;
+  }, new Map())].sort()),
+  duplicateTitleSamples: duplicateTitles.slice(0, 12),
   duplicateDescriptionGroups: duplicateDescriptions.length,
   titleLength: { minimum: Math.min(...titleLengths), maximum: Math.max(...titleLengths) },
   descriptionLength: { minimum: Math.min(...descriptionLengths), maximum: Math.max(...descriptionLengths) },
@@ -180,6 +189,7 @@ const report = {
 };
 report.pass = Object.values(exactTemplates).every(Boolean)
   && Object.values(descriptionEvidence).every(Boolean)
+  && report.duplicateTitleGroups === 0
   && report.titleLength.maximum <= 160;
 
 mkdirSync(dirname(outputPath), { recursive: true });

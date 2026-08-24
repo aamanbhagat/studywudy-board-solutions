@@ -25,6 +25,7 @@
       "/sitemap.xml",
       "/sitemaps/*",
       "/__studywudy_payloads/*",
+      "/catalog-artwork/*",
       "/about",
       "/about/*",
       "/privacy",

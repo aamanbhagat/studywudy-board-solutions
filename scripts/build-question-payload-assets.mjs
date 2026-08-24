@@ -97,6 +97,8 @@ function expectedAssets() {
   let indexBytes = 0;
   let questionCount = 0;
   let chapterCount = 0;
+  let relatedMediaQuestionCount = 0;
+  let relatedMediaAssetBytes = 0;
   const missingCatalogQuestions = [];
 
   for (const book of books) {
@@ -106,6 +108,7 @@ function expectedAssets() {
     const chunks = chunksForBook.all(book.book_id).map((row) => Buffer.from(row.content_chunk));
     const payload = JSON.parse(gunzipSync(Buffer.concat(chunks)).toString("utf8"));
     const catalogRowsByChapter = new Map();
+    const relatedMediaByRowId = {};
     for (const row of catalogQuestionsForBook.all(book.book_id)) {
       if (!catalogRowsByChapter.has(row.chapter_slug)) catalogRowsByChapter.set(row.chapter_slug, []);
       catalogRowsByChapter.get(row.chapter_slug).push(row);
@@ -126,6 +129,19 @@ function expectedAssets() {
         if (!context) {
           missingCatalogQuestions.push(`${book.book_id}:${chapter.slug}:${row.question_id}`);
           continue;
+        }
+        const relatedMedia = Array.isArray(context.question?.promptMedia)
+          ? context.question.promptMedia.find((item) => item?.url || item?.fallbackUrl)
+          : null;
+        if (relatedMedia) {
+          relatedMediaByRowId[String(row.row_id)] = {
+            ...(relatedMedia.url ? { url: String(relatedMedia.url) } : {}),
+            ...(relatedMedia.fallbackUrl ? { fallbackUrl: String(relatedMedia.fallbackUrl) } : {}),
+            alt: String(relatedMedia.alt || "image"),
+            height: Number(relatedMedia.height) || 0,
+            width: Number(relatedMedia.width) || 0,
+          };
+          relatedMediaQuestionCount += 1;
         }
         const decoded = Buffer.from(JSON.stringify(packedQuestionPayload(payload, chapter, context.exercise, context.question)));
         const compressed = gzipSync(decoded, { level: 9 });
@@ -149,6 +165,9 @@ function expectedAssets() {
       indexBytes += index.byteLength;
       chapterCount += 1;
     }
+    const relatedMediaAsset = Buffer.from(`${JSON.stringify(relatedMediaByRowId)}\n`);
+    files.set(`${board}/${grade}/${subject}/${bookSlug}/related-media.json`, relatedMediaAsset);
+    relatedMediaAssetBytes += relatedMediaAsset.byteLength;
   }
   database.close();
 
@@ -166,6 +185,8 @@ function expectedAssets() {
     bookIds: books.map((book) => book.book_id),
     chapterCount,
     questionCount,
+    relatedMediaQuestionCount,
+    relatedMediaAssetBytes,
     decodedBytes,
     compressedBytes,
     indexBytes,

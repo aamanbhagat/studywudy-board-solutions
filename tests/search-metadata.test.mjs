@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   questionDescription,
   questionDocumentTitle,
+  questionMainHeading,
   questionSocialTitle,
 } from "../question-seo.mjs";
 import { ACCOUNTANCY_SAMPLE_TITLE } from "../public-title-quality.mjs";
@@ -61,8 +62,8 @@ test("subject, textbook and chapter titles match real student search language", 
   }, electrostaticsQuestions());
 
   assert.equal(subject.documentTitle, "Maharashtra Board Class 12 Physics Solutions and Question Bank | StudyWudy");
-  assert.equal(book.documentTitle, "Balbharati Class 12 Physics Solutions – All 16 Chapters | StudyWudy");
-  assert.equal(chapter.documentTitle, "Maharashtra Board Class 12 Physics Chapter 8 Electrostatics Solutions | StudyWudy");
+  assert.equal(book.documentTitle, "Balbharati Physics Class 12 Solutions – All 16 Chapters | StudyWudy");
+  assert.equal(chapter.documentTitle, "Balbharati Physics Class 12 Chapter 8: Electrostatics Solutions – Maharashtra Board | StudyWudy");
   assert.equal(chapter.description, "Complete Maharashtra Board Class 12 Physics Chapter 8 Electrostatics solutions, including MCQs, brief answers, capacitor numericals and step-by-step textbook answers from Balbharati Physics Standard 12 on pages 212–213.");
 });
 
@@ -142,6 +143,24 @@ test("chapter descriptions change with source textbook and real question mix", (
   assert.notEqual(first.description, second.description);
   assert.match(first.description, /MCQs, brief answers, capacitor numericals/u);
   assert.match(second.description, /HSC Question Bank/u);
+});
+
+test("main question headings omit the question-type instruction but preserve the actual prompt", () => {
+  assert.equal(questionMainHeading({
+    question_id: "fill-blank-example",
+    display_label: "35",
+    prompt_text: "Fill in the blank: The whorl is green that protects the flower until it opens.",
+  }), "The whorl is green that protects the flower until it opens");
+  assert.equal(questionMainHeading({
+    question_id: "one-sentence-example",
+    display_label: "11",
+    prompt_text: "Answer in one sentence. Which glands contribute fluids to the semen?",
+  }), "Which glands contribute fluids to the semen?");
+  assert.equal(questionMainHeading({
+    question_id: "ordinary-question-example",
+    display_label: "22",
+    prompt_text: "Describe the process of double fertilization.",
+  }), "Describe the process of double fertilization");
 });
 
 test("the Worker rewrites search metadata without replacing ordinary question H1 text", async () => {

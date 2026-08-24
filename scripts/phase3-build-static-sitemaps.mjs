@@ -26,6 +26,8 @@ const contentPublishedEpoch = Math.floor(Date.parse(contentPublishedAt) / 1_000)
 const methodologyEpoch = Number(PHASE4_GATE_MANIFEST.reviewedAt);
 const policyEpoch = Math.floor(Date.parse("2026-08-18T00:00:00+05:30") / 1_000);
 const trustPolicyEpoch = Math.floor(Date.parse(TRUST_POLICY_UPDATED_AT) / 1_000);
+const priorityQuestionPilotPath = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-001";
+const priorityQuestionPilotUpdatedAt = Math.floor(Date.parse("2026-08-24T00:00:00+05:30") / 1_000);
 
 function xmlEscape(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
@@ -111,7 +113,7 @@ for (const row of hierarchyRows) {
 }
 const hierarchy = writeGzip("hierarchy.xml.gz", [...timestamps].map(([pathname, timestamp]) => urlEntry(pathname, timestamp)));
 children.push({ pathname: "/sitemaps/hierarchy.xml.gz", updatedAt: Math.max(...timestamps.values()) });
-report.children.push({ pathname: "/sitemaps/hierarchy.xml.gz", ...hierarchy });
+report.children.push({ kind: "hierarchy", pathname: "/sitemaps/hierarchy.xml.gz", ...hierarchy });
 
 const questionStatement = database.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id,
   q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
@@ -129,21 +131,40 @@ for (let cursor = 1; cursor <= count; cursor += blockSize) {
   const child = writeGzip(name, entries);
   const updatedAt = Math.max(...rows.map((row) => Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
   children.push({ pathname: `/sitemaps/${name}`, updatedAt });
-  report.children.push({ pathname: `/sitemaps/${name}`, ...child });
+  report.children.push({ kind: "question", pathname: `/sitemaps/${name}`, ...child });
 }
+
+const priorityQuestionPilotName = "priority-question-pilot.xml";
+const priorityQuestionPilotXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntry(priorityQuestionPilotPath, priorityQuestionPilotUpdatedAt)}\n</urlset>\n`;
+writeFileSync(resolve(outputDirectory, priorityQuestionPilotName), priorityQuestionPilotXml);
+children.push({ pathname: `/sitemaps/${priorityQuestionPilotName}`, updatedAt: priorityQuestionPilotUpdatedAt });
+report.children.push({
+  kind: "source-verified-pilot-question",
+  pathname: `/sitemaps/${priorityQuestionPilotName}`,
+  compressedBytes: null,
+  uncompressedBytes: Buffer.byteLength(priorityQuestionPilotXml),
+  urlCount: 1,
+});
 
 const indexBody = children.map((child) => `  <sitemap><loc>${xmlEscape(`${origin}${child.pathname}`)}</loc><lastmod>${lastmod(child.updatedAt)}</lastmod></sitemap>`).join("\n");
 writeFileSync(resolve(outputDirectory, "..", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexBody}\n</sitemapindex>\n`);
 writeFileSync(resolve(outputDirectory, "..", "robots.txt"), `User-Agent: *\nAllow: /\nDisallow: /api/\n\nHost: ${origin}\nSitemap: ${origin}/sitemap.xml\n`);
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
-const questionUrlCount = report.children.slice(1).reduce((sum, child) => sum + child.urlCount, 0);
+const questionUrlCount = report.children
+  .filter((child) => child.kind === "question")
+  .reduce((sum, child) => sum + child.urlCount, 0);
+const priorityQuestionPilotUrlCount = report.children
+  .filter((child) => child.kind === "source-verified-pilot-question")
+  .reduce((sum, child) => sum + child.urlCount, 0);
 console.log(JSON.stringify({
   catalogQuestionCount: count,
   expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
   hierarchyUrlCount: hierarchy.urlCount,
   questionChildCount: report.children.length - 1,
   questionUrlCount,
-  pass: questionUrlCount === Number(PHASE4_GATE_MANIFEST.indexableCount),
+  priorityQuestionPilotUrlCount,
+  pass: questionUrlCount === Number(PHASE4_GATE_MANIFEST.indexableCount)
+    && priorityQuestionPilotUrlCount === 1,
 }, null, 2));
-if (questionUrlCount !== Number(PHASE4_GATE_MANIFEST.indexableCount)) process.exitCode = 1;
+if (questionUrlCount !== Number(PHASE4_GATE_MANIFEST.indexableCount) || priorityQuestionPilotUrlCount !== 1) process.exitCode = 1;

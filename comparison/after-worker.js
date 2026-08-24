@@ -8,6 +8,7 @@ import {
   questionAnswerOverride,
   questionDescription,
   questionDocumentTitle,
+  questionMainHeading,
   questionPrompt,
   questionSocialTitle,
 } from "../question-seo.mjs";
@@ -31,8 +32,17 @@ import {
   questionRecordFromCatalogRow,
 } from "../question-routes.mjs";
 import { subjectAwareQuestionTypeLabel } from "../question-type-labels.mjs";
-import { isQuestionEquationReviewPending, isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
+import { questionSolutionLabel } from "../question-solution-label.mjs";
+import { placeQuestionSolutionMedia } from "../question-solution-media.mjs";
+import { relatedQuestionTargetCount } from "../related-question-count.mjs";
+import { buildCompletedFillBlank } from "../fill-blank-completion.mjs";
+import { parseColumnTablePrompt } from "../question-column-table.mjs";
+import { contentToText, isQuestionEquationReviewPending, isQuestionRenderedDiagramAvailable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import {
+  normalizeQuestionEnrichment,
+  QUESTION_ENRICHMENT_POLICY_VERSION,
+} from "../question-enrichment.mjs";
 import { QUESTION_PAYLOAD_ASSET_MANIFEST } from "../question-payload-assets-manifest.mjs";
 import {
   isQuestionPubliclyEligible,
@@ -167,7 +177,40 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260824-related-questions-v93";
+const PHASE_2_VERSION = "20260824-sitewide-question-first-v103";
+const PRIORITY_QUESTION_PILOT_PATH = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-001";
+const PRIORITY_QUESTION_PILOT_ROW_ID = 212031;
+const PRIORITY_QUESTION_SOURCE_REVIEW = Object.freeze({
+  policyVersion: "priority-question-official-source-review-v2",
+  bookId: "maharashtra-board::class-12::biology::balbharati-biology-standard-12",
+  chapterSlug: "reproduction-in-lower-and-higher-plants",
+  questionId: "q-msb-balbharati-biology-standard-12-1-001",
+  sourcePayloadChecksum: "706f0ec44ddfc7209ce5b812f8a20916e9091013a8f4eec6073e821539dd1ec0",
+  sourceUrl: "https://books.ebalbharati.in/pdfs/1203030421.pdf",
+  sourcePdfSha256: "3b8c6215b968acbab0cde678daf8bbdbc6cd5cffac230f3aeac1f23fba8c37f5",
+  edition: "First Edition 2020; Reprint 2022",
+  academicYear: "2020–21",
+  questionPages: "Textbook page 16 · PDF page 26",
+  conceptPages: "Textbook pages 6–8 · PDF pages 16–18",
+  reviewedOn: "24 August 2026",
+  distractorReasoning: Object.freeze([
+    Object.freeze({
+      choiceId: "B",
+      choiceText: "Large quantities of pollens",
+      explanation: "Producing pollen in large numbers is an adaptation of wind-pollinated flowers, where many grains are lost during transfer through air. It is not the defining insect-pollination trait asked here.",
+    }),
+    Object.freeze({
+      choiceId: "C",
+      choiceText: "Dry pollens with smooth surface",
+      explanation: "Dry pollen is associated with wind pollination. Insect-pollinated pollen is sticky and spiny or rough, helping it attach to the body of a visiting insect.",
+    }),
+    Object.freeze({
+      choiceId: "D",
+      choiceText: "Light coloured pollens",
+      explanation: "The textbook describes insect-pollinated flowers as often brightly coloured. Colour attracts insects at the flower level; light-coloured pollen is not the relevant adaptation.",
+    }),
+  ]),
+});
 const STATIC_CORPUS_PAGE_ASSETS = Object.freeze({
   "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/quadatric-euation": "/pages/corpus-quality/quadratic-equations/",
   "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electric-field-and-potential/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-29-031": "/pages/corpus-quality/source-review-61425/",
@@ -200,8 +243,10 @@ const MAX_BOOK_JSON_CHARACTERS = 20 * 1024 * 1024;
 const MAX_QUESTION_INDEX_BYTES = 4 * 1024 * 1024;
 const MAX_QUESTION_COMPRESSED_BYTES = 512 * 1024;
 const MAX_QUESTION_JSON_CHARACTERS = 4 * 1024 * 1024;
+const MAX_RELATED_MEDIA_INDEX_CHARACTERS = 2 * 1024 * 1024;
 const INFLIGHT_BOOK_PAYLOADS = new Map();
 const INFLIGHT_CHAPTER_PAYLOADS = new Map();
+const INFLIGHT_RELATED_MEDIA = new Map();
 const QUESTION_PAYLOAD_ASSET_BOOK_IDS = new Set(QUESTION_PAYLOAD_ASSET_MANIFEST.bookIds);
 const BOARD_METADATA_LABELS = Object.freeze({
   "maharashtra-board": "Maharashtra State Board",
@@ -834,7 +879,8 @@ async function questionEligibilityHeadResponse(request, env, route) {
   }
   if (!row) return null;
   const rowId = Number(row.row_id);
-  const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+  const priorityQuestionPilot = priorityQuestionPilotRouteMatches(route, rowId);
+  const indexable = (isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId) || priorityQuestionPilot)
     && corpusQuestionIndexEligible({
       questionId: route.question,
       rowId,
@@ -849,11 +895,12 @@ async function questionEligibilityHeadResponse(request, env, route) {
     "x-studywudy-breadcrumbs": "canonical-v1",
     "x-studywudy-corpus-quality": CORPUS_QUALITY_POLICY_VERSION,
     "x-studywudy-public-eligibility": PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
-    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
+    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${priorityQuestionPilot && indexable ? "source-verified-pilot-complete" : indexable ? "complete" : "review-required"}`,
     "x-studywudy-question-experience": indexable ? "question-specific-trust-v2" : "review-required",
     "x-studywudy-search-metadata": "catalog-data-v1",
     "x-studywudy-semantic-math": "ast-mathml-authoritative-v7-geometry-symbols",
   });
+  if (priorityQuestionPilot) headers.set("x-studywudy-source-review", PRIORITY_QUESTION_SOURCE_REVIEW.policyVersion);
   return new Response(null, { status: 200, headers });
 }
 
@@ -963,6 +1010,30 @@ async function loadCatalogQuestionPayload(env, bookId, chapterSlug, rowId) {
   }
 }
 
+async function loadRelatedQuestionMediaIndex(env, bookId) {
+  if (!QUESTION_PAYLOAD_ASSET_BOOK_IDS.has(bookId) || !env.ASSETS) return Object.freeze({});
+  const existing = INFLIGHT_RELATED_MEDIA.get(bookId);
+  if (existing) return existing;
+  const pending = (async () => {
+    const bookRoute = String(bookId).split("::");
+    if (bookRoute.length !== 4) return Object.freeze({});
+    const pathname = `/__studywudy_payloads/${bookRoute.map(encodeURIComponent).join("/")}/related-media.json`;
+    const response = await env.ASSETS.fetch(new URL(pathname, "https://assets.local"));
+    if (!response.ok) return Object.freeze({});
+    const json = await response.text();
+    if (json.length > MAX_RELATED_MEDIA_INDEX_CHARACTERS) throw new Error("Related-question media index exceeds the size bound");
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : Object.freeze({});
+  })();
+  INFLIGHT_RELATED_MEDIA.set(bookId, pending);
+  try {
+    return await pending;
+  } catch (error) {
+    if (INFLIGHT_RELATED_MEDIA.get(bookId) === pending) INFLIGHT_RELATED_MEDIA.delete(bookId);
+    throw error;
+  }
+}
+
 async function questionPageCatalogRecord(env, route) {
   if (!env.DB) return null;
   const row = await env.DB.prepare(`SELECT q.row_id, q.book_id, q.question_id, q.display_label, q.type,
@@ -989,25 +1060,96 @@ async function questionPageCatalogRecord(env, route) {
   return row;
 }
 
+async function standaloneQuestionEnrichment(env, catalog) {
+  if (!env.DB || !catalog) return null;
+  try {
+    const row = await env.DB.prepare(`SELECT content_gzip, confidence, factual_pass, quality_pass
+      FROM question_enrichments
+      WHERE book_id = ? AND chapter_slug = ? AND question_id = ? LIMIT 1`)
+      .bind(catalog.book_id, catalog.chapter_slug, catalog.question_id)
+      .first();
+    if (!row || Number(row.factual_pass) !== 1 || Number(row.quality_pass) !== 1 || Number(row.confidence) < 0.88) return null;
+    const compressed = catalogBlobBytes(row.content_gzip);
+    if (!compressed.byteLength || compressed.byteLength > 512_000) return null;
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const json = await new Response(stream).text();
+    if (json.length > 96_000) return null;
+    return normalizeQuestionEnrichment({ ...JSON.parse(json), confidence: Number(row.confidence) });
+  } catch (error) {
+    console.error(JSON.stringify({ event: "standalone_question_enrichment_failed", questionId: catalog.question_id, error: String(error) }));
+    return null;
+  }
+}
+
 function standaloneQuestionInline(value, bookId) {
   const source = repairKnownText(bookId, String(value ?? ""))
     .replace(/<br\s*\/?\s*>/giu, "\n");
   return renderMathText(source)
-    .replace(/\*\*([\s\S]+?)\*\*/gu, "<strong>$1</strong>")
-    .replace(/__([\s\S]+?)__/gu, "<strong>$1</strong>")
     .replace(/\n/gu, "<br>");
+}
+
+function standaloneQuestionUsesFillBlanks(question) {
+  if (normalizedQuestionType(question) === "fill_blank" || question?.blanks?.length) return true;
+  const prompt = contentToText(question?.prompt ?? question?.prompt_text)
+    .normalize("NFKC")
+    .replace(/[*_`]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  return /\bfill\s+in\s+the\s+blanks?\b/iu.test(prompt);
+}
+
+function standaloneColumnTable(value, bookId) {
+  const model = parseColumnTablePrompt(value);
+  if (!model) return "";
+  const before = model.before ? `<p>${standaloneQuestionInline(model.before, bookId)}</p>` : "";
+  const after = model.after ? `<p>${standaloneQuestionInline(model.after, bookId)}</p>` : "";
+  const headers = model.headers.map((header, index) => {
+    const span = model.headerSpans[index];
+    return `<th${span > 1 ? ` colspan="${span}" scope="colgroup"` : ' scope="col"'}>${standaloneQuestionInline(header, bookId)}</th>`;
+  }).join("");
+  const rows = model.rows.map((row) => `<tr>${row.map((cell, index) => {
+    const labelClass = model.pairedLabels && index % 2 === 0 ? ' class="question-column-index"' : "";
+    return `<td${labelClass}>${standaloneQuestionInline(cell, bookId)}</td>`;
+  }).join("")}</tr>`).join("");
+  return `${before}<div aria-label="Match-the-column table" class="question-table-scroll question-column-table-scroll" role="region" tabindex="0"><table class="question-column-table"><caption class="sr-only">Items to match between textbook columns</caption>${headers ? `<thead><tr>${headers}</tr></thead>` : ""}<tbody>${rows}</tbody></table></div>${after}`;
+}
+
+function standaloneQuestionBlocks(blocks, bookId) {
+  const output = [];
+  let paragraphRun = [];
+  const flushParagraphRun = () => {
+    if (!paragraphRun.length) return;
+    const combined = paragraphRun.map((block) => block.text).join("\n");
+    const columnTable = standaloneColumnTable(combined, bookId);
+    output.push(columnTable || paragraphRun.map((block) => standaloneQuestionContent(block, bookId)).join(""));
+    paragraphRun = [];
+  };
+  for (const block of blocks || []) {
+    if (block?.kind === "paragraph" && typeof block.text === "string") {
+      paragraphRun.push(block);
+      continue;
+    }
+    flushParagraphRun();
+    output.push(standaloneQuestionContent(block, bookId));
+  }
+  flushParagraphRun();
+  return output.join("");
 }
 
 function standaloneQuestionContent(value, bookId) {
   if (value == null) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const columnTable = standaloneColumnTable(value, bookId);
+    if (columnTable) return columnTable;
     return `<p>${standaloneQuestionInline(value, bookId)}</p>`;
   }
   if (Array.isArray(value)) return value.map((item) => standaloneQuestionContent(item, bookId)).join("");
   if (value.kind === "blocks" || Array.isArray(value.blocks)) {
-    return (value.blocks || []).map((block) => standaloneQuestionContent(block, bookId)).join("");
+    return standaloneQuestionBlocks(value.blocks || [], bookId);
   }
   if (value.kind === "paragraph" || typeof value.text === "string") {
+    const columnTable = standaloneColumnTable(value.text, bookId);
+    if (columnTable) return columnTable;
     return `<p>${standaloneQuestionInline(value.text, bookId)}</p>`;
   }
   if (value.kind === "list" || Array.isArray(value.items)) {
@@ -1031,7 +1173,7 @@ function standaloneMediaUrl(value) {
   return source.startsWith(prefix) ? `/studywudy-media/${source.slice(prefix.length)}.webp` : source;
 }
 
-function standaloneQuestionMedia(items, label, bookId) {
+function standaloneQuestionMedia(items, label, bookId, placement = "") {
   const media = (items || []).map((item, index) => {
     const alt = String(item?.alt || "").trim().toLocaleLowerCase("en-IN") === "image"
       ? `${label} illustration`
@@ -1039,51 +1181,144 @@ function standaloneQuestionMedia(items, label, bookId) {
     const caption = String(item?.caption || "").trim();
     return `<figure><img alt="${escapeHtmlAttribute(alt)}" decoding="async" height="${Number(item?.height) || 640}" loading="lazy" src="${escapeHtmlAttribute(standaloneMediaUrl(item?.url || item?.fallbackUrl))}" width="${Number(item?.width) || 960}">${caption ? `<figcaption>${standaloneQuestionInline(caption, bookId)}</figcaption>` : ""}</figure>`;
   }).join("");
-  return media ? `<div class="question-media-gallery">${media}</div>` : "";
+  const placementAttribute = placement ? ` data-solution-media-placement="${escapeHtmlAttribute(placement)}"` : "";
+  return media ? `<div class="question-media-gallery"${placementAttribute}>${media}</div>` : "";
 }
 
 function standaloneQuestionChoices(question, bookId) {
   if (!question?.choices?.length) return "";
-  const correctIds = new Set(question.correctChoiceIds || (question.correctChoiceId ? [question.correctChoiceId] : []));
+  const correctIds = new Set(
+    (question.correctChoiceIds || (question.correctChoiceId ? [question.correctChoiceId] : []))
+      .map((choiceId) => String(choiceId).toLocaleLowerCase("en-IN")),
+  );
   return `<ol class="question-choice-list choice-list">${question.choices.map((choice) => `<li${correctIds.has(choice.id) ? ' class="is-correct"' : ""}><b class="choice-marker">${escapeHtmlAttribute(String(choice.id || "").toUpperCase())}</b><span class="choice-copy">${standaloneQuestionInline(choice.content, bookId)}</span>${correctIds.has(choice.id) ? '<small class="choice-correct-label">Correct option</small>' : ""}</li>`).join("")}</ol>`;
+}
+
+function standaloneCompletedFillBlank(model, bookId) {
+  if (!model) return "";
+  const content = model.answers.map((answer, index) => `${standaloneQuestionInline(model.parts[index], bookId)}<strong class="fill-blank-answer">${standaloneQuestionInline(answer, bookId)}</strong>`).join("");
+  return `<p class="fill-blank-completed-sentence">${content}${standaloneQuestionInline(model.parts.at(-1), bookId)}</p>`;
 }
 
 function standaloneQuestionSolution(question, bookId) {
   const parts = [];
-  if (question.answer != null) parts.push(`<section><h3>Answer</h3>${standaloneQuestionContent(question.answer, bookId)}</section>`);
-  if (question.answers?.length) parts.push(`<section><h3>Answers</h3>${standaloneQuestionContent({ kind: "list", items: question.answers }, bookId)}</section>`);
-  if (question.explanation != null) parts.push(`<section><h3>Explanation</h3>${standaloneQuestionContent(question.explanation, bookId)}</section>`);
+  const completedFillBlank = standaloneQuestionUsesFillBlanks(question) ? buildCompletedFillBlank(question) : null;
+  if (completedFillBlank) parts.push(`<section aria-label="Answer">${standaloneCompletedFillBlank(completedFillBlank, bookId)}</section>`);
+  else if (question.answer != null) parts.push(`<section aria-label="Answer">${standaloneQuestionContent(question.answer, bookId)}</section>`);
+  if (!completedFillBlank && question.answers?.length) parts.push(`<section aria-label="Answers">${standaloneQuestionContent({ kind: "list", items: question.answers }, bookId)}</section>`);
+  if (question.explanation != null) parts.push(`<section aria-label="Explanation">${standaloneQuestionContent(question.explanation, bookId)}</section>`);
   if (question.steps?.length) {
-    parts.push(`<section><h3>Step-by-step solution</h3><ol class="question-step-list solution-steps">${question.steps.map((step, index) => `<li><span class="sr-only">Step ${index + 1}</span>${standaloneQuestionContent(step.content, bookId)}</li>`).join("")}</ol></section>`);
+    parts.push(`<section aria-label="Solution steps"><ol class="question-step-list solution-steps">${question.steps.map((step, index) => `<li><span class="sr-only">Step ${index + 1}</span>${standaloneQuestionContent(step.content, bookId)}</li>`).join("")}</ol></section>`);
   }
   if (question.comparison != null) parts.push(`<section><h3>Comparison</h3>${standaloneQuestionContent(question.comparison, bookId)}</section>`);
   if (question.matches?.length) parts.push(`<section><h3>Matches</h3>${standaloneQuestionContent(question.matches, bookId)}</section>`);
-  if (question.blanks?.length) parts.push(`<section><h3>Completed blanks</h3>${standaloneQuestionContent(question.blanks.map((blank) => blank.answer ?? blank), bookId)}</section>`);
+  if (!completedFillBlank && question.blanks?.length) {
+    const blankAnswers = question.blanks.map((blank) => blank.answer ?? blank);
+    parts.push(`<section><h3>Completed blanks</h3><ul>${blankAnswers.map((answer) => `<li><strong class="fill-blank-answer">${standaloneQuestionInline(answer, bookId)}</strong></li>`).join("")}</ul></section>`);
+  }
   const finalAnswer = questionAnswerOverride({ question_id: question.id }) || question.finalAnswer;
-  if (finalAnswer != null) parts.push(`<section class="final-answer"><h3>Final answer</h3>${standaloneQuestionContent(finalAnswer, bookId)}</section>`);
+  if (!completedFillBlank && finalAnswer != null) parts.push(`<section class="final-answer"><h3>Final answer</h3>${standaloneQuestionContent(finalAnswer, bookId)}</section>`);
   if (!parts.length) parts.push(`<section><h3>Direct answer</h3><p>${standaloneQuestionInline(conciseDirectAnswer(question), bookId)}</p></section>`);
   return parts.join("");
 }
 
-const STUDYWUDY_QUESTION_THEME_ASSETS = `<link rel="preload" href="/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2" as="font" crossorigin type="font/woff2"><link rel="stylesheet" href="/_next/static/chunks/1j8ahw0e9ui5v.css"><link rel="stylesheet" href="/_next/static/chunks/3c4-ozf1dxam2.css"><link rel="stylesheet" href="/_next/static/chunks/3utpp1hmg6_bb.css"><link rel="stylesheet" href="/_next/static/chunks/0u6271lmf-stj.css">`;
+const STUDYWUDY_QUESTION_THEME_ASSETS = `<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2212%22%20fill%3D%22%230757d8%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2245%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%2Csans-serif%22%20font-size%3D%2240%22%20font-weight%3D%22700%22%20fill%3D%22white%22%3ES%3C%2Ftext%3E%3C%2Fsvg%3E"><link rel="preload" href="/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2" as="font" crossorigin type="font/woff2"><link rel="stylesheet" href="/_next/static/chunks/1j8ahw0e9ui5v.css"><link rel="stylesheet" href="/_next/static/chunks/3c4-ozf1dxam2.css"><link rel="stylesheet" href="/_next/static/chunks/3utpp1hmg6_bb.css"><link rel="stylesheet" href="/_next/static/chunks/0u6271lmf-stj.css">`;
 
 const STANDALONE_QUESTION_STYLES = `<style data-studywudy-question-render="canonical-single-pass-v2-themed">
-.standalone-question-page .answer-page-main{min-width:0}.standalone-question-page .question-card{overflow:visible}.standalone-question-page .question-prompt>.rich-copy{display:grid;gap:.6rem}.standalone-question-page .question-prompt>.rich-copy>p{margin:0}.standalone-question-page .question-media-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}.standalone-question-page .question-media-gallery figure{margin:0}.standalone-question-page .question-media-gallery img{display:block;width:100%;height:auto;border:2px solid var(--ink);border-radius:4px;background:#fff;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-media-gallery figcaption{margin-top:9px;color:var(--ink-soft);font-size:.75rem;font-weight:700}.standalone-question-page .question-choice-list{margin:18px 0 0;padding:0}.standalone-question-page .question-choice-list li{list-style:none}.standalone-question-page .solution-body>section{padding:18px 0;border-top:1px dashed #10131661}.standalone-question-page .solution-body>section:first-of-type{border-top:0}.standalone-question-page .solution-body>section>h3{margin:0 0 10px;font-size:1rem;font-weight:950}.standalone-question-page .solution-body>section>p,.standalone-question-page .solution-body>section>.rich-copy p{margin:.45rem 0}.standalone-question-page .solution-steps>li>span.sr-only{position:absolute}.standalone-question-page .question-table-scroll{max-width:100%;overflow-x:auto;border:2px solid var(--ink);box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-table-scroll table{width:100%;min-width:560px;border-collapse:collapse;background:var(--white)}.standalone-question-page .question-table-scroll th,.standalone-question-page .question-table-scroll td{padding:11px 13px;border:1px solid var(--ink);text-align:left}.standalone-question-page .question-table-scroll th{background:var(--violet);color:#fff}.standalone-question-page .phase4-review-signal{margin:22px 0;border:3px solid var(--ink);border-left:9px solid var(--mint);border-radius:5px;background:var(--white);box-shadow:5px 6px 0 var(--ink)}.standalone-question-page .phase4-review-signal.is-pending{border-left-color:var(--gold)}.standalone-question-page .question-source-note{padding:12px;border:2px solid var(--ink);background:var(--gold-soft)}.standalone-question-page .question-trust-panel,.standalone-question-page .question-answer-summary,.standalone-question-page .question-specific-panel,.standalone-question-page .question-exercise-card{border-color:var(--ink);border-radius:5px;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-answer-summary{background:var(--white)}.standalone-question-page .question-answer-summary ol li{border-color:var(--ink);border-radius:3px;background:var(--gold-soft)}.standalone-question-page .question-answer-label,.standalone-question-page .question-specific-panel>span,.standalone-question-page .question-exercise-related header>span,.standalone-question-page .question-solution-overview>span{color:var(--violet)}.standalone-question-page .question-solution-overview{border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}.standalone-question-page .question-solution-overview li{border:1px solid var(--ink);border-radius:3px}.standalone-question-page .question-specific-panel{background:var(--white)}.standalone-question-page .question-trust-panel{border-left-width:9px;background:var(--paper-deep)}.standalone-question-page .question-trust-row,.standalone-question-page .question-human-review,.standalone-question-page .question-report-error{border-color:var(--ink);border-radius:3px}.standalone-question-page .question-exercise-card{transition:transform .16s,box-shadow .16s}.standalone-question-page .question-exercise-card:hover{box-shadow:2px 3px 0 var(--ink);transform:translate(2px,2px)}.standalone-question-page .answer-page-chapter span{margin-right:10px}.standalone-question-page .answer-context dl{margin:0}.standalone-question-page .answer-context dl div{padding:9px 0}.standalone-question-page .answer-context dt{color:var(--ink-soft);font-size:.65rem;font-weight:800;text-transform:uppercase}.standalone-question-page .answer-context dd{margin:2px 0 0;font-weight:850}.standalone-question-page .footer-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.standalone-question-page .phase5-native-links{display:grid;align-content:start;gap:8px}.standalone-question-page .footer-intro h2{color:#fff}.standalone-question-page .footer-banner strong{color:var(--ink)}
+.standalone-question-page .answer-page-main{min-width:0}.standalone-question-page .question-card{overflow:visible}.standalone-question-page .question-prompt>.rich-copy{display:grid;gap:.6rem}.standalone-question-page .question-prompt>.rich-copy>p{margin:0}.standalone-question-page .question-media-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}.standalone-question-page .question-media-gallery figure{margin:0}.standalone-question-page .question-media-gallery img{display:block;width:100%;height:auto;border:2px solid var(--ink);border-radius:4px;background:#fff;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-media-gallery figcaption{margin-top:9px;color:var(--ink-soft);font-size:.75rem;font-weight:700}.standalone-question-page .question-choice-list{margin:18px 0 0;padding:0}.standalone-question-page .question-choice-list li{list-style:none}.standalone-question-page .solution-body>section{padding:18px 0;border-top:1px dashed #10131661}.standalone-question-page .solution-body>section:first-of-type{border-top:0}.standalone-question-page .solution-body>section>h3{margin:0 0 10px;font-size:1rem;font-weight:950}.standalone-question-page .solution-body>section>p,.standalone-question-page .solution-body>section>.rich-copy p{margin:.45rem 0}.standalone-question-page .solution-steps>li>span.sr-only{position:absolute}.standalone-question-page .question-table-scroll{max-width:100%;margin:12px 0 20px;overflow-x:auto;border:2px solid var(--ink);box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-table-scroll table{width:100%;min-width:560px;border-collapse:collapse;background:var(--white)}.standalone-question-page .question-table-scroll th,.standalone-question-page .question-table-scroll td{padding:11px 13px;border:1px solid var(--ink);text-align:left}.standalone-question-page .question-table-scroll th{background:var(--violet);color:#fff}.standalone-question-page .phase4-review-signal{margin:22px 0;border:3px solid var(--ink);border-left:9px solid var(--mint);border-radius:5px;background:var(--white);box-shadow:5px 6px 0 var(--ink)}.standalone-question-page .phase4-review-signal.is-pending{border-left-color:var(--gold)}.standalone-question-page .question-source-note{padding:12px;border:2px solid var(--ink);background:var(--gold-soft)}.standalone-question-page .question-trust-panel,.standalone-question-page .question-answer-summary,.standalone-question-page .question-specific-panel,.standalone-question-page .question-exercise-card{border-color:var(--ink);border-radius:5px;box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-answer-summary{background:var(--white)}.standalone-question-page .question-answer-summary ol li{border-color:var(--ink);border-radius:3px;background:var(--gold-soft)}.standalone-question-page .question-answer-label,.standalone-question-page .question-specific-panel>span,.standalone-question-page .question-exercise-related header>span,.standalone-question-page .question-solution-overview>span{color:var(--violet)}.standalone-question-page .question-solution-overview{border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}.standalone-question-page .question-solution-overview li{border:1px solid var(--ink);border-radius:3px}.standalone-question-page .question-specific-panel{background:var(--white)}.standalone-question-page .question-trust-panel{border-left-width:9px;background:var(--paper-deep)}.standalone-question-page .question-trust-row,.standalone-question-page .question-human-review,.standalone-question-page .question-report-error{border-color:var(--ink);border-radius:3px}.standalone-question-page .question-exercise-card{transition:transform .16s,box-shadow .16s}.standalone-question-page .question-exercise-card:hover{box-shadow:2px 3px 0 var(--ink);transform:translate(2px,2px)}.standalone-question-page .answer-page-chapter span{margin-right:10px}.standalone-question-page .answer-context dl{margin:0}.standalone-question-page .answer-context dl div{padding:9px 0}.standalone-question-page .answer-context dt{color:var(--ink-soft);font-size:.65rem;font-weight:800;text-transform:uppercase}.standalone-question-page .answer-context dd{margin:2px 0 0;font-weight:850}.standalone-question-page .footer-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.standalone-question-page .phase5-native-links{display:grid;align-content:start;gap:8px}.standalone-question-page .footer-intro h2{color:#fff}.standalone-question-page .footer-banner strong{color:var(--ink)}
+.standalone-question-page .question-card[data-question-answer-format="fill-blank"] .solution-body>div strong{font-weight:950;text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:3px;text-decoration-skip-ink:auto}
+.standalone-question-page .solution-body [data-solution-media-placement="contextual-v1"]{margin:18px 0 24px}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:26px 0 32px}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item{display:flex;min-height:70px;padding:15px 14px 13px;border:3px solid var(--ink);border-radius:6px;background:var(--white);box-shadow:6px 7px 0 var(--ink);color:var(--ink);text-decoration:none;transition:transform .16s,box-shadow .16s}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-previous{grid-column:1;align-items:flex-start;text-align:left}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-next{grid-column:2;align-items:flex-end;background:#0757d8;color:var(--white);text-align:right}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-copy{display:flex;flex:1;flex-direction:column;gap:8px;justify-content:center}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item span{color:var(--ink-soft);font-size:.63rem;font-weight:650;line-height:1;text-transform:uppercase}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item strong{color:var(--coral);font-size:.78rem;font-weight:900;line-height:1.2}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-next span,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-next strong{color:var(--white)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] a.priority-question-pagination-item:hover{box-shadow:2px 3px 0 var(--ink);transform:translate(2px,2px)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] a.priority-question-pagination-item:focus-visible{outline:4px solid var(--gold);outline-offset:4px}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-study-details{display:grid;gap:22px;margin:32px 0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-study-details>.question-solution-overview,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-study-details>.question-specific-grid{margin:0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .pattern-code{color:#064fc5}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis{display:grid;gap:14px;margin:32px 0;padding:20px;border:3px solid var(--ink);border-top:8px solid var(--mint);border-radius:6px;background:var(--white);box-shadow:6px 7px 0 var(--ink)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis>span{color:#17614f;font-family:var(--font-geist-mono,ui-monospace,monospace);font-size:.72rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis>h2,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis>p{margin:0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis>p{color:var(--ink-soft);line-height:1.65}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis ul{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;min-width:0;padding:13px;border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li:nth-child(1){background:var(--coral-soft)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li:nth-child(2){background:var(--violet-soft)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li:nth-child(3){background:var(--gold-soft)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li>b{display:grid;place-items:center;width:34px;height:34px;border:2px solid var(--ink);border-radius:50%;background:var(--white);color:var(--ink);font-size:.75rem;font-weight:950}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li>div{min-width:0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis h3{margin:0;font-size:.86rem;font-weight:950;line-height:1.35}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li p{margin:5px 0 0;color:var(--ink-soft);font-size:.78rem;font-weight:600;line-height:1.6}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-source{padding-top:2px;color:var(--ink-soft);font-size:.7rem;font-weight:750}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source{display:grid;gap:12px;margin:32px 0;padding:20px;border:3px solid var(--ink);border-top:8px solid var(--violet);border-radius:6px;background:var(--white);box-shadow:6px 7px 0 var(--ink)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source>span{color:var(--violet);font-family:var(--font-geist-mono,ui-monospace,monospace);font-size:.72rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source h2,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source p{margin:0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;margin:0}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dl div{min-width:0;padding:9px 0;border-top:1px solid #10131640}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dt{color:var(--ink-soft);font-size:.72rem;font-weight:800;text-transform:uppercase}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dd{min-width:0;margin:3px 0 0;font-weight:800}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dd code{display:block;max-width:100%;overflow-wrap:anywhere;word-break:break-word;font-size:.78rem;line-height:1.45}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source a{justify-self:start;min-height:44px;padding:11px 14px;border:2px solid var(--ink);border-radius:4px;background:var(--gold);color:var(--ink);font-weight:900;text-decoration:none;box-shadow:3px 4px 0 var(--ink)}
+.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source a:focus-visible{outline:4px solid var(--violet);outline-offset:4px}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel{display:grid;gap:14px;margin:32px 0;padding:20px;border:3px solid var(--ink);border-top:8px solid var(--mint);border-radius:6px;background:var(--white);box-shadow:6px 7px 0 var(--ink)}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel>span{color:#17614f;font-family:var(--font-geist-mono,ui-monospace,monospace);font-size:.72rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel>h2,.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel h3,.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel p{margin:0}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel>section{display:grid;gap:10px;padding-top:14px;border-top:1px dashed #10131661}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel>section>ol{display:grid;gap:8px;margin:0;padding-left:1.3rem}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-concept{display:grid;gap:8px;color:var(--ink-soft);line-height:1.7}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-concept>p{margin:0}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;padding:13px;border:2px solid var(--ink);border-radius:4px;background:var(--violet-soft)}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li:nth-child(3n+1){background:var(--coral-soft)}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li:nth-child(3n){background:var(--gold-soft)}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li>b{display:grid;place-items:center;width:34px;height:34px;border:2px solid var(--ink);border-radius:50%;background:var(--white);font-size:.75rem;font-weight:950}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li p{margin-top:5px;color:var(--ink-soft);font-size:.78rem;font-weight:600;line-height:1.6}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks:empty{display:none}
+.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks aside{display:grid;gap:7px;padding:13px;border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}
+.standalone-question-page .related-media{overflow:hidden;background:var(--white)}
+.standalone-question-page .related-media img{display:block;width:100%;height:100%;object-fit:contain}
+.standalone-question-page .question-exercise-card .related-media{display:grid;width:100%;height:140px;margin:12px 0 14px;border:2px solid var(--ink);border-radius:4px;background:var(--white)}
 @media(max-width:780px){.standalone-question-page .question-media-gallery{grid-template-columns:1fr}.standalone-question-page .answer-page-layout{display:block}.standalone-question-page .question-chapter-rail,.standalone-question-page .answer-context{display:none}.standalone-question-page .footer-nav{grid-template-columns:1fr 1fr}}
-@media(max-width:540px){.standalone-question-page .question-answer-summary{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .question-trust-panel{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .footer-nav{grid-template-columns:1fr}}
+@media(max-width:640px){.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination{grid-template-columns:1fr}.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-previous,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item.is-next{grid-column:1}}
+@media(max-width:540px){.standalone-question-page .question-answer-summary{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .question-trust-panel{box-shadow:3px 4px 0 var(--ink);padding:14px 12px}.standalone-question-page .footer-nav{grid-template-columns:1fr}.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis,.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source,.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-panel{padding:14px}.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-option-analysis li,.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-choices li{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:11px}.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-official-source dl,.standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.standalone-question-page[data-studywudy-question-priority="pilot-v1"] .priority-question-pagination-item{transition:none}.standalone-question-page[data-studywudy-question-priority="pilot-v1"] a.priority-question-pagination-item:hover{transform:none}}
 </style>${QUESTION_PAGE_THEME_ALIGNMENT_STYLES}`;
 
+const QUESTION_COLUMN_TABLE_STYLES = `<style data-studywudy-column-table="sitewide-v1">
+.standalone-question-page .question-column-table-scroll{margin:12px 0 20px;border:3px solid var(--ink);border-top:8px solid #0757d8;border-radius:6px;background:var(--white);box-shadow:6px 7px 0 var(--ink);scrollbar-color:#0757d8 var(--paper-deep);scrollbar-width:thin}
+.standalone-question-page .question-column-table-scroll:focus-visible{outline:4px solid var(--gold);outline-offset:4px}
+.standalone-question-page .question-column-table{table-layout:fixed}
+.standalone-question-page .question-column-table thead th{padding:13px 14px;border:2px solid var(--ink);background:#0757d8;color:var(--white);font-family:var(--font-geist-mono,ui-monospace,monospace);font-size:.73rem;font-weight:900;letter-spacing:.06em;line-height:1.45;text-transform:uppercase}
+.standalone-question-page .question-column-table tbody td{padding:12px 14px;border:2px solid var(--ink);font-weight:650;line-height:1.5;vertical-align:top}
+.standalone-question-page .question-column-table tbody tr:nth-child(4n+1) td{background:var(--violet-soft)}
+.standalone-question-page .question-column-table tbody tr:nth-child(4n+2) td{background:var(--coral-soft)}
+.standalone-question-page .question-column-table tbody tr:nth-child(4n+3) td{background:var(--mint-soft)}
+.standalone-question-page .question-column-table tbody tr:nth-child(4n) td{background:var(--gold-soft)}
+.standalone-question-page .question-column-table td.question-column-index{width:58px;background:var(--paper-deep);font-family:var(--font-geist-mono,ui-monospace,monospace);font-size:.78rem;font-weight:950;text-align:center;white-space:nowrap}
+@media(max-width:540px){.standalone-question-page .question-column-table-scroll{box-shadow:4px 5px 0 var(--ink)}.standalone-question-page .question-column-table thead th,.standalone-question-page .question-column-table tbody td{padding:10px 11px}}
+</style>`;
+
+function standaloneQuestionBreadcrumbItems(row, route) {
+  return Object.freeze([
+    { name: "Home", href: "/" },
+    { name: row.board_short_name || row.board_name, href: `/${route.board}` },
+    { name: row.grade_label, href: `/${route.board}/${route.grade}` },
+    { name: row.subject_name, href: `/${route.board}/${route.grade}/${route.subject}` },
+    { name: row.book_title, href: `/${route.board}/${route.grade}/${route.subject}/${route.book}` },
+    { name: row.chapter_title, href: `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}` },
+    { name: `Question ${row.display_label}`, href: `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}/questions/${route.question}` },
+  ].map((item) => Object.freeze(item)));
+}
+
 function standaloneQuestionBreadcrumbs(row, route) {
-  const items = [
-    ["Home", "/"],
-    [row.board_short_name || row.board_name, `/${route.board}`],
-    [row.grade_label, `/${route.board}/${route.grade}`],
-    [row.subject_name, `/${route.board}/${route.grade}/${route.subject}`],
-    [row.book_title, `/${route.board}/${route.grade}/${route.subject}/${route.book}`],
-    [row.chapter_title, `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}`],
-    [`Question ${row.display_label}`, null],
-  ];
-  return `<nav class="breadcrumb-bar" aria-label="Breadcrumb"><ol class="shell breadcrumb-list">${items.map(([label, href]) => `<li>${href ? `<a href="${escapeHtmlAttribute(href)}">${escapeHtmlAttribute(label)}</a>` : `<span aria-current="page">${escapeHtmlAttribute(label)}</span>`}</li>`).join("")}</ol></nav>`;
+  const items = standaloneQuestionBreadcrumbItems(row, route);
+  return `<nav class="breadcrumb-bar" aria-label="Breadcrumb"><ol class="shell breadcrumb-list">${items.map((item, index) => `<li>${index < items.length - 1 ? `<a href="${escapeHtmlAttribute(item.href)}">${escapeHtmlAttribute(item.name)}</a>` : `<span aria-current="page">${escapeHtmlAttribute(item.name)}</span>`}</li>`).join("")}</ol></nav>`;
 }
 
 function standaloneQuestionTitleClass(value) {
@@ -1119,8 +1354,12 @@ function standaloneRelatedQuestionHref(row, route) {
   return `/${route.board}/${route.grade}/${route.subject}/${route.book}/${row.chapter_slug}/questions/${row.question_id}`;
 }
 
-function standaloneRelatedQuestionModel(row, catalog, route) {
+function standaloneRelatedQuestionModel(row, catalog, route, mediaIndex = {}) {
   const type = normalizedQuestionType(row);
+  const prompt = truncateSearchExcerpt(createPlainSearchText(repairKnownText(catalog.book_id, row.prompt_text)), 170);
+  const mediaItem = mediaIndex[String(row.row_id)];
+  const mediaSource = mediaItem?.url || mediaItem?.fallbackUrl || "";
+  const mediaAlt = String(mediaItem?.alt || "").trim();
   return Object.freeze({
     rowId: Number(row.row_id),
     href: standaloneRelatedQuestionHref(row, route),
@@ -1135,24 +1374,39 @@ function standaloneRelatedQuestionModel(row, catalog, route) {
       row.chapter_slug,
       repairKnownText(catalog.book_id, row.chapter_title),
     ),
-    prompt: truncateSearchExcerpt(createPlainSearchText(repairKnownText(catalog.book_id, row.prompt_text)), 170),
+    prompt,
+    media: mediaSource ? Object.freeze({
+      src: standaloneMediaUrl(mediaSource),
+      alt: mediaAlt && mediaAlt.toLocaleLowerCase("en-IN") !== "image"
+        ? mediaAlt
+        : `${prompt} — textbook figure`,
+      height: Number(mediaItem.height) || 112,
+      width: Number(mediaItem.width) || 152,
+    }) : null,
   });
 }
 
 async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
-  if (!env.DB?.batch) return Object.freeze({ sameChapter: Object.freeze([]), sameTextbook: Object.freeze([]) });
+  if (!env.DB?.batch) return Object.freeze({
+    sameChapter: Object.freeze([]),
+    sameTextbook: Object.freeze([]),
+    navigation: Object.freeze({ previous: null, next: null }),
+  });
   const projection = `SELECT q.row_id, q.question_id, q.display_label, q.type, q.prompt_text,
     q.chapter_slug, c.title AS chapter_title
     FROM catalog_questions q JOIN catalog_chapters c
       ON c.book_id = q.book_id AND c.slug = q.chapter_slug`;
   try {
-    const results = await env.DB.batch([
-      env.DB.prepare(`${projection}
+    const [results, mediaIndex] = await Promise.all([
+      env.DB.batch([
+        env.DB.prepare(`${projection}
         WHERE q.book_id = ? AND q.chapter_slug = ? AND q.row_id != ?
         ORDER BY ABS(q.row_id - ?) LIMIT 64`).bind(catalog.book_id, route.chapter, rowId, rowId),
-      env.DB.prepare(`${projection}
+        env.DB.prepare(`${projection}
         WHERE q.book_id = ? AND q.chapter_slug != ? AND q.row_id != ?
         ORDER BY ABS(q.row_id - ?) LIMIT 96`).bind(catalog.book_id, route.chapter, rowId, rowId),
+      ]),
+      loadRelatedQuestionMediaIndex(env, catalog.book_id),
     ]);
     const eligible = (row) => isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id))
       && corpusQuestionIndexEligible({
@@ -1160,26 +1414,168 @@ async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
         rowId: Number(row.row_id),
         duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
       });
-    const sameChapter = (results[0]?.results || []).filter(eligible).slice(0, 4)
-      .map((row) => standaloneRelatedQuestionModel(row, catalog, route));
+    const sameChapterRows = results[0]?.results || [];
+    const eligibleSameChapterRows = sameChapterRows.filter(eligible);
+    const sameChapter = eligibleSameChapterRows.slice(0, 4)
+      .map((row) => standaloneRelatedQuestionModel(row, catalog, route, mediaIndex));
     const used = new Set(sameChapter.map(({ rowId: relatedRowId }) => relatedRowId));
-    const sameTextbook = (results[1]?.results || []).filter((row) => eligible(row) && !used.has(Number(row.row_id))).slice(0, 8)
-      .map((row) => standaloneRelatedQuestionModel(row, catalog, route));
-    return Object.freeze({ sameChapter: Object.freeze(sameChapter), sameTextbook: Object.freeze(sameTextbook) });
+    const relatedTargetCount = relatedQuestionTargetCount({ rowId, questionId: route.question });
+    const relatedRows = [
+      ...(results[1]?.results || []).filter(eligible),
+      ...eligibleSameChapterRows.filter((row) => !used.has(Number(row.row_id))),
+    ].filter((row, index, rows) => rows.findIndex((candidate) => Number(candidate.row_id) === Number(row.row_id)) === index)
+      .slice(0, relatedTargetCount);
+    const sameTextbook = relatedRows.map((row) => standaloneRelatedQuestionModel(row, catalog, route, mediaIndex));
+    const relatedIncludesSameChapter = relatedRows.some((row) => row.chapter_slug === route.chapter);
+    // Pagination follows the actual textbook order, including review-held
+    // pages. Publishing eligibility controls recommendations and indexing,
+    // not whether a student can move to the adjacent source question.
+    const previousRow = sameChapterRows
+      .filter((row) => Number(row.row_id) < rowId)
+      .sort((left, right) => Number(right.row_id) - Number(left.row_id))[0];
+    const nextRow = sameChapterRows
+      .filter((row) => Number(row.row_id) > rowId)
+      .sort((left, right) => Number(left.row_id) - Number(right.row_id))[0];
+    const navigation = Object.freeze({
+      previous: previousRow ? standaloneRelatedQuestionModel(previousRow, catalog, route, mediaIndex) : null,
+      next: nextRow ? standaloneRelatedQuestionModel(nextRow, catalog, route, mediaIndex) : null,
+    });
+    return Object.freeze({
+      sameChapter: Object.freeze(sameChapter),
+      sameTextbook: Object.freeze(sameTextbook),
+      relatedTargetCount,
+      relatedIncludesSameChapter,
+      navigation,
+    });
   } catch (error) {
     console.error(JSON.stringify({ event: "standalone_related_questions_failed", questionId: route.question, error: String(error) }));
-    return Object.freeze({ sameChapter: Object.freeze([]), sameTextbook: Object.freeze([]) });
+    return Object.freeze({
+      sameChapter: Object.freeze([]),
+      sameTextbook: Object.freeze([]),
+      navigation: Object.freeze({ previous: null, next: null }),
+    });
   }
+}
+
+function standaloneRelatedQuestionMedia(card) {
+  if (!card.media) return "";
+  return `<span class="related-media"><img alt="${escapeHtmlAttribute(card.media.alt)}" decoding="async" height="${card.media.height}" loading="lazy" src="${escapeHtmlAttribute(card.media.src)}" width="${card.media.width}"></span>`;
 }
 
 function standaloneRelatedQuestionSections(recommendations, catalog, route) {
   const sameChapter = recommendations.sameChapter.length
-    ? `<section class="question-exercise-related" aria-labelledby="same-chapter-heading"><header><span>Same chapter</span><h2 id="same-chapter-heading">More questions from ${escapeHtmlAttribute(catalog.chapter_title)}</h2></header><div>${recommendations.sameChapter.map((card) => `<a class="question-exercise-card" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span>${escapeHtmlAttribute(card.typeLabel)}</span><strong>Question ${escapeHtmlAttribute(card.label)}</strong><p>${escapeHtmlAttribute(card.prompt)}</p><b>View answer →</b></a>`).join("")}</div></section>`
+    ? `<section class="question-exercise-related" aria-labelledby="same-chapter-heading"><header><span>Same chapter</span><h2 id="same-chapter-heading">More questions from ${escapeHtmlAttribute(catalog.chapter_title)}</h2></header><div>${recommendations.sameChapter.map((card) => `<a class="question-exercise-card${card.media ? " has-related-media" : ""}" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span>${escapeHtmlAttribute(card.typeLabel)}</span><strong>Question ${escapeHtmlAttribute(card.label)}</strong><p>${escapeHtmlAttribute(card.prompt)}</p>${standaloneRelatedQuestionMedia(card)}<b>View answer →</b></a>`).join("")}</div></section>`
     : "";
   const sameTextbook = recommendations.sameTextbook.length
-    ? `<section class="related-questions" aria-labelledby="related-questions-heading"><header class="related-questions-heading"><div><span aria-hidden="true">+</span><div><small>Keep learning</small><h2 id="related-questions-heading">Related questions</h2></div></div><p>${recommendations.sameTextbook.length} questions from this textbook.</p></header><div class="related-question-grid">${recommendations.sameTextbook.map((card) => `<a class="related-question-link" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span class="related-question-number">Q ${escapeHtmlAttribute(card.label)}</span><div class="related-question-preview"><div class="related-question-copy">${escapeHtmlAttribute(card.prompt)}</div><small>${escapeHtmlAttribute(card.chapter)}</small></div><b><span>Open</span> →</b></a>`).join("")}</div></section>`
+    ? `<section class="related-questions" aria-labelledby="related-questions-heading" data-related-question-count="${recommendations.sameTextbook.length}" data-related-question-target="${Number(recommendations.relatedTargetCount) || recommendations.sameTextbook.length}"><header class="related-questions-heading"><div><span aria-hidden="true">+</span><div><small>Keep learning</small><h2 id="related-questions-heading">Related questions</h2></div></div><p>${recommendations.sameTextbook.length} questions from this textbook.</p></header><div class="related-question-grid">${recommendations.sameTextbook.map((card) => `<a class="related-question-link${card.media ? " has-related-media" : ""}" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span class="related-question-number">Q ${escapeHtmlAttribute(card.label)}</span>${standaloneRelatedQuestionMedia(card)}<div class="related-question-preview"><div class="related-question-copy">${escapeHtmlAttribute(card.prompt)}</div><small>${escapeHtmlAttribute(card.chapter)}</small></div><b><span>Open</span> →</b></a>`).join("")}</div></section>`
     : "";
-  return Object.freeze({ sameChapter, sameTextbook });
+  return Object.freeze({ sameChapter, sameTextbook, relatedIncludesSameChapter: Boolean(recommendations.relatedIncludesSameChapter) });
+}
+
+function standalonePriorityQuestionPagination(navigation, catalog, route) {
+  const chapterHref = `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}`;
+  const item = (card, direction) => {
+    if (!card) return "";
+    const isPrevious = direction === "previous";
+    const directionLabel = isPrevious ? "Previous" : "Next";
+    const directionClass = isPrevious ? "is-previous" : "is-next";
+    const questionLink = isPrevious
+      ? `← Question ${escapeHtmlAttribute(card.label)}`
+      : `Question ${escapeHtmlAttribute(card.label)} →`;
+    return `<a class="priority-question-pagination-item ${directionClass}" href="${escapeHtmlAttribute(card.href)}"><span class="priority-question-pagination-copy"><span>${directionLabel}</span><strong>${questionLink}</strong></span></a>`;
+  };
+  const paginationItems = [item(navigation?.previous, "previous"), item(navigation?.next, "next")].filter(Boolean);
+  if (!paginationItems.length) return "";
+  const itemCountClass = paginationItems.length === 1 ? "has-single-item" : "has-two-items";
+  return `<nav class="question-pagination priority-question-pagination ${itemCountClass}" aria-label="Previous and next questions">${paginationItems.join("")}<a class="sr-only" href="${escapeHtmlAttribute(chapterHref)}">View all questions in this chapter</a></nav>`;
+}
+
+function priorityQuestionPilotRouteMatches(route, rowId) {
+  return Number(rowId) === PRIORITY_QUESTION_PILOT_ROW_ID
+    && route?.board === "maharashtra-board"
+    && route?.grade === "class-12"
+    && route?.subject === "biology"
+    && route?.book === "balbharati-biology-standard-12"
+    && route?.chapter === PRIORITY_QUESTION_SOURCE_REVIEW.chapterSlug
+    && route?.question === PRIORITY_QUESTION_SOURCE_REVIEW.questionId;
+}
+
+function priorityQuestionPilotSourceMatches({ payload, catalog, question, route }) {
+  return priorityQuestionPilotRouteMatches(route, catalog?.row_id)
+    && catalog?.book_id === PRIORITY_QUESTION_SOURCE_REVIEW.bookId
+    && String(payload?.sourceChecksum || "") === PRIORITY_QUESTION_SOURCE_REVIEW.sourcePayloadChecksum
+    && question?.id === PRIORITY_QUESTION_SOURCE_REVIEW.questionId
+    && question?.correctChoiceId === "a"
+    && Array.isArray(question?.choices)
+    && question.choices.length === 4;
+}
+
+function applyPriorityQuestionSourceReview(model) {
+  const evidenceUrl = `${PRIORITY_QUESTION_SOURCE_REVIEW.sourceUrl}#page=26`;
+  return {
+    ...model,
+    edition: PRIORITY_QUESTION_SOURCE_REVIEW.edition,
+    academicYear: PRIORITY_QUESTION_SOURCE_REVIEW.academicYear,
+    editionStatus: `Authoritative textbook mapping verified against the official Balbharati Biology Standard XII PDF, ${PRIORITY_QUESTION_SOURCE_REVIEW.edition}.`,
+    trust: {
+      ...model.trust,
+      sourceMappingVerified: true,
+      authoritativeSourceMapping: Object.freeze({
+        status: "verified",
+        verified: true,
+        detail: `The exact question and options were checked on ${PRIORITY_QUESTION_SOURCE_REVIEW.questionPages}; the supporting entomophily concept was checked on ${PRIORITY_QUESTION_SOURCE_REVIEW.conceptPages}.`,
+        evidenceUrl,
+        evidenceLabel: "Official Balbharati Biology Standard XII PDF",
+      }),
+      sourcePages: `${PRIORITY_QUESTION_SOURCE_REVIEW.questionPages}; ${PRIORITY_QUESTION_SOURCE_REVIEW.conceptPages}`,
+      edition: PRIORITY_QUESTION_SOURCE_REVIEW.edition,
+      academicYear: PRIORITY_QUESTION_SOURCE_REVIEW.academicYear,
+    },
+  };
+}
+
+function priorityQuestionOptionReasoningPanel() {
+  const source = PRIORITY_QUESTION_SOURCE_REVIEW;
+  const reasoning = source.distractorReasoning.map((item) => `<li data-choice-id="${escapeHtmlAttribute(item.choiceId)}"><b aria-hidden="true">${escapeHtmlAttribute(item.choiceId)}</b><div><h3>${escapeHtmlAttribute(item.choiceText)}</h3><p>${escapeHtmlAttribute(item.explanation)}</p></div></li>`).join("");
+  return `<section class="priority-question-option-analysis" aria-labelledby="priority-question-option-analysis-heading"><span>Option check</span><h2 id="priority-question-option-analysis-heading">Why the other options do not fit</h2><p>The textbook separates insect-pollination traits from wind-pollination traits. That distinction rules out the remaining choices.</p><ul>${reasoning}</ul><small class="priority-question-option-source">Source basis: ${escapeHtmlAttribute(source.conceptPages)}, official Balbharati Biology Standard XII.</small></section>`;
+}
+
+function priorityQuestionOfficialSourcePanel() {
+  const source = PRIORITY_QUESTION_SOURCE_REVIEW;
+  return `<section class="priority-question-official-source" aria-labelledby="priority-question-official-source-heading"><span>Official source check</span><h2 id="priority-question-official-source-heading">Verified against Balbharati</h2><p>The original question, all four options and the supporting textbook concept were cross-checked without rewriting the question or answer.</p><dl><div><dt>Textbook</dt><dd>Biology Standard XII</dd></div><div><dt>Edition</dt><dd>${escapeHtmlAttribute(source.edition)}</dd></div><div><dt>Question</dt><dd>${escapeHtmlAttribute(source.questionPages)}</dd></div><div><dt>Supporting concept</dt><dd>${escapeHtmlAttribute(source.conceptPages)}</dd></div><div><dt>Checked on</dt><dd>${escapeHtmlAttribute(source.reviewedOn)}</dd></div><div><dt>Official PDF SHA-256</dt><dd><code>${escapeHtmlAttribute(source.sourcePdfSha256)}</code></dd></div></dl><a href="${escapeHtmlAttribute(`${source.sourceUrl}#page=26`)}" rel="external">Open official Balbharati source →</a></section>`;
+}
+
+function standaloneQuestionEnrichmentPanel(enrichment, question, catalog) {
+  if (!enrichment) return "";
+  const correctIds = new Set(
+    (question.correctChoiceIds || (question.correctChoiceId ? [question.correctChoiceId] : []))
+      .map((choiceId) => String(choiceId).toLocaleLowerCase("en-IN")),
+  );
+  const choiceById = new Map((question.choices || []).map((choice) => [String(choice.id || "").toLocaleLowerCase("en-IN"), choice]));
+  const choiceRows = enrichment.choiceExplanations
+    .filter((item) => !correctIds.has(item.choiceId) && choiceById.has(item.choiceId))
+    .map((item) => {
+      const choice = choiceById.get(item.choiceId);
+      return `<li><b aria-hidden="true">${escapeHtmlAttribute(item.choiceId.toUpperCase())}</b><div><h3>${standaloneQuestionInline(choice.content, catalog.book_id)}</h3><p>${standaloneQuestionInline(item.explanation, catalog.book_id)}</p></div></li>`;
+    })
+    .join("");
+  const concept = enrichment.conceptExplanation
+    ? `<div class="question-enrichment-concept">${standaloneQuestionContent(enrichment.conceptExplanation, catalog.book_id)}</div>`
+    : "";
+  const reasoning = enrichment.reasoningSteps.length
+    ? `<section><h3>Reasoning path</h3><ol>${enrichment.reasoningSteps.map((step) => `<li>${standaloneQuestionInline(step, catalog.book_id)}</li>`).join("")}</ol></section>`
+    : "";
+  const choices = choiceRows
+    ? `<section><h3>Why the other options do not fit</h3><ul class="question-enrichment-choices">${choiceRows}</ul></section>`
+    : "";
+  const mistake = enrichment.commonMistake
+    ? `<aside><h3>Common mistake</h3><p>${standaloneQuestionInline(enrichment.commonMistake, catalog.book_id)}</p></aside>`
+    : "";
+  const examTip = enrichment.examTip
+    ? `<aside><h3>Exam tip</h3><p>${standaloneQuestionInline(enrichment.examTip, catalog.book_id)}</p></aside>`
+    : "";
+  const headingId = `${catalog.question_id}-study-notes`;
+  return `<section class="question-enrichment-panel" aria-labelledby="${escapeHtmlAttribute(headingId)}" data-enrichment-policy="${QUESTION_ENRICHMENT_POLICY_VERSION}"><span>Additional study notes</span><h2 id="${escapeHtmlAttribute(headingId)}">Understand the answer</h2>${concept}${reasoning}${choices}<div class="question-enrichment-checks">${mistake}${examTip}</div></section>`;
 }
 
 function standaloneQuestionExperiencePayload(payload) {
@@ -1227,12 +1623,18 @@ async function standaloneQuestionResponse(request, env, url, route) {
   payload = standaloneQuestionExperiencePayload(payload);
 
   const question = context.question;
+  const priorityQuestionPilot = url.pathname.replace(/\/$/u, "") === PRIORITY_QUESTION_PILOT_PATH;
+  const priorityQuestionSourceVerified = priorityQuestionPilotSourceMatches({ payload, catalog, question, route });
   const formulaEvaluation = evaluateQuestionFormulaAccessibility(question);
   const promptMarkup = standaloneQuestionContent(question.prompt, catalog.book_id);
   const choiceMarkup = standaloneQuestionChoices(question, catalog.book_id);
   const promptMedia = standaloneQuestionMedia(question.promptMedia, `Question ${catalog.display_label}`, catalog.book_id);
-  const solutionMedia = standaloneQuestionMedia(question.solutionMedia, `Solution for question ${catalog.display_label}`, catalog.book_id);
-  const solutionMarkup = standaloneQuestionSolution(question, catalog.book_id);
+  const solutionMedia = standaloneQuestionMedia(question.solutionMedia, `Solution for question ${catalog.display_label}`, catalog.book_id, "contextual-v1");
+  const solutionMarkup = placeQuestionSolutionMedia({
+    solutionMarkup: standaloneQuestionSolution(question, catalog.book_id),
+    mediaMarkup: solutionMedia,
+    question,
+  });
   let model = buildQuestionPageExperience({
     payload,
     context,
@@ -1241,6 +1643,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
     reviewedAt: PHASE4_GATE_MANIFEST.reviewedAt,
     semanticGraph: null,
   });
+  if (model && priorityQuestionSourceVerified) model = applyPriorityQuestionSourceReview(model);
   if (model) model = await filterPublicQuestionRecommendations(env, model);
   let experience = renderQuestionPageExperience(model);
   const renderedMathSurface = `${promptMarkup}${choiceMarkup}${solutionMarkup}${experience?.aboveFold || ""}${experience?.solutionSupplement || ""}`;
@@ -1249,9 +1652,11 @@ async function standaloneQuestionResponse(request, env, url, route) {
     && renderedMathFailures.length === 0
     && !/Equation review pending|data-studywudy-equation-review=["']pending/iu.test(renderedMathSurface);
   const rowId = Number(catalog.row_id);
+  const publishingManifestEligible = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId);
+  const priorityQuestionScopedRelease = priorityQuestionSourceVerified && !publishingManifestEligible;
   const indexable = Boolean(
     renderedEquationPass
-    && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+    && (publishingManifestEligible || priorityQuestionSourceVerified)
     && corpusQuestionIndexEligible({
       questionId: route.question,
       rowId,
@@ -1262,12 +1667,14 @@ async function standaloneQuestionResponse(request, env, url, route) {
     model = { ...model, trust: { ...model.trust, automatedAnswerGatePassed: false } };
     experience = renderQuestionPageExperience(model);
   }
-  const relatedQuestionSections = standaloneRelatedQuestionSections(
-    await standaloneEligibleRelatedQuestions(env, catalog, route, rowId),
-    catalog,
-    route,
-  );
-  const sameExerciseOrChapter = experience?.sameExercise || relatedQuestionSections.sameChapter;
+  const [relatedQuestions, questionEnrichment] = await Promise.all([
+    standaloneEligibleRelatedQuestions(env, catalog, route, rowId),
+    standaloneQuestionEnrichment(env, catalog),
+  ]);
+  const relatedQuestionSections = standaloneRelatedQuestionSections(relatedQuestions, catalog, route);
+  const sameExerciseOrChapter = relatedQuestionSections.relatedIncludesSameChapter
+    ? ""
+    : experience?.sameExercise || relatedQuestionSections.sameChapter;
 
   const directive = indexable
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
@@ -1275,8 +1682,11 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(rowId);
   const title = repairKnownText(catalog.book_id, questionDocumentTitle(catalog, disambiguate));
   const socialTitle = repairKnownText(catalog.book_id, questionSocialTitle(catalog, disambiguate));
-  const description = repairKnownText(catalog.book_id, questionDescription(catalog, disambiguate));
+  const description = priorityQuestionPilot
+    ? `Find the correct option, explanation and why the other choices do not fit for ${repairKnownText(catalog.book_id, questionPrompt(catalog))}. Official Balbharati source checked.`
+    : repairKnownText(catalog.book_id, questionDescription(catalog, disambiguate));
   const canonical = publicDocumentUrl(url);
+  const breadcrumbSchema = renderBreadcrumbStructuredData(standaloneQuestionBreadcrumbItems(catalog, route), new URL(canonical).origin);
   const directAnswer = conciseDirectAnswer(question);
   const publicDirectAnswer = createPlainSearchText(directAnswer);
   const schema = JSON.stringify({
@@ -1299,9 +1709,10 @@ async function standaloneQuestionResponse(request, env, url, route) {
   }).replaceAll("<", "\\u003c");
   const reviewed = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })
     .format(Number(PHASE4_GATE_MANIFEST.reviewedAt) * 1_000);
-  const reviewPanel = `<section class="phase4-review-signal${indexable ? "" : " is-pending"}" aria-label="Automated solution publishing check"><a href="/about/methodology">${indexable ? "✓ Automated completeness gate passed" : formulaEvaluation.formulaCount && !renderedEquationPass ? "Equation review pending" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${indexable ? "The rendered answer passed type-specific structure, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page is noindex and excluded from sitemaps, search results and quality-screened samples until every publishing check passes."}</span></section>`;
+  const reviewPanel = `<section class="phase4-review-signal${indexable ? "" : " is-pending"}" aria-label="Automated solution publishing check"><a href="/about/methodology">${priorityQuestionScopedRelease ? "✓ Source-verified pilot completeness gate passed" : indexable ? "✓ Automated completeness gate passed" : formulaEvaluation.formulaCount && !renderedEquationPass ? "Equation review pending" : "Automated answer checks incomplete"}</a><small>Automated publishing gate run: ${escapeHtmlAttribute(reviewed)}</small><span>${priorityQuestionScopedRelease ? "The original question, options and answer passed source-integrity, semantic, formula-accessibility, canonical and duplicate-intent checks. Each incorrect option now has textbook-backed reasoning checked against the official Balbharati concept pages. This exact pilot is released through the scoped source-review policy rather than the corpus-wide manifest. This is not a human academic-review claim." : indexable ? "The rendered answer passed type-specific structure, semantic-equation, canonical and duplicate-intent checks. This is not a human academic-review claim." : "This page is noindex and excluded from sitemaps, search results and quality-screened samples until every publishing check passes."}</span></section>`;
   const snippetExclusion = experience?.snippetEligible === false ? " data-nosnippet" : "";
   const questionType = normalizedQuestionType(question);
+  const questionAnswerFormat = standaloneQuestionUsesFillBlanks(question) ? ' data-question-answer-format="fill-blank"' : "";
   const questionTypeLabel = subjectAwareQuestionTypeLabel(
     questionType,
     route.subject,
@@ -1309,8 +1720,30 @@ async function standaloneQuestionResponse(request, env, url, route) {
   );
   const chapterNumber = String(Number(catalog.chapter_number) || "").padStart(2, "0");
   const solutionHeadingId = `${route.question}-solution-heading`;
-  const promptTitle = questionPrompt(catalog);
-  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}<script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1">${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(promptTitle)}"${snippetExclusion}>${standaloneQuestionInline(promptTitle, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${experience?.aboveFold || ""}</section><div class="shell answer-page-layout">${standaloneQuestionChapterRail(catalog, route)}<div class="answer-page-main"><article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${experience?.solutionOverview || ""}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">Step-by-step solution</h2><div>${solutionMarkup}</div>${solutionMedia}${experience?.solutionSupplement || ""}</section></article>${reviewPanel}${experience?.trust || ""}${experience?.semanticLinks || ""}${sameExerciseOrChapter}${experience?.previousYear || ""}${relatedQuestionSections.sameTextbook}</div>${standaloneQuestionContext(catalog, route)}</div></main>${standaloneQuestionFooter()}</body></html>`;
+  const solutionLabel = questionSolutionLabel(question, route);
+  const mainHeading = questionMainHeading(catalog);
+  // Sitewide information order: protected question and answer first, then
+  // previous/next navigation, then the primary related-question module, and
+  // only then supplemental study, trust and source material.
+  const inlineSolutionOverview = "";
+  const inlineSolutionSupplement = "";
+  const relocatedSolutionDetails = experience?.solutionOverview || experience?.solutionSupplement
+    ? `<section class="priority-question-study-details" aria-label="Additional solution details">${experience?.solutionOverview || ""}${experience?.solutionSupplement || ""}</section>`
+    : "";
+  const questionArticle = `<article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${questionAnswerFormat}${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${inlineSolutionOverview}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">${escapeHtmlAttribute(solutionLabel)}</h2><div>${solutionMarkup}</div>${inlineSolutionSupplement}</section></article>`;
+  const priorityPrimaryRelated = relatedQuestionSections.sameTextbook || sameExerciseOrChapter || experience?.previousYear || "";
+  const sourceVerifiedPanels = priorityQuestionSourceVerified
+    ? `${priorityQuestionOptionReasoningPanel()}${priorityQuestionOfficialSourcePanel()}`
+    : "";
+  const enrichmentPanel = standaloneQuestionEnrichmentPanel(questionEnrichment, question, catalog);
+  const priorityFollowOn = `${relocatedSolutionDetails}${enrichmentPanel}${sourceVerifiedPanels}${reviewPanel}${experience?.trust || ""}${experience?.semanticLinks || ""}${priorityPrimaryRelated === sameExerciseOrChapter ? "" : sameExerciseOrChapter}${priorityPrimaryRelated === experience?.previousYear ? "" : experience?.previousYear || ""}`;
+  const sitewideFlow = `${questionArticle}${standalonePriorityQuestionPagination(relatedQuestions.navigation, catalog, route)}${priorityPrimaryRelated}${priorityFollowOn}`;
+  const priorityAttribute = ' data-studywudy-question-priority="pilot-v1" data-studywudy-question-structure="sitewide-v1"';
+  const heroSummary = "";
+  const layoutSidebars = standaloneQuestionChapterRail(catalog, route);
+  const contextSidebar = standaloneQuestionContext(catalog, route);
+  const mainFlow = sitewideFlow;
+  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}"><meta name="twitter:description" content="${escapeHtmlAttribute(description)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}${QUESTION_COLUMN_TABLE_STYLES}<script type="application/ld+json">${breadcrumbSchema}</script><script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1"${priorityAttribute}>${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(mainHeading)}"${snippetExclusion}>${standaloneQuestionInline(mainHeading, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${heroSummary}</section><div class="shell answer-page-layout">${layoutSidebars}<div class="answer-page-main">${mainFlow}</div>${contextSidebar}</div></main>${standaloneQuestionFooter()}</body></html>`;
   const headers = launchStaticSecurityHeaders(new Headers({
     "content-type": "text/html; charset=utf-8",
     "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",
@@ -1321,16 +1754,18 @@ async function standaloneQuestionResponse(request, env, url, route) {
     "x-studywudy-corpus-quality": CORPUS_QUALITY_POLICY_VERSION,
     "x-studywudy-public-eligibility": PUBLIC_QUESTION_ELIGIBILITY_POLICY_VERSION,
     "x-studywudy-public-title": PUBLIC_TITLE_QUALITY_RELEASE,
-    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "review-required"}`,
+    "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; ${priorityQuestionScopedRelease ? "source-verified-pilot-complete" : indexable ? "complete" : "review-required"}`,
     "x-studywudy-question-payload": QUESTION_PAYLOAD_ASSET_BOOK_IDS.has(catalog.book_id)
       ? QUESTION_PAYLOAD_ASSET_MANIFEST.policyVersion
       : "bounded-book-fallback-v1",
-    "x-studywudy-question-experience": "question-specific-trust-v2",
+    "x-studywudy-question-experience": "sitewide-question-first-v1",
+    "x-studywudy-question-enrichment": questionEnrichment ? QUESTION_ENRICHMENT_POLICY_VERSION : "none",
     "x-studywudy-render-consistency": RENDER_CONSISTENCY_RELEASE,
     "x-studywudy-search-metadata": "catalog-data-v1",
     "x-studywudy-semantic-math": "ast-mathml-authoritative-v7-geometry-symbols",
     "x-studywudy-render-path": "canonical-single-pass-v1",
   }));
+  if (priorityQuestionSourceVerified) headers.set("x-studywudy-source-review", PRIORITY_QUESTION_SOURCE_REVIEW.policyVersion);
   return new Response(body, { status: 200, headers });
 }
 
@@ -1374,6 +1809,7 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
   if (!route || !response.ok || !contentType.includes("text/html")) return { response, ready: !route };
   let experience = null;
   let canonicalFormulaLookup = null;
+  let renderedQuestion = null;
   try {
     const bookId = `${route.board}::${route.grade}::${route.subject}::${route.book}`;
     const semanticGraphEligible = route.board === "maharashtra-board"
@@ -1386,6 +1822,7 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
       questionPageCatalogRecord(env, route),
     ]);
     const context = findQuestionPageContext(payload, route.chapter, route.question);
+    renderedQuestion = context?.question || null;
     canonicalFormulaLookup = buildCanonicalFormulaLookup(context?.question);
     const semanticGraph = semanticGraphEligible
       ? buildQuestionSemanticGraph({ primaryPayload: payload, questionBankPayload: null, questionId: route.question })
@@ -1420,7 +1857,7 @@ async function questionPageExperienceResponse(response, env, url, requestMethod,
   });
   if (!ready || requestMethod === "HEAD" || typeof HTMLRewriter !== "function") return { response, ready };
 
-  const solutionHeading = experience.solutionOverview.includes("worked step") ? "Step-by-step solution" : "Answer and explanation";
+  const solutionHeading = questionSolutionLabel(renderedQuestion, route);
   const questionExperienceStyles = `${QUESTION_PAGE_EXPERIENCE_STYLES}${QUESTION_PAGE_THEME_ALIGNMENT_STYLES}${experience.semanticLinks ? SEMANTIC_LINK_GRAPH_STYLES : ""}`;
   const rewriter = new HTMLRewriter()
     .on("head", {
@@ -1979,7 +2416,7 @@ function withTransformableHeaders(response, cacheControl = null) {
 function completenessPolicyHeaders(response, url) {
   if (!(url.pathname === "/sitemap.xml" || url.pathname.startsWith("/sitemaps/"))) return response;
   const headers = new Headers(response.headers);
-  headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}`);
+  headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}; source-verified-pilot=1`);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -3027,6 +3464,71 @@ function crawlableRobotsResponse(request, url) {
   });
 }
 
+function priorityQuestionPilotSitemapResponse(request, url) {
+  if (!["GET", "HEAD"].includes(request.method) || url.pathname !== "/sitemaps/priority-question-pilot.xml") return null;
+  const canonical = new URL(PRIORITY_QUESTION_PILOT_PATH, `${new URL(publicDocumentUrl(url)).origin}/`).toString();
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${escapeHtmlAttribute(canonical)}</loc><lastmod>2026-08-23T18:30:00Z</lastmod></url>\n</urlset>\n`;
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      "content-type": "application/xml; charset=utf-8",
+      "cache-control": EDGE_HTML_CACHE,
+      "x-content-type-options": "nosniff",
+      "x-studywudy-publish-gate": `${PHASE4_GATE_MANIFEST.policyVersion}; source-verified-pilot=1`,
+      "x-studywudy-source-review": PRIORITY_QUESTION_SOURCE_REVIEW.policyVersion,
+    },
+  });
+}
+
+function publicFaviconResponse(request, url) {
+  if (!["GET", "HEAD"].includes(request.method) || url.pathname !== "/favicon.ico") return null;
+  const body = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0757d8"/><text x="32" y="45" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="700" fill="white">S</text></svg>`;
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=86400, s-maxage=604800",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+function catalogArtworkFallbackSource(pathname) {
+  const cardMatch = pathname.match(/^\/catalog-artwork\/books\/cards\/(?:mobile-108x150\/)?([^/]+)\.webp$/u);
+  if (cardMatch) {
+    const artwork = BOOK_ARTWORK[cardMatch[1].replaceAll("--", "::")];
+    if (artwork?.src) return String(artwork.src).replace(/\.(?:jpe?g|png|webp)$/iu, ".webp");
+  }
+  const subjectMatch = pathname.match(/^\/catalog-artwork\/subjects\/(?:heroes-96x96|cards-128x128)\/([^/]+)\.webp$/u);
+  if (subjectMatch) {
+    const subject = subjectMatch[1];
+    const artwork = Object.entries(BOOK_ARTWORK)
+      .find(([bookId]) => bookId.split("::")[2] === subject)?.[1];
+    if (artwork?.src) return String(artwork.src).replace(/\.(?:jpe?g|png|webp)$/iu, ".webp");
+  }
+  return null;
+}
+
+async function catalogArtworkAssetResponse(request, env, url) {
+  if (!["GET", "HEAD"].includes(request.method) || !url.pathname.startsWith("/catalog-artwork/")) return null;
+  const original = await env.ASSETS.fetch(request);
+  if (original.ok) return original;
+  const fallbackSource = catalogArtworkFallbackSource(url.pathname);
+  if (!fallbackSource) return original;
+  const fallbackUrl = new URL(fallbackSource, request.url);
+  const fallback = await env.ASSETS.fetch(new Request(fallbackUrl, { method: "GET", headers: request.headers }));
+  if (!fallback.ok) return original;
+  const headers = new Headers(fallback.headers);
+  headers.set("cache-control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
+  headers.set("content-type", "image/webp");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-studywudy-artwork-fallback", "source-textbook-cover-v1");
+  return new Response(request.method === "HEAD" ? null : fallback.body, {
+    status: 200,
+    headers,
+  });
+}
+
 const PUBLIC_ROUTE_ROOTS = new Set([
   "about", "ads.txt", "api", "boardly-media", "boards", "cdn-cgi", "cbse", "cisce",
   "contact", "corrections", "favicon.ico", "manifest.webmanifest", "maharashtra-board",
@@ -3066,6 +3568,12 @@ const afterWorker = {
     }
     const robots = crawlableRobotsResponse(request, url);
     if (robots) return robots;
+    const pilotSitemap = priorityQuestionPilotSitemapResponse(request, url);
+    if (pilotSitemap) return pilotSitemap;
+    const favicon = publicFaviconResponse(request, url);
+    if (favicon) return favicon;
+    const catalogArtworkAsset = await catalogArtworkAssetResponse(request, env, url);
+    if (catalogArtworkAsset) return catalogArtworkAsset;
     const launchHotPath = await launchHotPathStaticResponse(request, env, url);
     if (launchHotPath) return launchHotPath;
     const edgeCached = await edgeHtmlCacheMatch(request);

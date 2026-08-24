@@ -953,6 +953,25 @@ export function renderSemanticMath(record, { visiblePlain = false, extraClass = 
   return `<span class="${escapeHtml(classes)}">${representation.mathml}</span>`;
 }
 
+export function renderMarkdownEmphasisMarkup(value) {
+  return String(value ?? "")
+    // Protect explicitly escaped markers before interpreting emphasis. HTML
+    // entities preserve the visible character without leaving a Markdown
+    // delimiter that a later pass can consume.
+    .replace(/\\\*/gu, "&#42;")
+    .replace(/\\_/gu, "&#95;")
+    .replace(/\*\*\*([^\n]+?)\*\*\*/gu, "<strong><em>$1</em></strong>")
+    .replace(/___([^\n]+?)___/gu, "<strong><em>$1</em></strong>")
+    // A closing pair cannot begin a three-star closer. This preserves nested
+    // forms such as **bean – *Phaseolus vulgaris***.
+    .replace(/\*\*(?!\*)([^\n]+?)\*\*(?!\*)/gu, "<strong>$1</strong>")
+    .replace(/__(?!_)([^\n]+?)__(?!_)/gu, "<strong>$1</strong>")
+    // Word-boundary guards keep multiplication and identifiers such as a*b*c
+    // and seed_coat_type from being mistaken for emphasis.
+    .replace(/(^|[^\\\p{L}\p{N}*])\*([^\s*\n](?:[^*\n]*?[^\s*\n])?)\*(?![\p{L}\p{N}*])/gu, "$1<em>$2</em>")
+    .replace(/(^|[^\\\p{L}\p{N}_])_([^\s_\n](?:[^_\n]*?[^\s_\n])?)_(?![\p{L}\p{N}_])/gu, "$1<em>$2</em>");
+}
+
 export function renderMathText(value, { extraClass = "math-inline" } = {}) {
   const source = String(value ?? "");
   const trimmed = source.trim();
@@ -974,7 +993,7 @@ export function renderMathText(value, { extraClass = "math-inline" } = {}) {
     cursor = match.index + match[0].length;
   }
   output.push(escapeHtml(repairMalformedFormulaText(source.slice(cursor))));
-  return output.join("");
+  return renderMarkdownEmphasisMarkup(output.join(""));
 }
 
 export const SEMANTIC_MATH_STYLES = `<style id="studywudy-semantic-math-styles">

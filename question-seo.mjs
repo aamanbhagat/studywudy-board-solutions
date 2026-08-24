@@ -168,6 +168,23 @@ function questionPrompt(record) {
   return QUESTION_PROMPT_OVERRIDES[record.question_id]?.prompt || plainText(record.prompt_text) || `Textbook Question ${record.display_label}`;
 }
 
+const MAIN_HEADING_TYPE_PREFIXES = Object.freeze([
+  /^(?:fill\s+in\s+the\s+blanks?)\s*[:.?!-]*\s*/iu,
+  /^(?:answer(?:\s+the\s+following|\s+each\s+of\s+the\s+following)?\s+in\s+(?:one|a\s+single)\s+(?:word|sentence)|answer\s+in\s+brief)\s*[:.?!-]*\s*/iu,
+  /^(?:multiple[\s-]+choice\s+questions?|single[\s-]+choice\s+mcq|mcq)\s*[:.?!-]*\s*/iu,
+  /^(?:true\s+or\s+false|state\s+whether\s+(?:the\s+following\s+)?statements?\s+(?:is|are)\s+(?:true\s+or\s+false|false\s+or\s+true))\s*[:.?!-]*\s*/iu,
+  /^(?:match\s+the\s+(?:following|columns?|pairs?))\s*[:.?!-]*\s*/iu,
+]);
+
+function questionMainHeading(record) {
+  const prompt = questionPrompt(record);
+  for (const prefix of MAIN_HEADING_TYPE_PREFIXES) {
+    if (!prefix.test(prompt)) continue;
+    return plainText(prompt.replace(prefix, "")) || "Textbook question";
+  }
+  return prompt;
+}
+
 function questionAnswerOverride(record) {
   return QUESTION_PROMPT_OVERRIDES[record.question_id]?.answer || null;
 }
@@ -317,6 +334,7 @@ export {
   questionAnswerOverride,
   questionDescription,
   questionDocumentTitle,
+  questionMainHeading,
   questionPrompt,
   questionSocialTitle,
 };

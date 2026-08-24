@@ -48,6 +48,18 @@ function countLabel(value) {
   return integer(value).toLocaleString("en-IN");
 }
 
+const DOCUMENT_TITLE_SUFFIX = " | StudyWudy";
+const DOCUMENT_TITLE_LIMIT = 160;
+
+function documentTitle(socialTitle) {
+  const available = DOCUMENT_TITLE_LIMIT - [...DOCUMENT_TITLE_SUFFIX].length;
+  const characters = [...cleanText(socialTitle)];
+  if (characters.length <= available) return `${characters.join("")}${DOCUMENT_TITLE_SUFFIX}`;
+  const clipped = characters.slice(0, available - 1).join("");
+  const wordSafe = clipped.replace(/\s+\S*$/u, "").trimEnd() || clipped.trimEnd();
+  return `${wordSafe}…${DOCUMENT_TITLE_SUFFIX}`;
+}
+
 function boardSearchName(record) {
   return BOARD_SEARCH_NAMES[record.board_slug || record.boardSlug]
     || cleanText(record.board_short_name || record.board_name)
@@ -93,7 +105,7 @@ function bookSearchName(record) {
   const significantSubjectWords = subject.toLocaleLowerCase("en-IN").match(/[\p{L}\p{N}]+/gu)
     ?.filter((word) => word.length > 2 && !["and", "the"].includes(word)) || [];
   const sourceWords = new Set(withoutGrade.toLocaleLowerCase("en-IN").match(/[\p{L}\p{N}]+/gu) || []);
-  const alreadyNamesSubject = significantSubjectWords.length > 1
+  const alreadyNamesSubject = significantSubjectWords.length > 0
     && significantSubjectWords.every((word) => sourceWords.has(word));
   if (alreadyNamesSubject) return `${withoutGrade} Class ${classNumber(record)}`;
   return `${bookSearchLead(record)} Class ${classNumber(record)} ${subject}`;
@@ -108,7 +120,7 @@ function subjectSearchMetadata(record) {
   const questions = integer(record.question_count);
   const socialTitle = `${board} Class ${grade} ${subject} Solutions and Question Bank`;
   const description = `Explore ${board} Class ${grade} ${subject} solutions and question bank across ${countLabel(books)} ${books === 1 ? "textbook" : "textbooks"}, ${countLabel(chapters)} chapters and ${countLabel(questions)} textbook-order answers.`;
-  return { socialTitle, documentTitle: `${socialTitle} | StudyWudy`, description };
+  return { socialTitle, documentTitle: documentTitle(socialTitle), description };
 }
 
 function bookSearchMetadata(record) {
@@ -117,7 +129,7 @@ function bookSearchMetadata(record) {
   const questions = integer(record.question_count);
   const socialTitle = `${name} Solutions – All ${countLabel(chapters)} Chapters`;
   const description = `Study ${name} solutions across all ${countLabel(chapters)} chapters, with ${countLabel(questions)} textbook-order answers, chapter navigation and worked exam practice.`;
-  return { socialTitle, documentTitle: `${socialTitle} | StudyWudy`, description };
+  return { socialTitle, documentTitle: documentTitle(socialTitle), description };
 }
 
 function chapterQuestions(chapter) {
@@ -191,12 +203,17 @@ function chapterSearchMetadata(record, suppliedQuestions = null) {
   const questions = suppliedQuestions || chapterQuestions(record.chapter);
   const phrases = chapterTypePhrases(questions);
   const textbook = cleanText(record.book_title || record.textbook || "the mapped textbook");
-  const socialTitle = `${board} Class ${grade} ${subject} Chapter ${chapterNumber} ${chapterTitle} Solutions`;
+  const sourceLabel = bookSearchName(record);
+  // The same syllabus chapter often exists in NCERT, Exemplar and several
+  // reference books. Include the source textbook in the title so each real
+  // chapter URL has distinct search intent instead of publishing duplicate
+  // title tags across different textbooks.
+  const socialTitle = `${sourceLabel} Chapter ${chapterNumber}: ${chapterTitle} Solutions – ${board}`;
   const includes = phrases.length
     ? `including ${phrases.join(", ")} and step-by-step textbook answers from ${textbook}`
     : `including ${countLabel(questions.length || record.question_count)} step-by-step textbook answers from ${textbook}`;
   const description = `Complete ${board} Class ${grade} ${subject} Chapter ${chapterNumber} ${chapterTitle} solutions, ${includes}${pagePhrase(questions)}.`;
-  return { socialTitle, documentTitle: `${socialTitle} | StudyWudy`, description };
+  return { socialTitle, documentTitle: documentTitle(socialTitle), description };
 }
 
 export {
@@ -210,6 +227,7 @@ export {
   chapterSearchMetadata,
   chapterTypePhrases,
   cleanText,
+  documentTitle,
   subjectName,
   subjectSearchMetadata,
   titleWithoutGrade,
