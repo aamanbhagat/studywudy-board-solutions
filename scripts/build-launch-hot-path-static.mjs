@@ -43,6 +43,7 @@ const typeLabels = Object.freeze({
   passage: "Passage-based", numerical: "Numerical", diagram: "Diagram-based",
 });
 const questionDecorativeTextStyles = '<style data-studywudy-decorative-text="pseudo-v3">.brand-mark::before{content:"S"}.board-card-meta [data-label]::before{content:attr(data-label)}</style>';
+const searchRuntimeRelease = "20260825-search-solution-action-v104";
 
 function outputPath(entry) {
   return resolve(assetsRoot, entry.assetPath.replace(/^\//u, ""), "index.html");
@@ -94,19 +95,11 @@ function searchCardMarkup(row) {
   ].filter(Boolean).join(" · ");
   const plainPrompt = createPlainSearchText(repairKnownText(row.book_id, row.prompt_text));
   const prompt = truncateSearchExcerpt(plainPrompt);
-  const anchorVerb = type === "numerical" ? "Calculate"
-    : /derive|prove|show that/iu.test(prompt) ? "Derive"
-      : type === "mcq_single" ? "Test your understanding of" : "Explain";
-  const anchorSubject = truncateSearchExcerpt(
-    plainPrompt.replace(/^(?:choose the correct(?: option)?|calculate|derive|explain|find)\s*:?\s*/iu, ""),
-    110,
-  );
-  const descriptiveAnchor = `${anchorVerb} ${anchorSubject.charAt(0).toLocaleLowerCase("en-IN")}${anchorSubject.slice(1)}`;
   const showcase = row.showcase || null;
   const verification = showcase
     ? ` data-showcase-quality-screened="true" data-internal-mapping-consistent="${showcase.internalMappingConsistent}" data-authoritative-textbook-mapping-verified="${showcase.authoritativeTextbookMappingVerified}" data-known-authoritative-mapping-mismatch="${showcase.knownAuthoritativeMappingMismatch}" data-native-script-validation-passed="${showcase.nativeScriptValidationPassed}" data-search-excerpt-clean="${showcase.searchExcerptClean}" data-automated-gate-passed="${showcase.automatedGatePassed}" data-final-publishing-gate-passed="${showcase.finalPublishingGatePassed !== false}" data-unresolved-content="${showcase.unresolvedContent}" data-broken-media="${showcase.brokenMedia}" data-duplicate-options="${showcase.duplicateOptions}" data-runtime-payload-safe="${showcase.runtimePayloadSafe}" data-content-quality-passed="${showcase.contentQualityPassed}"`
     : "";
-  return `<a href="${escapeHtml(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtml(row.question_id)}" data-question-type="${escapeHtml(type)}" data-question-board="${escapeHtml(row.board_slug)}" data-question-class="${escapeHtml(row.grade_slug)}" data-question-subject="${escapeHtml(row.subject_slug)}" data-question-book="${escapeHtml(row.book_id)}" data-question-language="${escapeHtml(showcase?.language || languageForBookId(row.book_id) || "en")}" data-has-diagram="${row.has_rendered_diagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${Number(row.search_priority) || 9}" data-search-match="${escapeHtml(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtml(row.display_label)}</span><i>${escapeHtml(typeLabels[type] || "Answer")}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtml(prompt)}</h2><p>${escapeHtml(context)}</p><b data-search-description="plain-v2">${escapeHtml(descriptiveAnchor)} →</b></a>`;
+  return `<a href="${escapeHtml(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtml(row.question_id)}" data-question-type="${escapeHtml(type)}" data-question-board="${escapeHtml(row.board_slug)}" data-question-class="${escapeHtml(row.grade_slug)}" data-question-subject="${escapeHtml(row.subject_slug)}" data-question-book="${escapeHtml(row.book_id)}" data-question-language="${escapeHtml(showcase?.language || languageForBookId(row.book_id) || "en")}" data-has-diagram="${row.has_rendered_diagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${Number(row.search_priority) || 9}" data-search-match="${escapeHtml(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtml(row.display_label)}</span><i>${escapeHtml(typeLabels[type] || "Answer")}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtml(prompt)}</h2><p>${escapeHtml(context)}</p><b class="search-solution-button" data-search-description="plain-v2">View solution <span aria-hidden="true">→</span></b></a>`;
 }
 
 const searchProjection = `SELECT q.row_id, q.question_id, q.display_label, q.type, q.prompt_text, q.concept_tags,
@@ -161,7 +154,11 @@ function refreshSearchDocuments() {
     for (const entry of LAUNCH_HOT_PATH_DOCUMENTS.filter(({ kind }) => kind === "question-search")) {
       const path = outputPath(entry);
       const rows = searchRows(database, entry);
-      const refreshed = filterStaticSearchEligibility(replaceSearchCards(readFileSync(path, "utf8"), rows.map(searchCardMarkup)), PHASE4_GATE_MANIFEST);
+      const current = readFileSync(path, "utf8").replace(
+        /\/navigation-feedback\.(css|js)\?v=[^"']+/gu,
+        (_match, extension) => `/navigation-feedback.${extension}?v=${searchRuntimeRelease}`,
+      );
+      const refreshed = filterStaticSearchEligibility(replaceSearchCards(current, rows.map(searchCardMarkup)), PHASE4_GATE_MANIFEST);
       if (refreshed.removedCount) throw new Error(`${entry.publicPath} rebuilt ${refreshed.removedCount} ineligible cards`);
       writeFileSync(path, refreshed.html);
       console.log(`REFRESH ${entry.publicPath} (${refreshed.resultCount} eligible cards)`);

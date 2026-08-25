@@ -178,7 +178,7 @@ const JSON_HEADERS = {
 };
 
 const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-nadu-board"]);
-const PHASE_2_VERSION = "20260824-sitewide-question-first-v103";
+const PHASE_2_VERSION = "20260825-search-solution-action-v104";
 const PRIORITY_QUESTION_PILOT_PATH = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-001";
 const PRIORITY_QUESTION_PILOT_ROW_ID = 212031;
 const PRIORITY_QUESTION_SOURCE_REVIEW = Object.freeze({
@@ -491,15 +491,6 @@ function searchQuestionCardMarkup(row) {
   ].filter(Boolean).join(" · ");
   const plainPrompt = createPlainSearchText(repairKnownText(row.book_id, row.prompt_text));
   const prompt = truncateSearchExcerpt(plainPrompt);
-  const anchorVerb = normalizedType === "numerical" ? "Calculate"
-    : /derive|prove|show that/iu.test(prompt) ? "Derive"
-      : normalizedType === "mcq_single" ? "Test your understanding of"
-        : "Explain";
-  const anchorSubject = truncateSearchExcerpt(
-    plainPrompt.replace(/^(?:choose the correct(?: option)?|calculate|derive|explain|find)\s*:?\s*/iu, ""),
-    110,
-  );
-  const descriptiveAnchor = `${anchorVerb} ${anchorSubject.charAt(0).toLocaleLowerCase("en-IN")}${anchorSubject.slice(1)}`;
   const priority = Number.isFinite(Number(row.search_priority)) ? Number(row.search_priority) : 9;
   const showcase = row.showcase || null;
   const language = showcase?.language || languageForBookId(row.book_id) || "en";
@@ -507,7 +498,7 @@ function searchQuestionCardMarkup(row) {
   const verification = showcase
     ? ` data-showcase-quality-screened="true" data-internal-mapping-consistent="${showcase.internalMappingConsistent}" data-authoritative-textbook-mapping-verified="${showcase.authoritativeTextbookMappingVerified}" data-known-authoritative-mapping-mismatch="${showcase.knownAuthoritativeMappingMismatch}" data-native-script-validation-passed="${showcase.nativeScriptValidationPassed}" data-search-excerpt-clean="${showcase.searchExcerptClean}" data-automated-gate-passed="${showcase.automatedGatePassed}" data-final-publishing-gate-passed="${showcase.finalPublishingGatePassed !== false}" data-unresolved-content="${showcase.unresolvedContent}" data-broken-media="${showcase.brokenMedia}" data-duplicate-options="${showcase.duplicateOptions}" data-runtime-payload-safe="${showcase.runtimePayloadSafe}" data-content-quality-passed="${showcase.contentQualityPassed}"`
     : "";
-  return `<a href="${escapeHtmlAttribute(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtmlAttribute(row.question_id)}" data-question-type="${escapeHtmlAttribute(normalizedType)}" data-question-board="${escapeHtmlAttribute(row.board_slug)}" data-question-class="${escapeHtmlAttribute(row.grade_slug)}" data-question-subject="${escapeHtmlAttribute(row.subject_slug)}" data-question-book="${escapeHtmlAttribute(row.book_id)}" data-question-language="${escapeHtmlAttribute(language)}" data-has-diagram="${hasDiagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${priority}" data-search-match="${escapeHtmlAttribute(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtmlAttribute(row.display_label)}</span><i>${escapeHtmlAttribute(type)}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtmlAttribute(prompt)}</h2><p>${escapeHtmlAttribute(context)}</p><b data-search-description="plain-v2">${escapeHtmlAttribute(descriptiveAnchor)} →</b></a>`;
+  return `<a href="${escapeHtmlAttribute(href)}" data-question-row-id="${Number(row.row_id)}" data-question-id="${escapeHtmlAttribute(row.question_id)}" data-question-type="${escapeHtmlAttribute(normalizedType)}" data-question-board="${escapeHtmlAttribute(row.board_slug)}" data-question-class="${escapeHtmlAttribute(row.grade_slug)}" data-question-subject="${escapeHtmlAttribute(row.subject_slug)}" data-question-book="${escapeHtmlAttribute(row.book_id)}" data-question-language="${escapeHtmlAttribute(language)}" data-has-diagram="${hasDiagram ? "true" : "false"}" data-public-search-eligible="true" data-search-priority="${priority}" data-search-match="${escapeHtmlAttribute(row.search_match || "sample")}"${verification}><div><span>Question ${escapeHtmlAttribute(row.display_label)}</span><i>${escapeHtmlAttribute(type)}</i></div><h2 data-search-excerpt="plain-v2">${escapeHtmlAttribute(prompt)}</h2><p>${escapeHtmlAttribute(context)}</p><b class="search-solution-button" data-search-description="plain-v2">View solution <span aria-hidden="true">→</span></b></a>`;
 }
 
 async function searchQuestionRows(env, criteria) {

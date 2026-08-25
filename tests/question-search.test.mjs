@@ -78,6 +78,23 @@ test("the committed search HTML and hydration payload contain no legacy popular-
   assert.doesNotMatch(html, /\/search\?q=(?:numerical|diagram)/iu);
 });
 
+test("search cards use a concise green View solution action", async () => {
+  const [worker, builder, html, styles] = await Promise.all([
+    readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-launch-hot-path-static.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../comparison/after-assets/pages/launch-hot-path/search/default/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../comparison/after-assets/navigation-feedback.css", import.meta.url), "utf8"),
+  ]);
+  for (const source of [worker, builder, html]) {
+    assert.match(source, /class="search-solution-button" data-search-description="plain-v2">View solution <span aria-hidden="true">→<\/span><\/b>/u);
+  }
+  assert.match(styles, /\.search-result-list > a > b\.search-solution-button \{[\s\S]*background: var\(--green, #137a4a\) !important;[\s\S]*color: #fff !important;/u);
+  assert.match(worker, /20260825-search-solution-action-v104/u);
+  assert.match(builder, /20260825-search-solution-action-v104/u);
+  assert.match(html, /navigation-feedback\.css\?v=20260825-search-solution-action-v104/u);
+  assert.doesNotMatch(html, /data-search-description="plain-v2">(?:Explain|Calculate|Derive|Test your understanding of)\b/iu);
+});
+
 test("type and board filters compile to exact bound predicates", () => {
   const plan = buildQuestionSearchPlan(criteria("type=numerical&board=maharashtra-board"), projection);
   assert.match(plan.sql, /CASE q\.question_id[\s\S]+?ELSE q\.type[\s\S]+?= \?[\s\S]+?lower\(q\.prompt_text\) LIKE '%calculate%'[\s\S]+?b\.board_slug = \?/u);

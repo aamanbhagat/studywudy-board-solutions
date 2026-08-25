@@ -272,3 +272,9 @@ html.sw-route-slow .sw-route-loader__sheet {
 
   html.sw-route-pending .sw-route-progress__bar { transform: scaleX(.72); }
 }
+
+/* Keep the Question Bank action concise and aligned with solution-green controls. */
+.search-result-list > a > b.search-solution-button {
+  background: var(--green, #137a4a) !important;
+  color: #fff !important;
+}
