@@ -1652,6 +1652,16 @@ async function standaloneQuestionResponse(request, env, url, route) {
   payload = standaloneQuestionExperiencePayload(payload);
 
   const question = context.question;
+  // `catalog.prompt_text` is a second, flattened copy of the prompt, written
+  // before the content repair and never rewritten by it. On a repaired question
+  // the body renders `$F_{2}$` as maths while the heading, title, description
+  // and JSON-LD above it still read `F_(2)`, because those are cut from the
+  // column. The chunk is the source of truth and the column is a cache of
+  // `contentToText` over it, so reconcile the two before anything reads them.
+  const repairedPromptText = contentToText(question.prompt);
+  if (repairedPromptText.trim() && repairedPromptText !== catalog.prompt_text) {
+    catalog = { ...catalog, prompt_text: repairedPromptText };
+  }
   const priorityQuestionPilot = url.pathname.replace(/\/$/u, "") === PRIORITY_QUESTION_PILOT_PATH;
   const priorityQuestionSourceVerified = priorityQuestionPilotSourceMatches({ payload, catalog, question, route });
   const formulaEvaluation = evaluateQuestionFormulaAccessibility(question);

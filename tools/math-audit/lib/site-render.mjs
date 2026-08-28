@@ -164,3 +164,25 @@ export function relaxed(a2, keepTag) {
 }
 
 export { c as isEscaped, d as insideGroup, e as looksLikeMath, f as normalizeText, g as tokenize, h as normalizeMath };
+
+// answer-completeness.mjs @ contentToText — the flattening that turns a block
+// prompt into the single line `catalog_questions.prompt_text` holds. Copied
+// rather than imported so the tools still run from a checkout that does not
+// sit beside the site source.
+export function contentToText(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(contentToText).join(" ");
+  if (typeof value !== "object") return String(value);
+  if (value.kind === "rich") return (value.segments || []).map((segment) => segment.text || "").join(" ");
+  if (value.kind === "paragraphs") return (value.paragraphs || []).join(" ");
+  if (value.kind === "blocks") {
+    return (value.blocks || []).map((block) => {
+      if (block.kind === "paragraph") return block.text || "";
+      if (block.kind === "list") return (block.items || []).join(" ");
+      if (block.kind === "table") return [...(block.headers || []), ...(block.rows || []).flat()].join(" ");
+      return block.code || "";
+    }).join(" ");
+  }
+  return Object.values(value).map(contentToText).join(" ");
+}

@@ -53,9 +53,13 @@ function semanticPlainMath(value) {
   );
 }
 
+// NFKC runs on the source rather than on the flattened result: it maps every
+// superscript onto its ASCII digit, so applied afterwards it undid the work
+// `semanticPlainMath` had just done and published `a3` where the formula reads
+// a³. Normalising first still folds the compatibility forms the raw text
+// carries, and leaves the renderer's scripts intact.
 function plainText(value) {
-  return semanticPlainMath(value)
-    .normalize("NFKC")
+  return semanticPlainMath(String(value ?? "").normalize("NFKC"))
     .replace(/<\/?[A-Za-z][^<>]*>/gu, " ")
     .replace(/!\[([^\]]*)\]\([^)]*\)/gu, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")

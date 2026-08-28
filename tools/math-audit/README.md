@@ -210,15 +210,45 @@ in `…ganit-exemplar-hindi-class-8-5-151` where `∠` and `°` came through as 
 mojibake, one `\sqrt{\frac{"m"}{"k"}]` with a bracket for a brace, and one
 chemistry answer with four `\text{` openers and two closers.
 
+### The second copy of the prompt
+
+The prompt is stored twice. `catalog_book_chunks` holds the one the page body
+renders from, and `catalog_questions.prompt_text` holds a flat copy of the same
+text — the copy the `<h1>`, the `<title>`, the meta description, the search
+excerpt and the JSON-LD `name`/`text` are cut from. `fix.mjs` only ever wrote
+the chunks, so on a repaired question the two disagree and the reader gets both
+readings on one page: the body sets `$F_{2}$` as maths, and the heading above it
+still says `F_(2)`.
+
+The column is not a separate authored field. `contentToText` over the pristine
+chunks reproduces all 299,458 rows of it byte for byte, which is what makes
+re-deriving it from the repaired chunks a repair and not a rewrite — the only
+rows that move are the ones the repair moved. Against the published file that is
+19,897 rows across 244 books, 11,797 of them string prompts and 8,100 block
+prompts.
+
+```sh
+node --max-old-space-size=6144 prompt-text-drift.mjs                 # how far apart, and where
+node --max-old-space-size=6144 sync-prompt-text.mjs --apply \
+  --sql d1-content-fix.prompt-text                                   # close the gap, and emit the delta
+```
+
+The runtime no longer depends on that migration having run: the question page
+holds both copies at once, so `standaloneQuestionResponse` reconciles the column
+against the chunk before anything reads it. The migration is still worth
+publishing, because the listing and search paths read the column without ever
+loading the chunk beside it.
+
 ## Layout
 
 | | |
 |---|---|
 | `lib/repair.mjs` | every repair pass, and the scorer that vets them |
-| `lib/site-render.mjs` | the site's normaliser and tokeniser, used as the oracle |
+| `lib/site-render.mjs` | the site's normaliser, tokeniser and `contentToText`, used as the oracle |
 | `lib/array-table.mjs` | `\begin{array}` → native table block |
 | `fix.mjs` | applies the passes to a copy of the database |
 | `make-d1-sql.mjs` | the delta SQL, split on book boundaries |
+| `prompt-text-drift.mjs`, `sync-prompt-text.mjs` | how far `catalog_questions.prompt_text` trails the chunks, and the migration that closes it |
 | `diff-repair.mjs` | which strings an edit to `lib/repair.mjs` moves, and which way |
 | `state-scan.mjs` | what is still wrong from the reader's seat, by class |
 | `audit.mjs`, `site-audit.mjs`, `verify.mjs`, `brace-check.mjs`, `prose-scan.mjs` | measurement, before and after |

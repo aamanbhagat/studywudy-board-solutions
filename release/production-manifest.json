@@ -87160,78 +87160,78 @@
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/answer-writing/index.html",
-      "bytes": 26884,
-      "sha256": "edfc7d67a1f8cb160c9b31f4f89a52247f997351bb8d9b8babf575d999e0c9d6"
+      "bytes": 27002,
+      "sha256": "ecab1cb408022c2550a75766825aa7106e098531ec0cba130191ec2217ad37ff"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
-      "bytes": 55270,
-      "sha256": "02df27c1eb51d65182b2f87a07e4c42ecb833321ea57e27157ceea1426339e4a"
+      "bytes": 55388,
+      "sha256": "b061f0be52f351b6291019589df7420e1869deb4fdae0a4bf3ed3383745d8569"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
-      "bytes": 26900,
-      "sha256": "93dc45ebd556e313ad61e7f52732b70ac677c5ec76b4c72a2e77969ecb5fb7e4"
+      "bytes": 27018,
+      "sha256": "2d753da256f0b0837751e9c3f625af7c80a88aad427f1a0365a11f726df24565"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-series/index.html",
-      "bytes": 27008,
-      "sha256": "ed690274de1478cc44df5c3c0a6cd89de0ece23ca325f896ac33be0a732fc098"
+      "bytes": 27126,
+      "sha256": "674698b3b120815c27faf64742b279906318b8b1354a13230881639da6d2f724"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/coulombs-law/index.html",
-      "bytes": 27053,
-      "sha256": "1e04f951c094784051bb2a0501d59044f5efba241732e50ea6519fa0ec09a3e8"
+      "bytes": 27171,
+      "sha256": "cbe145b79b8e64799e45f4505a6b1ca6dcda0925b7cbcb18ce8828be8844563b"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/dielectric-slab-in-capacitor/index.html",
-      "bytes": 26493,
-      "sha256": "441bf64859ba0c97439190faabea55ee35754561d366ebf05bede5eb324868b4"
+      "bytes": 26611,
+      "sha256": "bbe60de93e58269fb03a7efb009dc6f4bad34c2eb55d62ab823fcbd7c10174cd"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/electric-potential/index.html",
-      "bytes": 29345,
-      "sha256": "5a32eea736d321ae0628a85414c4e3d006c77b6847676fe1ba3e6c812f197c20"
+      "bytes": 29463,
+      "sha256": "f95467af4fe570755aa2ac459fbb107433780f328a2e2c99976cf31fdb2eec67"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/energy-stored-in-capacitor/index.html",
-      "bytes": 27198,
-      "sha256": "204f84aa8523f01a8dd2ee360f577b0ee138fd174a95241bb75e2998bb2a7244"
+      "bytes": 27316,
+      "sha256": "a31f7b05d622b4a89f9fdbc1b5e052b9b7815d9977b1ddfbc8792c4c5b3de3c9"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/gauss-law/index.html",
-      "bytes": 27570,
-      "sha256": "f537f3f509a1facaae70e396cabd1602c1587c31983f626f6c0cf207921efc91"
+      "bytes": 27688,
+      "sha256": "7ca5d2aecf7844a2708cd8504a57ba297c82603200f90d276ca0f4717d238a6e"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/parallel-plate-capacitance/index.html",
-      "bytes": 26472,
-      "sha256": "f4c27f9de1acb36fc6c4a07484e047a0d8bf7978140704fdc86ef9a1475d1c02"
+      "bytes": 26590,
+      "sha256": "e2d8ed960f9fc69c93559e85208347ed4cc0649f79661943ce74b52520190e9e"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/important-questions/index.html",
-      "bytes": 26053,
-      "sha256": "192966b42d9466998f907b730a1c0f605856670055467e5ef63066ff08d6636b"
+      "bytes": 26171,
+      "sha256": "08ca62f30dc116fc39b4b6dfbe1c6065795aa13274013565201681ea8c3d607a"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/practice/index.html",
-      "bytes": 30263,
-      "sha256": "b01fca65be961a2a5a4b69063f608c9dd7481639058a6defb1a5fe2981756cb1"
+      "bytes": 30381,
+      "sha256": "027339d5764278dad14ea40474185289cce585eb019abaa872dc5fe3ccfc6cae"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/previous-year-questions/index.html",
-      "bytes": 24093,
-      "sha256": "5645a2e37a71f084dcde8b81c75a2aa6784b94ab7bc70d41350264d3ed1b5d3b"
+      "bytes": 24211,
+      "sha256": "bfaa299c88c175cfc60bba7797ae104a631a9251daee8dd15b2dabdfc55643f8"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/revision/index.html",
-      "bytes": 33209,
-      "sha256": "61bf165c3822403d0765b812d5a47c9609f5bed4372c23f0ec471ec9b96d727f"
+      "bytes": 33327,
+      "sha256": "b1f2731ed7bb7717f645bf2ebfcf70515e287a2fd55044130adfc3b0e086ec42"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/study/index.html",
-      "bytes": 28055,
-      "sha256": "c359a50ef43ad99100ef706969565a93e99cc10b90daa5cd16f18553c9545249"
+      "bytes": 28173,
+      "sha256": "274b68ccdec02285037781062bbfacc2059dbc66116d2d29e59950227a74fbcb"
     },
     {
       "path": "comparison/after-assets/pages/tamil-nadu-board/index.html",
@@ -87445,8 +87445,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 207104,
-      "sha256": "56c216c7e25d6c1a59d18f5956ac507e4bf8dff26e956398870bb2efd9fee941"
+      "bytes": 207782,
+      "sha256": "65da540481cb11ccc661d734c5853d75b4d987e3bf6bfd89d3ab544a72b78eca"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87595,8 +87595,8 @@
     },
     {
       "path": "question-seo.mjs",
-      "bytes": 16359,
-      "sha256": "accd8aa6a6008a555286986342073f3a8b4a1d9098069d948c1e9ef3d0637f7e"
+      "bytes": 16732,
+      "sha256": "97f88f5d6d20a8fa6ea1cb5b1f6df6502fce2671c06cda8e8b6a4afba6a2ef07"
     },
     {
       "path": "question-showcase-manifest.mjs",
@@ -87645,8 +87645,8 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 84899,
-      "sha256": "d8af7517eebb3f10191750002b7e075ebbd9e8383e2d227688b0e1c62003800a"
+      "bytes": 85561,
+      "sha256": "084a5d41dc6c56cd3423d1dead1a90bead2d8d251314c0b2d4e8b96b1e706d2d"
     },
     {
       "path": "source-correction-ledger.mjs",
@@ -87689,5 +87689,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "4b00126f9995d8e6f51b946be3db8e72902a522d67b4b75e7ce0e5c773c62e79"
+  "aggregateSha256": "5658e534025c175568a76e162212818a1c6d855e2aee3e041e6c5ef2f638c082"
 }
