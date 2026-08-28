@@ -30,4 +30,14 @@ audits/sitewide/*.sqlite3-wal
 audits/sitewide/*.lock
 !audits/sitewide/README.md
 
+# The D1 snapshot the maths audit reads, and everything it writes from it: the
+# reports, the review page, and the delta SQL. All of it is derived from a
+# database dump that is far too large to version, and all of it is one
+# `node fix.mjs` away from being regenerated.
+/data/
+tools/math-audit/*-report.json
+tools/math-audit/report*.json
+tools/math-audit/review/
+tools/math-audit/d1-content-fix*.sql
+
 .DS_Store

@@ -1,0 +1,11 @@
+{
+  "name": "math-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Audits and repairs the maths, KaTeX and table markup in the catalogue content stored in D1.",
+  "type": "commonjs",
+  "license": "ISC",
+  "dependencies": {
+    "katex": "^0.18.4"
+  }
+}
