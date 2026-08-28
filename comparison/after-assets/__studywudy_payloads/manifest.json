@@ -617,8 +617,8 @@
   "questionCount": 299458,
   "relatedMediaQuestionCount": 19243,
   "relatedMediaAssetBytes": 3929864,
-  "decodedBytes": 920165124,
-  "compressedBytes": 345282194,
+  "decodedBytes": 920282589,
+  "compressedBytes": 344783620,
   "indexBytes": 3686076,
-  "contentSha256": "635b3627a49ff5a8ed334f32934dc6c12265d69812a24d6e128190360449304a"
+  "contentSha256": "7ecdd90f8f8b613132450d84f0a43a3da08e44d89e822c75cb11bed2b73998a5"
 }

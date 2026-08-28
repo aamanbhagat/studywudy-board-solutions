@@ -50,8 +50,8 @@ test("matrix environments render as accessible MathML tables without leaking TeX
   assert.equal((squareMatrix.mathml.match(/<mtr>/gu) || []).length, 3);
   assert.equal((squareMatrix.mathml.match(/<mtd>/gu) || []).length, 9);
   assert.match(squareMatrix.mathml, /<mtable class="math-matrix-table">/u);
-  assert.match(squareMatrix.mathml, /<mo>\[<\/mo><mrow><mtable class="math-matrix-table">/u);
-  assert.match(squareMatrix.mathml, /<\/mtable><\/mrow><mo>\]<\/mo>/u);
+  assert.match(squareMatrix.mathml, /<mo fence="true" stretchy="true">\[<\/mo><mrow><mtable class="math-matrix-table">/u);
+  assert.match(squareMatrix.mathml, /<\/mtable><\/mrow><mo fence="true" stretchy="true">\]<\/mo>/u);
   assert.equal(squareMatrix.plainText, "[1, −1, 2; −2, 3, 5; −2, 0, −1]");
   assert.match(squareMatrix.spokenText, /three by three matrix; row one: one, minus one, two/u);
   assert.doesNotMatch(`${squareMatrix.plainText}\n${squareMatrix.spokenText}\n${squareMatrix.mathml}`, /begin|end|bmatrix|vmatrix/iu);
@@ -71,6 +71,39 @@ test("matrix environments render as accessible MathML tables without leaking TeX
   assert.match(SEMANTIC_MATH_STYLES, /\.math-matrix-table>mtr>mtd\{padding:\.18em \.42em\}/u);
 });
 
+test("tabular environments keep their gutters, rules and sized delimiters", () => {
+  // An augmented matrix is only augmented if the bar survives, and the
+  // brackets have to grow to the height of the rows rather than one line.
+  const augmented = formulaRepresentations(String.raw`\left[\begin{array}{cc|c}3&2&35000\\2&1&19000\end{array}\right]`);
+  assert.match(augmented.mathml, /<mo fence="true" stretchy="true">\[<\/mo>/u);
+  assert.match(augmented.mathml, /<mo fence="true" stretchy="true">\]<\/mo>/u);
+  assert.match(augmented.mathml, /<mtable class="math-matrix-table" columnlines="none solid">/u);
+  assert.match(augmented.mathml, /<mtd class="math-rule-right">/u);
+
+  // A ruled truth table needs a full grid, not just an outline.
+  const truthTable = formulaRepresentations(
+    String.raw`\begin{array}{|c|c|c|}\hline S_1&S_2&L\\\hline 1&1&1\\\hline\end{array}`,
+  );
+  assert.match(truthTable.mathml, /class="math-matrix-table math-table-framed"/u);
+  assert.match(truthTable.mathml, /columnlines="solid solid"/u);
+  assert.match(truthTable.mathml, /rowlines="solid"/u);
+  assert.match(truthTable.mathml, /<mtd class="math-rule-right math-rule-below">/u);
+
+  // \begin{aligned} hangs its columns off the &, so they are not centred.
+  const alignedBlock = formulaRepresentations(String.raw`\begin{aligned}L&=a+b\\&=c\end{aligned}`);
+  assert.match(alignedBlock.mathml, /<mtable class="math-aligned-table" columnalign="right left">/u);
+
+  // \left. marks an omitted delimiter and must not print a full stop.
+  const omitted = formulaRepresentations(String.raw`\left\{\begin{matrix}a\\b\end{matrix}\right.`);
+  assert.doesNotMatch(omitted.mathml, /<mo[^>]*>\.<\/mo>/u);
+  assert.match(omitted.mathml, /<mo fence="true" stretchy="true">\{<\/mo>/u);
+
+  // The styles have to size fractions in cells normally, or matrix entries
+  // shrink to script size inside inline math.
+  assert.match(SEMANTIC_MATH_STYLES, /\.math-matrix-table,\.math-aligned-table\{math-style:normal\}/u);
+  assert.match(SEMANTIC_MATH_STYLES, /mtd\.math-rule-right[^{]*\{border-right:1px solid currentColor\}/u);
+});
+
 test("matrix imports with comma-separated cells and piecewise cases become real tables", () => {
   const imported = formulaRepresentations(String.raw`\left[\begin{matrix}{1},-{1},{2}\\-{2},{3},{5}\\-{2},{0},-{1}\end{matrix}\right]`);
   assert.equal((imported.mathml.match(/<mtd>/gu) || []).length, 9);
@@ -79,7 +112,7 @@ test("matrix imports with comma-separated cells and piecewise cases become real 
   const cases = formulaRepresentations(String.raw`f(x)=\begin{cases}x&x>0\\0&x=0\end{cases}`);
   assert.equal((cases.mathml.match(/<mtr>/gu) || []).length, 2);
   assert.equal((cases.mathml.match(/<mtd>/gu) || []).length, 4);
-  assert.match(cases.mathml, /<mo fence="true" stretchy="true">\{<\/mo><mtable>/u);
+  assert.match(cases.mathml, /<mo fence="true" stretchy="true">\{<\/mo><mtable class="math-matrix-table">/u);
   assert.match(cases.spokenText, /two by two piecewise expression/u);
   assert.doesNotMatch(`${cases.plainText}\n${cases.mathml}`, /begin|end|cases/iu);
 
@@ -87,12 +120,12 @@ test("matrix imports with comma-separated cells and piecewise cases become real 
 x&=1\\
 y&=2
 \end{aligned}$`);
-  assert.match(multilineInline, /<mtable>/u);
+  assert.match(multilineInline, /<mtable class="math-aligned-table"/u);
   assert.doesNotMatch(multilineInline, /\\begin|\\end|begin\s*aligned|end\s*aligned/iu);
 
   const embeddedBareArray = renderMathText(String.raw`Use the following values: \begin{array}{cc}x&1\\y&2\end{array}.`);
   assert.match(embeddedBareArray, /Use the following values:/u);
-  assert.match(embeddedBareArray, /<mtable>/u);
+  assert.match(embeddedBareArray, /<mtable class="math-matrix-table"/u);
   assert.doesNotMatch(embeddedBareArray, /\\begin|\\end|begin\s*array|end\s*array/iu);
 
   const rowSpacing = formulaRepresentations(String.raw`\begin{array}{c}1\\[-2pt]2\\[4pt]3\end{array}`);

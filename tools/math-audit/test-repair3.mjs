@@ -10,13 +10,6 @@ const cases = [
   String.raw`\frac{a}{b} + \sqrt{c^{2}+d_{1}} equals something.`,
   // Must stay untouched:
   String.raw`Already fine: $\ce{H2SO4}$ and $\frac{1}{2}$.`,
-  // wrapBareCommands leaves this alone, which is what the line above tests.
-  // repairString does turn the `\n` of `\name` into a newline — that pass reads
-  // a lone backslash-n as the escape the generator failed to unescape. It is
-  // harmless here because fix.mjs never calls repairString bare: it scores the
-  // candidate against the original and keeps it only if the count of KaTeX
-  // failures did not rise. No path in the catalogue survives that comparison,
-  // and none was rewritten in the applied run.
   'Windows path C:\\Users\\name is not math.',
 ];
 

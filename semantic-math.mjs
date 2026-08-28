@@ -80,6 +80,15 @@ const IGNORED_COMMANDS = new Set([
   "left", "right", "middle", "big", "Big", "bigg", "Bigg", "bigl", "bigr", "Bigl", "Bigr",
   "displaystyle", "textstyle", "scriptstyle", "limits", "nolimits", "Large", "rm",
 ]);
+// The subset of the above that sizes a delimiter to the expression it wraps.
+// The command itself carries no meaning, but the delimiter that follows it has
+// to grow with the content, so the two cannot be dropped together.
+const DELIMITER_SIZING_COMMANDS = new Set([
+  "left", "right", "middle", "big", "Big", "bigg", "Bigg", "bigl", "bigr", "Bigl", "Bigr",
+]);
+const FENCE_DELIMITERS = new Set([
+  "(", ")", "[", "]", "{", "}", "|", "‖", "⟨", "⟩", "⌈", "⌉", "⌊", "⌋", "/", "\\", "↑", "↓", "⇑", "⇓",
+]);
 const SPACING_COMMANDS = new Set([",", ";", ":", "!", "quad", "qquad", " "]);
 const STYLE_COMMANDS = Object.freeze({
   mathrm: "normal", textrm: "normal", operatorname: "normal", mathbf: "bold", boldsymbol: "bold",
@@ -328,8 +337,55 @@ function splitTopLevelCommas(value) {
   return output;
 }
 
-function splitTableSource(value, { splitCommas = false } = {}) {
+// Reads an array/alignedat column specification such as `cc|c` or `|c|c|c|`.
+// The alignment letters map onto MathML columnalign; each `|` becomes a rule
+// between the surrounding columns, which is what makes an augmented matrix
+// readable as an augmented matrix.
+function parseColumnSpecification(value) {
+  const alignments = [];
+  const separators = [];
+  let pending = 0;
+  const source = String(value ?? "");
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "|") {
+      pending += 1;
+      continue;
+    }
+    if (character === "@" || character === "p" || character === "m" || character === "b") {
+      // Skip the width/material group these take, e.g. @{\quad} or p{2cm}.
+      if (source[index + 1] === "{") {
+        let depth = 1;
+        let cursor = index + 2;
+        while (cursor < source.length && depth > 0) {
+          if (source[cursor] === "{") depth += 1;
+          else if (source[cursor] === "}") depth -= 1;
+          cursor += 1;
+        }
+        index = cursor - 1;
+        if (character !== "@") {
+          separators[alignments.length] = pending > 0;
+          alignments.push("left");
+          pending = 0;
+        }
+        continue;
+      }
+    }
+    if (!"lcr".includes(character)) continue;
+    separators[alignments.length] = pending > 0;
+    alignments.push(character === "l" ? "left" : character === "r" ? "right" : "center");
+    pending = 0;
+  }
+  separators[alignments.length] = pending > 0;
+  return { alignments, separators };
+}
+
+// `rules`, when supplied, collects the row boundaries carrying a horizontal
+// rule: 0 sits above the first row, n below the last. Truth tables and
+// augmented matrices lose their meaning without them.
+function splitTableSource(value, { splitCommas = false, rules = null } = {}) {
   const rows = [[]];
+  const completedRows = () => rows.filter((row) => row.some(Boolean)).length;
   let cell = "";
   let braceDepth = 0;
   let environmentDepth = 0;
@@ -365,6 +421,7 @@ function splitTableSource(value, { splitCommas = false } = {}) {
         continue;
       }
       if (["hline", "toprule", "midrule", "bottomrule"].includes(command) && braceDepth === 0 && environmentDepth === 0) {
+        if (rules && !cell.trim()) rules.push(completedRows());
         index += commandSource.length;
         continue;
       }
@@ -555,14 +612,20 @@ class TexParser {
       return parsed;
     }
 
+    let columnLayout = null;
     if (configuration.columnSpecification) {
       const specificationParser = new TexParser(body);
-      specificationParser.readRawGroup("columnSpecification");
-      if (!specificationParser.errors.length) body = body.slice(specificationParser.index);
+      const specification = specificationParser.readRawGroup("columnSpecification");
+      if (!specificationParser.errors.length) {
+        body = body.slice(specificationParser.index);
+        columnLayout = parseColumnSpecification(specification);
+      }
     }
 
+    const rules = [];
     const rawRows = splitTableSource(body, {
       splitCommas: ["matrix", "smallmatrix", "bmatrix", "Bmatrix", "pmatrix", "vmatrix", "Vmatrix"].includes(environment),
+      rules,
     });
     const rows = rawRows.map((rawRow, rowIndex) => rawRow.map((rawCell, columnIndex) => {
       const parser = new TexParser(rawCell);
@@ -570,7 +633,7 @@ class TexParser {
       this.errors.push(...parser.errors.map((error) => `${environment}[${rowIndex + 1},${columnIndex + 1}]:${error}`));
       return parsed;
     }));
-    return node("matrix", { environment, rows, ...configuration });
+    return node("matrix", { environment, rows, ...configuration, columnLayout, rules });
   }
 
   parseAtom() {
@@ -711,7 +774,20 @@ class TexParser {
         const width = command === "qquad" ? "2em" : command === "quad" ? "1em" : ".28em";
         return node("space", { width });
       }
-      if (IGNORED_COMMANDS.has(command)) return this.parseAtom();
+      if (IGNORED_COMMANDS.has(command)) {
+        if (!DELIMITER_SIZING_COMMANDS.has(command)) return this.parseAtom();
+        // \left. and \right. denote an omitted delimiter.
+        while (/\s/u.test(this.source[this.index] || "")) this.index += 1;
+        if (this.source[this.index] === ".") {
+          this.index += 1;
+          return node("sequence", { children: [] });
+        }
+        const delimiter = this.parseAtom();
+        if (delimiter && ["operator", "separator"].includes(delimiter.type) && FENCE_DELIMITERS.has(delimiter.value)) {
+          return { ...delimiter, type: "operator", fence: true };
+        }
+        return delimiter;
+      }
       if (command === "\\" || command === "newline" || command === "") return node("separator", { value: ";" });
       if (["{", "}"].includes(command)) return node("operator", { value: command, spoken: command });
       if (["%", "#", "&", "_", "|"].includes(command)) {
@@ -963,11 +1039,65 @@ function mathmlFromNode(value) {
   if (value.type === "sequence") return `<mrow>${value.children.map(mathmlFromNode).join("")}</mrow>`;
   if (value.type === "number") return `<mn>${escapeHtml(value.value)}</mn>`;
   if (value.type === "identifier" || value.type === "function") return `<mi>${escapeHtml(value.value)}</mi>`;
-  if (value.type === "operator" || value.type === "separator") return `<mo>${escapeHtml(value.value === "-" ? "−" : value.value)}</mo>`;
+  if (value.type === "operator" || value.type === "separator") {
+    const attributes = value.fence ? ' fence="true" stretchy="true"' : "";
+    return `<mo${attributes}>${escapeHtml(value.value === "-" ? "−" : value.value)}</mo>`;
+  }
   if (value.type === "text") return `<mtext>${escapeHtml(value.value)}</mtext>`;
   if (value.type === "matrix") {
-    const tableClass = ["matrix", "determinant"].includes(value.spokenKind) ? ' class="math-matrix-table"' : "";
-    const table = `<mtable${tableClass}>${value.rows.map((row) => `<mtr>${row.map((cell) => `<mtd>${mathmlFromNode(cell)}</mtd>`).join("")}</mtr>`).join("")}</mtable>`;
+    const rowCount = value.rows.length;
+    const columnCount = value.rows.reduce((widest, row) => Math.max(widest, row.length), 0);
+    const aligned = value.spokenKind === "aligned expression";
+    // Every tabular environment needs cell gutters, not just the bracketed
+    // ones: an array set solid is what makes a truth table unreadable.
+    const tableClass = aligned ? "math-aligned-table" : "math-matrix-table";
+    const attributes = [`class="${tableClass}"`];
+
+    const specification = value.columnLayout;
+    if (specification?.alignments.length) {
+      const alignments = Array.from({ length: columnCount },
+        (unused, column) => specification.alignments[column] || "center");
+      if (alignments.some((alignment) => alignment !== "center")) {
+        attributes.push(`columnalign="${alignments.join(" ")}"`);
+      }
+    } else if (aligned) {
+      // \begin{aligned} alternates right- then left-aligned columns about the &.
+      attributes.push(`columnalign="${Array.from({ length: columnCount },
+        (unused, column) => (column % 2 === 0 ? "right" : "left")).join(" ")}"`);
+    }
+
+    const separators = specification?.separators || [];
+    if (columnCount > 1 && separators.slice(1, columnCount).some(Boolean)) {
+      attributes.push(`columnlines="${Array.from({ length: columnCount - 1 },
+        (unused, gap) => (separators[gap + 1] ? "solid" : "none")).join(" ")}"`);
+    }
+
+    const rules = new Set(value.rules || []);
+    if (rowCount > 1 && [...rules].some((boundary) => boundary > 0 && boundary < rowCount)) {
+      attributes.push(`rowlines="${Array.from({ length: rowCount - 1 },
+        (unused, gap) => (rules.has(gap + 1) ? "solid" : "none")).join(" ")}"`);
+    }
+    const framed = (rules.has(0) && rules.has(rowCount)) || (separators[0] && separators[columnCount]);
+    if (framed) {
+      attributes.push('frame="solid"');
+      attributes[0] = `class="${tableClass} math-table-framed"`;
+    }
+
+    // MathML Core dropped columnlines/rowlines/frame, so the attributes above
+    // only reach engines that still honour them. Chrome lays each mtd out as a
+    // real box, so the same rules are carried a second time as classes that the
+    // stylesheet turns into borders.
+    const cellClass = (rowIndex, columnIndex) => {
+      const classes = [];
+      if (separators[columnIndex + 1] && columnIndex < columnCount - 1) classes.push("math-rule-right");
+      if (rules.has(rowIndex + 1) && rowIndex < rowCount - 1) classes.push("math-rule-below");
+      const alignment = specification?.alignments[columnIndex]
+        || (aligned ? (columnIndex % 2 === 0 ? "right" : "left") : null);
+      if (alignment && alignment !== "center") classes.push(`math-align-${alignment}`);
+      return classes.length ? ` class="${classes.join(" ")}"` : "";
+    };
+
+    const table = `<mtable ${attributes.join(" ")}>${value.rows.map((row, rowIndex) => `<mtr>${row.map((cell, columnIndex) => `<mtd${cellClass(rowIndex, columnIndex)}>${mathmlFromNode(cell)}</mtd>`).join("")}</mtr>`).join("")}</mtable>`;
     const left = value.leftDelimiter ? `<mo fence="true" stretchy="true">${escapeHtml(value.leftDelimiter)}</mo>` : "";
     const right = value.rightDelimiter ? `<mo fence="true" stretchy="true">${escapeHtml(value.rightDelimiter)}</mo>` : "";
     return `<mrow>${left}${table}${right}</mrow>`;
@@ -1484,5 +1614,5 @@ export function renderMathText(value, { extraClass = "math-inline" } = {}) {
 }
 
 export const SEMANTIC_MATH_STYLES = `<style id="studywudy-semantic-math-styles">
-.math-semantic{max-width:100%}.math-visible{display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;vertical-align:-.12em}.math-semantic>math{font-family:Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block;max-width:max-content}.math-inline>math{display:inline math}.math-matrix-table>mtr>mtd{padding:.18em .42em}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.math-semantic{max-width:100%}.math-visible{display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;vertical-align:-.12em}.math-semantic>math{font-family:Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block math;max-width:max-content}.math-inline>math{display:inline math}.math-matrix-table>mtr>mtd{padding:.18em .42em}.math-aligned-table>mtr>mtd{padding:.14em .16em}.math-matrix-table,.math-aligned-table{math-style:normal}.math-matrix-table>mtr>mtd.math-rule-right,.math-aligned-table>mtr>mtd.math-rule-right{border-right:1px solid currentColor}.math-matrix-table>mtr>mtd.math-rule-below,.math-aligned-table>mtr>mtd.math-rule-below{border-bottom:1px solid currentColor}.math-table-framed{border:1px solid currentColor}.math-table-framed>mtr>mtd{padding:.22em .5em}mtd.math-align-left{text-align:left}mtd.math-align-right{text-align:right}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 </style>`;

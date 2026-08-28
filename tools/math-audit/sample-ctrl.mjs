@@ -48,7 +48,7 @@ for (const b of books) {
               const after = o.slice(i + 1);
               const before = o.slice(0, i);
               let kind;
-              if (m[0] === '\x1b' && /^\[[0-9;]*m/.test(after)) kind = 'ansi';
+              if (m[0] === '' && /^\[[0-9;]*m/.test(after)) kind = 'ansi';
               else if (CMD_RE.test(o.slice(i, i + 12))) kind = 'command';
               else if (after.startsWith('$') || before.endsWith('$')) kind = 'beforeDollar';
               else if (/^[ऀ-ॿ\w/.,)%]/.test(after) && /[\s(=,]$/.test(before))

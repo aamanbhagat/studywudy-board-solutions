@@ -11,9 +11,19 @@ import katex from 'katex';
 import 'katex/contrib/mhchem';
 import { normalizeText, tokenize, relaxed } from './site-render.mjs';
 
-const C = '\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F';
+// DEL belongs with the rest: the generator used it in the same places — either
+// side of `\ce{Cu^{2+}}`, straight after the `{` of a `\text{` — so it is one
+// more byte a lost `\` or `$` came through as, not a character of the text.
+const C = '\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F';
+// …but only as far as restoring a `\` and clearing the byte away. Inferring a
+// *delimiter* from it is a step too far: DEL also turns up simply glued to a
+// numeral — `␡10 followed by ␡10 gives ␡10^2` — and pairing those off sets two
+// words of the sentence as an equation. The bytes below are the ones that only
+// ever stood in for a delimiter.
+const D = '\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F';
 const HAS_CTRL = new RegExp(`[${C}]`);
 const CTRL_RUN = new RegExp(`[${C}]+`, 'g');
+const PAIR_RUN = new RegExp(`[${D}]+`, 'g');
 
 // Commands that stand alone, so wrapping just the command in $...$ is safe.
 const SYMBOLS =
@@ -147,9 +157,16 @@ export function decodeEntities(s) {
 }
 
 /** Index ranges covered by $...$ or $$...$$ so we never edit inside live math. */
-function mathSpans(s) {
+// `multiline` matches the site tokenizer, which scans on past a newline looking
+// for the closing `$`. The passes that only ever *add* delimiters ask for it, so
+// they cannot hand a second pair to a `$\boxed{\begin{aligned}…` that already
+// renders. The rest keep the tighter rule: a pass that rewrites what it finds
+// inside a span must not have a stray `$` hand it half a paragraph.
+function mathSpans(s, multiline = false) {
   const spans = [];
-  const re = /\$\$[\s\S]*?\$\$|(?<!\\)\$[^$\n]*?(?<!\\)\$/g;
+  const re = multiline
+    ? /\$\$[\s\S]*?\$\$|(?<!\\)\$[^$]*?(?<!\\)\$/g
+    : /\$\$[\s\S]*?\$\$|(?<!\\)\$[^$\n]*?(?<!\\)\$/g;
   let m;
   while ((m = re.exec(s)) !== null) spans.push([m.index, m.index + m[0].length]);
   return spans;
@@ -197,11 +214,11 @@ export function repairAnsi(s) {
   // Not only ESC: the same markers turn up behind FS and RS too.
   if (!HAS_CTRL.test(s)) return s;
   // ESC[1m ... ESC[0m was bold emphasis; the content model speaks markdown.
-  s = s.replace(/\x1b\[[13]m([\s\S]*?)\x1b\[0m/g, (_, inner) =>
+  s = s.replace(/\[[13]m([\s\S]*?)\[0m/g, (_, inner) =>
     inner.trim() ? `**${inner}**` : inner,
   );
   // A handful of rows encode chemistry as ESC[chem]{...}.
-  s = s.replace(/\x1b\[chem\]\{([^{}]*)\}/g, (_, x) =>
+  s = s.replace(/\[chem\]\{([^{}]*)\}/g, (_, x) =>
     mathOk(`\\ce{${x}}`) ? `$\\ce{${x}}$` : x,
   );
   // Shortcode delimiters — [latex]...[/latex], [KaTeX]...[/KaTeX] — whose
@@ -215,24 +232,43 @@ export function repairAnsi(s) {
   // opener and a closer whose content the corruption ate — `through ␛KaTeX␛
   // [KaTeX] and`. Nothing here can tell those apart, so both are handed on as
   // empty spans for dropEmptySpans to settle.
-  s = s.replace(new RegExp(`(?:${marker})+`, 'gi'), (run, at, whole) => {
-    // A marker up against a delimiter that survived is saying the same thing
-    // twice — `␜KaTeX␞$2\sqrt3$␜KaTeX␞`. Another `$` there would open a span the
-    // real one then closes, and the equation would fall out of both.
-    const near = new RegExp(`[${C}\\s]*$`);
-    const before = whole.slice(0, at).replace(near, '').slice(-1);
-    const after = whole.slice(at + run.length).replace(new RegExp(`^[${C}\\s]*`), '')[0];
-    if (before === '$' || after === '$') return '';
-    return '$ '.repeat((run.match(new RegExp(marker, 'gi')) || []).length).trim();
-  });
+  // Written as a sentinel first, so the parity check below can tell a delimiter
+  // this pass invented from one the source already had. U+E000 is private use:
+  // no book text carries it, but bail out rather than corrupt one that does.
+  const MARK = '\uE000';
+  let markers = 0;
+  if (!s.includes(MARK))
+    s = s.replace(new RegExp(`(?:${marker})+`, 'gi'), (run, at, whole) => {
+      // A marker up against a delimiter that survived is saying the same thing
+      // twice — `␜KaTeX␞$2\sqrt3$␜KaTeX␞`. Another `$` there would open a span the
+      // real one then closes, and the equation would fall out of both.
+      const near = new RegExp(`[${C}\\s]*$`);
+      const before = whole.slice(0, at).replace(near, '').slice(-1);
+      const after = whole.slice(at + run.length).replace(new RegExp(`^[${C}\\s]*`), '')[0];
+      if (before === '$' || after === '$') return '';
+      const n = (run.match(new RegExp(marker, 'gi')) || []).length;
+      markers += n;
+      return `${MARK} `.repeat(n).trim();
+    });
+  // A single marker whose partner the corruption ate — `␛[KaTeX]\boxed{x=1}).` —
+  // would open a span nothing closes. The wrapping passes downstream then read
+  // the command after it as bare source and give it a pair of its own, and the
+  // reader is left with `$ $\boxed{x=1}$)$`: an empty formula box followed by the
+  // formula as text. Our own spare is the delimiter to give up, since the
+  // command it stood in front of is exactly what those passes know how to wrap.
+  // Only when the source's own delimiters are already even, or the odd one out
+  // is the author's and dropping ours would misalign every pair after it.
+  if (markers === 1 && (s.match(/(?<!\\)\$/g) || []).length % 2 === 0)
+    s = s.replace(MARK, '');
+  s = s.split(MARK).join('$');
   // Codes wedged between two spans must leave a gap behind, or `$a$` and `$b$`
   // fuse into `$a$$b$`, and `$$` reads as display math.
   s = s.replace(new RegExp('(?<=\\$)(?:\\u001b\\[[0-9;?]*m|\\u001b\\[?)+(?=\\$)', 'g'), ' ');
   // Remaining well-formed SGR codes are pure terminal noise.
-  s = s.replace(/\x1b\[[0-9;?]*m/g, '');
+  s = s.replace(/\[[0-9;?]*m/g, '');
   // Truncated fragments such as ESC[ before real content: drop the marker only,
   // never the character after it (that is usually a chemical symbol).
-  s = s.replace(/\x1b\[?/g, '');
+  s = s.replace(/\[?/g, '');
   return s;
 }
 
@@ -294,7 +330,7 @@ function looksLikeMath(inner) {
  * later pair out of phase, or `$a$ text $b$` comes back as `a $text$ b`.
  */
 function pairControlRuns(s) {
-  const runs = [...s.matchAll(CTRL_RUN)].map((m) => [m.index, m.index + m[0].length]);
+  const runs = [...s.matchAll(PAIR_RUN)].map((m) => [m.index, m.index + m[0].length]);
   if (runs.length < 2) return s;
   let out = '';
   let cursor = 0;
@@ -316,7 +352,7 @@ export function repairDelimiters(s) {
   if (!HAS_CTRL.test(s)) return s;
   // A pair of control runs around a LaTeX expression used to be $ ... $.
   s = s.replace(
-    new RegExp(`[${C}]+(\\\\[A-Za-z]+[^${C}$]*?)[${C}]+`, 'g'),
+    new RegExp(`[${D}]+(\\\\[A-Za-z]+[^${C}$]*?)[${D}]+`, 'g'),
     (whole, inner) =>
       looksLikeMath(inner) && mathOk(inner.trim()) ? `$${inner.trim()}$` : whole,
   );
@@ -389,7 +425,7 @@ export function repairEscapedCommands(s) {
 
 // ------------------------------------------------ literal escapes / aliases
 
-// A few rows carry the *text* `\x05` where their neighbours carry the byte:
+// A few rows carry the *text* `` where their neighbours carry the byte:
 // one JSON round-trip too few. Decode them so the control-byte repairs above
 // see a single, consistent representation.
 const LITERAL_CTRL = /\\u00([01][0-9A-Fa-f])/g;
@@ -487,6 +523,30 @@ function braceDepths(s) {
   return depth;
 }
 
+// What can open a real LaTeX group: a command, a script, or the brace of an
+// argument that has just closed. Anything else — `R = {(x, y): …}`, `{2, 3, 5}`
+// — is a sentence's own brace, set notation the reader typed, and an expression
+// inside it is at the top level as far as a span is concerned.
+const ATTACHED_BRACE = /(?:[_^{}]|\\[A-Za-z]+\s*(?:\[[^\]]*\]\s*)?)$/;
+
+/** Like `braceDepths`, but counting only the braces LaTeX itself opened. */
+function groupDepths(s) {
+  const depth = new Array(s.length + 1).fill(0);
+  const real = [];
+  for (let i = 0, d = 0; i < s.length; i++) {
+    if (s[i] === '\\') depth[++i] = d;
+    else if (s[i] === '{') {
+      const attached = ATTACHED_BRACE.test(s.slice(Math.max(0, i - 24), i));
+      real.push(attached);
+      if (attached) d++;
+    } else if (s[i] === '}') {
+      if (real.pop() !== false) d = Math.max(0, d - 1);
+    }
+    depth[i + 1] = d;
+  }
+  return depth;
+}
+
 /**
  * A grid the generator left outside every `$...$` span. The renderer hands it
  * to nothing, so the reader sees `\begin{array}{c|c}...` as literal source.
@@ -524,6 +584,67 @@ export function wrapBareArrays(s) {
       end += 1;
     }
     out += s.slice(cursor, from) + `$$${tex}$$`;
+    cursor = end;
+  }
+  return cursor ? out + s.slice(cursor) : s;
+}
+
+const FENCE_OPEN = /\\left(?![A-Za-z])/g;
+// `\right` takes a delimiter, and the delimiter may itself be a command: `\|`,
+// `\rangle`, or the `.` that means "no bracket on this side".
+const FENCE_STEP = /\\(left|right)(?![A-Za-z])[ \t]*(\\[A-Za-z]+|\\.|[^\s])?/g;
+
+/** End index just past the `\right…` closing the `\left` at `i`, or -1. */
+function matchFence(s, i) {
+  FENCE_STEP.lastIndex = i;
+  let depth = 0;
+  let m;
+  while ((m = FENCE_STEP.exec(s)) !== null) {
+    if (!m[2]) return -1; // a fence with no delimiter: the source is broken
+    if (m[1] === 'left') depth++;
+    else if (--depth === 0) return m.index + m[0].length;
+    else if (depth < 0) return -1;
+  }
+  return -1;
+}
+
+/**
+ * `the point of contact is \left(\dfrac{a}{m^2},\, \dfrac{2a}{m}\right).` — a
+ * whole fenced expression sitting in a sentence with no delimiters around it.
+ * The run scanner stops at the comma and the command wrapper takes one fraction
+ * at a time, so each bracket is left outside the span it was there to size and
+ * the reader is shown `\left(` as source.
+ *
+ * This runs *after* those wrappers, not before: a `\left` they could reach is
+ * better claimed as part of the run around it — pre-empting them turns
+ * `\sin\left(-\frac{\pi}{3}\right)=…` into two spans with `\sin` alone in the
+ * first. What is left here is a pair they could not put back together, and a
+ * `\left…\right` pair is unambiguous: it cannot occur outside maths at all.
+ */
+export function wrapBareFences(s) {
+  if (!/\\left(?![A-Za-z])/.test(s)) return s;
+  const spans = mathSpans(s);
+  const depth = groupDepths(s);
+  let out = '';
+  let cursor = 0;
+  for (const m of s.matchAll(FENCE_OPEN)) {
+    if (m.index < cursor || inSpan(spans, m.index) || depth[m.index] !== 0) continue;
+    const end = matchFence(s, m.index);
+    if (end < 0 || depth[end] !== 0) continue;
+    const raw = s.slice(m.index, end);
+    // Inline maths cannot cross a line, and a pair that spans one is far more
+    // likely to be two broken halves than one expression. A display delimiter
+    // inside the pair means a whole block is in there; that is not a bracket
+    // the sentence lost, and merging across it would move the block.
+    if (raw.includes('\n') || raw.includes('$$')) continue;
+    // The pieces the wrappers did claim are part of this expression too. Take
+    // them back rather than leave the brackets outside the maths they size —
+    // but only if their delimiters pair up, so nothing outside is disturbed.
+    const inner = (raw.match(/(?<!\\)\$/g) || []).length;
+    if (inner % 2) continue;
+    const tex = raw.replace(/(?<!\\)\$/g, '');
+    if (!mathOk(tex)) continue;
+    out += s.slice(cursor, m.index) + `$${tex}$`;
     cursor = end;
   }
   return cursor ? out + s.slice(cursor) : s;
@@ -589,6 +710,30 @@ export function dropLayoutCommands(s) {
   return s.replace(LAYOUT_CMD, (whole, i) => (inSpan(spans, i) ? whole : ''));
 }
 
+// `\multicolumn{4}{l}{(Being 100 equity shares…)}` in a ledger row. It is a
+// `tabular` command: KaTeX has none, and outside a `\begin{tabular}` there are
+// no columns for it to span either. The cell wants what is inside it.
+const MULTICOLUMN = /\\multicolumn\s*\{\s*\d+\s*\}\s*\{[^{}]*\}\s*\{/g;
+
+export function dropMulticolumn(s) {
+  if (!s.includes('\\multicolumn')) return s;
+  const spans = mathSpans(s, true);
+  let out = '';
+  let cursor = 0;
+  let m;
+  MULTICOLUMN.lastIndex = 0;
+  while ((m = MULTICOLUMN.exec(s)) !== null) {
+    if (inSpan(spans, m.index)) continue;
+    const open = m.index + m[0].length - 1;
+    const close = matchBrace(s, open);
+    if (close < 0) continue;
+    out += s.slice(cursor, m.index) + s.slice(open + 1, close);
+    cursor = close + 1;
+    MULTICOLUMN.lastIndex = cursor;
+  }
+  return cursor ? out + s.slice(cursor) : s;
+}
+
 /**
  * `\\ce{H2SO4}` sitting in a sentence: the generator doubled its own escape.
  * Outside maths a `\\` is a Markdown hard break and is always followed by the
@@ -623,24 +768,75 @@ const ELEMENTS = new Set(
     'At Rn Fr Ra Ac Th Pa U Np Pu').split(' '),
 );
 
-/** A sub/superscript argument, or null when it is not safe to interpret. */
-function scriptArg(raw) {
-  const a = raw.trim().replace(/[−–—]/g, '-');
+// Cyrillic look-alikes ride in with this notation: `ХО_(2)` is XO₂ typed on a
+// Russian layout and `О_(3)` is ozone, not a Cyrillic O. Nothing in an Indian
+// board syllabus is written in Cyrillic, so inside a token we are already
+// reading as maths the substitution is unambiguous.
+const HOMOGLYPHS = new Map(
+  Object.entries({
+    А: 'A', В: 'B', С: 'C', Е: 'E', Н: 'H', К: 'K', М: 'M', О: 'O', Р: 'P', Т: 'T', Х: 'X', У: 'Y',
+    а: 'a', е: 'e', о: 'o', р: 'p', с: 'c', х: 'x', у: 'y',
+  }),
+);
+const deHomoglyph = (s) => s.replace(/[Ѐ-ӿ]/gu, (c) => HOMOGLYPHS.get(c) ?? c);
+
+/**
+ * A sub/superscript argument, or null when it is not safe to interpret.
+ *
+ * `hasBase` is what separates a prefix script from a fill-in-the-blank. With a
+ * base, `n_(air)` and `∆_(r)H` are ordinary physics. Without one, the only
+ * honest readings are a short index — `^(12)C`, `^(n)C_(3)` — and anything
+ * longer is the English workbook's `_____________(deliver)`.
+ */
+function scriptArg(raw, hasBase = true) {
+  const a = deHomoglyph(raw).trim().replace(/[−–—]/g, '-');
   if (!a) return null;
   if (/^(?:th|st|nd|rd)$/i.test(a)) return `\\text{${a}}`;
+  if (!hasBase && !/^(?:[0-9]{1,3}|[A-Za-z])$/.test(a)) return null;
   // Digits, signs, short index expressions: 2, -1, 2+, n, ij, n-1, 2n.
   if (/^[A-Za-z0-9+\-,]{1,8}$/.test(a)) return a;
   if (a === '°' || a === '∘') return '\\circ';
+  if (/^[Α-ω]$/u.test(a)) return a; // Θ in ∆_(f)H^(Θ)
   return null;
 }
 
-/** Split `C_(2)H_(5)OH` into its base/script segments, or null if malformed. */
+// Letters a base may be written in. Greek is meant (`λ^(2)`, `∆_(r)H`);
+// Cyrillic is not, but it is here, and deHomoglyph puts it right.
+const BASE_CHAR = /[A-Za-z0-9Α-ωЀ-ӿ∆]/u;
+
+/**
+ * Split `C_(2)H_(5)OH`, `Ca(OH)_(2)`, `*x*^(2)` or `(m + 1)^(th)` into its
+ * base/script segments, or null if malformed. A part with no `op` is the tail
+ * of the token — the `OH` of `C_(2)H_(5)OH` — and a part with an empty `base`
+ * is a prefix script, as in `^(12)C`.
+ */
 function parseScriptToken(tok) {
   const parts = [];
   let i = 0;
-  while (i < tok.length) {
+  const readBase = () => {
     let base = '';
-    while (i < tok.length && /[A-Za-z0-9]/.test(tok[i])) base += tok[i++];
+    while (i < tok.length) {
+      if (tok[i] === '*') { i += 1; continue; } // markdown emphasis around a variable
+      if (tok[i] === '(') {
+        // Balanced, so a base can hold a script of its own: `(x^(2) + 2x)`.
+        let depth = 0;
+        let j = i;
+        for (; j < tok.length; j++) {
+          if (tok[j] === '(') depth += 1;
+          else if (tok[j] === ')' && --depth === 0) break;
+        }
+        if (j >= tok.length) break;
+        base += tok.slice(i, j + 1);
+        i = j + 1;
+        continue;
+      }
+      if (!BASE_CHAR.test(tok[i])) break;
+      base += tok[i++];
+    }
+    return base;
+  };
+  while (i < tok.length) {
+    const base = readBase();
     if (i >= tok.length) {
       if (base) parts.push({ base });
       break;
@@ -661,12 +857,25 @@ function parseScriptToken(tok) {
   return parts.length ? parts : null;
 }
 
+/**
+ * A bracketed base holds a formula — `(OH)`, `(m + 1)`, `(C2H5)` — never a
+ * word. A bare run of letters in brackets is the parenthetical hint after a
+ * fill-in-the-blank, and setting `(pursue)` as algebra would be worse than
+ * leaving it alone.
+ */
+function plausibleBase(base) {
+  for (const m of base.matchAll(/\(([^()]*)\)/g)) if (/^[A-Za-z]{3,}$/.test(m[1].trim())) return false;
+  return base.length <= 24;
+}
+
 /** How many element symbols the token's letters resolve to, or 0 if not all. */
 function elementCount(parts) {
-  const bases = parts.map((p) => p.base).join('');
+  const bases = deHomoglyph(parts.map((p) => p.base).join(''));
   // A formula never opens with a digit: `9PS^2` is nine times PS squared.
   if (/^[0-9]/.test(bases)) return 0;
-  const letters = bases.replace(/[0-9]/g, '');
+  // A bracketed radical is part of the formula — the `(OH)` of `Ca(OH)_(2)` —
+  // so the brackets come out before the symbols are counted.
+  const letters = bases.replace(/[0-9()\s+\-]/g, '');
   const symbols = letters.match(/[A-Z][a-z]?/g) || [];
   if (!symbols.length || symbols.join('') !== letters) return 0;
   return symbols.every((sym) => ELEMENTS.has(sym)) ? symbols.length : 0;
@@ -675,32 +884,62 @@ function elementCount(parts) {
 function scriptTokenToTex(tok, chemContext) {
   const parts = parseScriptToken(tok);
   if (!parts) return null;
+  if (!parts.every((p) => plausibleBase(p.base || ''))) return null;
   const elements = elementCount(parts);
+  // `^(12)C` — a mass number in front of a symbol is an isotope, and needs no
+  // second formula in the sentence to prove it.
+  const isotope = parts.length === 2 && !parts[0].base && parts[0].op === '^'
+    && /^[0-9]{1,3}$/.test(parts[0].arg) && elements === 1;
   // Two element symbols make a formula on their own. A lone one — the O of
   // "release O_(2)" — only counts when the same sentence already had a formula,
   // otherwise S_(10) in a maths book would be set as sulphur.
-  const chem = elements >= 2 || (chemContext && elements === 1);
+  const chem = elements >= 2 || isotope || (chemContext && elements === 1);
   let tex = '';
   for (const p of parts) {
-    if (p.base) tex += chem ? `\\mathrm{${p.base}}` : p.base;
+    let base = deHomoglyph(p.base || '').replace(/[−–—]/g, '-');
+    // A bracketed base can carry scripts of its own: `(x^(2) + 2x)^(2)`.
+    base = base.replace(/([_^])\(([^()\n]{1,16})\)/gu, (whole, op, arg) => {
+      const a = scriptArg(arg);
+      return a === null ? whole : `${op}{${a}}`;
+    });
+    if (/[_^]\(/.test(base)) return null;
+    if (base) tex += chem ? `\\mathrm{${base}}` : base;
     if (!p.op) continue;
-    const arg = scriptArg(p.arg);
+    const arg = scriptArg(p.arg, !!base);
     if (arg === null) return null;
-    tex += `${p.op}{${arg}}`;
+    // A prefix script needs something to hang off, or KaTeX reads it as a
+    // second script on whatever preceded it: `{}^{12}\mathrm{C}`.
+    tex += `${base ? '' : '{}'}${p.op}{${arg}}`;
   }
   return mathOk(tex) ? tex : null;
 }
 
-// A run of alphanumerics carrying at least one script. The bare form (`x^2`)
-// takes a single character and must not be followed by more, so that ordinary
-// snake_case words are never mistaken for maths.
-const ASCII_SCRIPT =
-  /[A-Za-z0-9]+(?:(?:[_^]\([^()]{1,10}\)|[_^]\{[^{}]{1,10}\}|[_^][A-Za-z0-9](?![A-Za-z0-9_]))[A-Za-z0-9]*)+/g;
+// A base carrying at least one script. The base is usually a run of letters and
+// digits, but the sources also hang scripts off a bracketed group (`Ca(OH)_(2)`,
+// `(m + 1)^(th)`), off markdown emphasis (`*x*^(2)`), off Greek (`λ^(2)`), and
+// off nothing at all (`^(12)C`). The bare form (`x^2`) takes a single character
+// and must not be followed by more, so ordinary snake_case words are never
+// mistaken for maths.
+// One level of nesting, because a bracketed base carries scripts of its own:
+// `(x^(2) + 2x)^(2)`. The alternatives start on different characters, so the
+// repetition stays linear.
+const GROUP = String.raw`\((?:[^()\n]|\([^()\n]{0,14}\)){1,28}\)`;
+const BASE_UNIT = String.raw`(?:${GROUP}|[A-Za-z0-9Α-ωЀ-ӿ∆])+`;
+const LEAD_BASE = String.raw`(?:\*[A-Za-z0-9Α-ωЀ-ӿ∆]{1,4}\*|${BASE_UNIT})`;
+const SCRIPT_ARG = String.raw`(?:\([^()\n]{1,16}\)|\{[^{}\n]{1,16}\}|[A-Za-z0-9](?![A-Za-z0-9_]))`;
+const ASCII_SCRIPT = new RegExp(`${LEAD_BASE}?(?:[_^]${SCRIPT_ARG}${LEAD_BASE}?)+`, 'gu');
 
 // Touching an operator means the token is a fragment of a longer bare equation
 // — `=a^2+2ab` — and wrapping just the fragment would break the line in three.
-// That is a different problem; leave those whole.
-const OPERATOR_CONTEXT = /[=+*/<>^_()[\]{}\\|~]/;
+// That is a different problem; leave those whole. Brackets are not on the list:
+// they group as often as they compute, and `A(x_(1), y_(1))` and "pentane
+// (molecular formula C_(5)H_(12))" are both perfectly ordinary.
+const OPERATOR_CONTEXT = /[=+*/<>^_\\|~]/;
+
+// `<br>` ends a line all through this corpus. It is punctuation, not an
+// operator, and a formula that happens to sit against one is still a formula.
+const HTML_AFTER = /^<\/?[A-Za-z][^<>]{0,60}>/;
+const HTML_BEFORE = /<\/?[A-Za-z][^<>]{0,60}>$/;
 
 export function repairAsciiScripts(s) {
   if (!/[_^]/.test(s)) return s;
@@ -714,8 +953,16 @@ export function repairAsciiScripts(s) {
     if (inSpan(spans, m.index) || depth[m.index] !== 0) return false;
     // A short base keeps `chapter_1`-style identifiers out of the maths.
     if (!/[({]/.test(tok) && !/^[A-Za-z0-9]{1,3}[_^]/.test(tok)) return false;
-    const prev = s[m.index - 1] ?? ' ';
-    const next = s[m.index + tok.length] ?? ' ';
+    const head = s.slice(0, m.index);
+    const tail = s.slice(m.index + tok.length);
+    const prev = HTML_BEFORE.test(head) ? ' ' : (head.at(-1) ?? ' ');
+    const next = HTML_AFTER.test(tail) ? ' ' : (tail[0] ?? ' ');
+    // `_____________(deliver)` — a script with no base, sitting on the end of a
+    // fill-in-the-blank. The rule in the answer key is the blank, not a formula.
+    if (/^[_^]/.test(tok) && /[_.]$/.test(head)) return false;
+    // `2*x*^(2) + *x* – 4 = 0` — emphasis inside a bare equation. Setting this
+    // one term as maths would leave the rest of the line as prose.
+    if (tok.startsWith('*') && /[A-Za-z0-9]$/.test(prev)) return false;
     // A parenthetical gloss — "carbon dioxide (CO_(2))" — is prose, not algebra.
     if (prev === '(' && next === ')') return true;
     if (prev === '.' || prev === '/') return false; // path or filename
@@ -745,8 +992,117 @@ export function repairAsciiScripts(s) {
     if (m.index < cursor) continue;
     const tex = scriptTokenToTex(m[0], chemContext);
     if (!tex) continue;
-    out += s.slice(cursor, m.index) + `$${tex}$`;
-    cursor = m.index + m[0].length;
+    const end = m.index + m[0].length;
+    // `$\mathrm{Na}_{2}\mathrm{C}$О_(3)` — the formula was already half inside a
+    // span. Growing that span is the repair; opening a second one against it
+    // would leave `$$` in the line, which the tokenizer reads as display maths.
+    // Only an inline span can be grown this way: a display delimiter is two
+    // characters wide, and stepping over one of them leaves the other loose.
+    // Against one of those the token takes its own pair, with a space to keep
+    // the two pairs from reading as a single `$$`.
+    const lone = (i) => s[i] === '$' && s[i - 1] !== '$' && s[i + 1] !== '$';
+    const joinsLeft = spans.some(([, b]) => b === m.index) && lone(m.index - 1);
+    const joinsRight = spans.some(([a]) => a === end) && lone(end);
+    // `sin^(−1)$$\left( \cos\frac{\pi}{9} \right)$$` — the argument went into a
+    // display block and the function name was left outside it. Kept apart they
+    // reach the reader as `sin⁻¹` and then a centred line reading `(cos π/9)`,
+    // with the sentence broken around it. They are one expression — nothing
+    // stands between them, not even a space — so the block gives up its
+    // delimiters instead of the token opening a second pair against them.
+    const block = spans.find(([a]) => a === end && s.startsWith('$$', a));
+    const body = block ? s.slice(end + 2, block[1] - 2) : '';
+    // One line only: a block with rows in it was set on its own on purpose, and
+    // a token glued to the front of one is a different fault from this.
+    const absorb = !!block && !body.includes('\n') && mathOk(tex + body);
+    out += s.slice(cursor, joinsLeft ? m.index - 1 : m.index);
+    if (!joinsLeft) out += s[m.index - 1] === '$' ? ' $' : '$';
+    out += tex;
+    if (absorb) {
+      out += `${body}$`;
+      cursor = block[1];
+    } else if (joinsRight) {
+      cursor = end + 1;
+    } else {
+      out += s[end] === '$' ? '$ ' : '$';
+      cursor = end;
+    }
+  }
+  return cursor ? out + s.slice(cursor) : s;
+}
+
+// ------------------------------------------------ a formula split by its span
+//
+// `Ba($\mathrm{NO}_{3}$)_(2)` — the radical made it into a span and the count
+// did not, so the reader gets `Ba(NO₃)_(2)`: half typeset, half source. Same
+// for the hydrates, `$\mathrm{CuSO}_{4}$.5H_(2)O`. Neither piece is prose, so
+// the repair is to pull them into the span the formula already has rather than
+// open a second one against it.
+
+// What can carry on a formula once the span closes: the closing bracket, a
+// hydrate dot, more symbols, and the AsciiMath scripts themselves.
+const SCRIPT_TAIL = /^(?:\)|\.(?=[0-9]*[A-Z])|[A-Za-z0-9]|[_^]\([^()\n]{1,12}\))+/;
+// And what can lead into it: the metal of `Ba(NO3)2`, or a bare bracket.
+const SCRIPT_HEAD = /(?:[A-Z][a-z]?|\()+$/;
+
+/** Render `)_(2)SO_(4)` or `.5H_(2)O` as the TeX that continues a formula. */
+function formulaFragmentToTex(fragment) {
+  let tex = '';
+  let i = 0;
+  while (i < fragment.length) {
+    const c = fragment[i];
+    if (c === '(' || c === ')') { tex += c; i += 1; continue; }
+    if (c === '.') { tex += '\\cdot '; i += 1; continue; }
+    if (c === '_' || c === '^') {
+      const close = fragment.indexOf(')', i + 2);
+      if (fragment[i + 1] !== '(' || close === -1) return null;
+      const arg = scriptArg(fragment.slice(i + 2, close));
+      if (arg === null) return null;
+      tex += `${c}{${arg}}`;
+      i = close + 1;
+      continue;
+    }
+    // A count is upright already; a symbol has to be told not to be italic. The
+    // two are read separately so the `5` of `.5H_(2)O` stays outside the group.
+    let word = '';
+    if (/[0-9]/.test(c)) {
+      while (i < fragment.length && /[0-9]/.test(fragment[i])) word += fragment[i++];
+      tex += word;
+      continue;
+    }
+    while (i < fragment.length && /[A-Za-z]/.test(fragment[i])) word += fragment[i++];
+    if (!word) return null;
+    tex += `\\mathrm{${word}}`;
+  }
+  return tex;
+}
+
+export function absorbScriptTail(s) {
+  if (!s.includes('$') || !/[_^]\(/.test(s)) return s;
+  const spans = mathSpans(s);
+  if (!spans.length) return s;
+
+  let out = '';
+  let cursor = 0;
+  for (const [a, b] of spans) {
+    if (a < cursor) continue;
+    const inner = s.slice(a + 1, b - 1);
+    // Only chemistry writes this way, and only chemistry wants `\mathrm`. A
+    // maths span with a stray `_(n)` after it is a different problem.
+    if (!/\\ce\{|\\mathrm\{/.test(inner) || inner.startsWith('$')) continue;
+
+    let tail = SCRIPT_TAIL.exec(s.slice(b))?.[0] ?? '';
+    // `)_(2)solution` — a missing space glued a word on. Hand it back.
+    tail = tail.replace(/(?<=[)0-9A-Za-z])[a-z]{3,}$/, '');
+    if (!/[_^]\(/.test(tail)) continue;
+
+    const head = SCRIPT_HEAD.exec(s.slice(cursor, a))?.[0] ?? '';
+    const headTex = head ? formulaFragmentToTex(head) : '';
+    const tailTex = formulaFragmentToTex(tail);
+    if (headTex === null || tailTex === null) continue;
+    if (!mathOk(headTex + inner + tailTex)) continue;
+
+    out += s.slice(cursor, a - head.length) + `$${headTex}${inner}${tailTex}$`;
+    cursor = b + tail.length;
   }
   return cursor ? out + s.slice(cursor) : s;
 }
@@ -808,12 +1164,12 @@ const TRIVIAL = /^\\(newline|quad|qquad|ldots|,|;|!|\s)?$/;
 
 export function wrapBareCommands(s) {
   if (!s.includes('\\')) return s;
-  const spans = mathSpans(s);
+  const spans = mathSpans(s, true);
   // A command that sits inside a group — the `\max` of `f_{s,\max}`, the `\pi`
   // of `e^{-\pi}` — is part of a larger expression, so a span around it alone
   // would land a delimiter inside its own braces. Leave those to
   // wrapBareMathRuns, which can grow out to the whole expression.
-  const depth = braceDepths(s);
+  const depth = groupDepths(s);
   let out = '';
   let i = 0;
   while (i < s.length) {
@@ -880,7 +1236,7 @@ function trimUnclosed(run) {
  */
 export function wrapBareMathRuns(s) {
   if (!s.includes('\\')) return s;
-  const spans = mathSpans(s);
+  const spans = mathSpans(s, true);
   for (const m of s.matchAll(/`+[^`]*`+/g)) spans.push([m.index, m.index + m[0].length]);
   const depth = braceDepths(s);
   let out = '';
@@ -1394,17 +1750,317 @@ export function dropEmptySpans(s) {
  * spacing *is* the content — a number pyramid is built out of `\qquad` — and a
  * grid the reader is already being shown raw is not improved by flattening it.
  */
+// Every spacing command, not just the wide ones: a span that closed a few
+// characters early leaves `BC = 6\, cm` in the prose, and `\,` prints as itself.
+const ORPHAN_SPACING = /[ \t]*(?<!\\)\\(?:q?quad|[,;:])(?![A-Za-z])[ \t]*/g;
+// `\!` asks for negative space. A gap is not a smaller version of that, so it
+// goes without leaving one behind.
+const ORPHAN_NEGATIVE = /(?<!\\)\\!(?![A-Za-z])/g;
+
+// An ellipsis command that no wrapper would take. This runs last, so anything
+// still in a text token here has already been declined by every pass that could
+// have given it delimiters; the character it stands for is what the reader
+// wanted, and `\ldots` is not.
+const ORPHAN_ELLIPSIS = /(?<!\\)\\(?:ldots|cdots|dots|dotsc)(?![A-Za-z])/g;
+
 export function dropOrphanSpacing(s) {
-  if (!/\\q?quad(?![A-Za-z])/.test(s) || s.includes('\\begin{')) return s;
+  if (!/(?<!\\)\\(?:q?quad|l?dots|cdots|dotsc|[,;:!])(?![A-Za-z])/.test(s)) return s;
+  const toks = [...tokenize(normalizeText(s))];
+  if (toks.map((t) => t.raw).join('') !== s) return s;
+  return toks
+    .map((t) => {
+      // A run carrying `\boxed{…}`, `\frac{…}` or `\begin{bmatrix}` is maths
+      // that never got its delimiters, not prose. The spacing in it is doing its
+      // job; the wrapping passes are what that run needs. Testing the token
+      // rather than the whole string matters: a matrix in a span of its own must
+      // not stop the sentence beside it from being tidied.
+      if (t.kind === 'math' || /\\[A-Za-z]+\s*\{/.test(t.raw)) return t.raw;
+      // The spaces on either side go with it: what the command asked for was
+      // one gap, and leaving both behind doubles it.
+      return t.raw
+        .replace(ORPHAN_SPACING, ' ')
+        .replace(ORPHAN_NEGATIVE, '')
+        .replace(ORPHAN_ELLIPSIS, '…');
+    })
+    .join('');
+}
+
+const FENCE_WORD = /\\(?:left|right)(?![A-Za-z])/g;
+const FENCE_NOTHING = /\\(?:left|right)\s*\./g;
+
+/**
+ * `\left` and `\right` come as a pair or not at all: KaTeX rejects either one
+ * alone, so a string holding half of one — the generator split the equation
+ * across two of them, `…is \left(` then `…\right).` — renders as source on both
+ * sides. Dropping the sizing keeps the delimiter and the sentence; there is
+ * nothing to size against once the partner is in another string.
+ */
+export function dropOrphanFences(s) {
+  if (!/\\(?:left|right)(?![A-Za-z])/.test(s)) return s;
+  const toks = [...tokenize(normalizeText(s))];
+  if (toks.map((t) => t.raw).join('') !== s) return s;
+  return toks
+    .map((t) => {
+      const opens = (t.raw.match(/\\left(?![A-Za-z])/g) || []).length;
+      const closes = (t.raw.match(/\\right(?![A-Za-z])/g) || []).length;
+      if (opens === closes) return t.raw;
+      // `\left.` and `\right.` are the invisible ones: the delimiter they name
+      // is nothing, so the command and its dot go together.
+      return t.raw.replace(FENCE_NOTHING, '').replace(FENCE_WORD, '');
+    })
+    .join('');
+}
+
+// Inside a `\text{…}` body the seams run the other way round: a `}` opens a
+// stretch of maths and the next `\text{` closes it again.
+const TORN_SEAM = /\}([^{}]*?)\\text\s*\{/g;
+
+/**
+ * `…के लिए }3\text{ का घातांक }3\text{ होना चाहिए, इसलिए }3^2=9\text{ से गुणा`
+ * — the tail of a `\text{…}` body split across two blocks. The opening command
+ * went with the block before, so what is left starts in the middle of a text
+ * argument and every brace in it is inside out. The reader is shown the seams.
+ *
+ * The seams are still readable, though: between a `}` and the next `\text{` is
+ * maths, and everything else is prose. That is a span each, which is what the
+ * whole block would have rendered as had it not been cut in two.
+ */
+export function mendTornText(s) {
+  if (!/\}[^{}]*?\\text\s*\{/.test(s)) return s;
+  const toks = [...tokenize(normalizeText(s))];
+  if (toks.map((t) => t.raw).join('') !== s) return s;
+  let mended = false;
+  const out = toks
+    .map((t) => {
+      // Only a run whose first brace is a *closing* one has lost its opener;
+      // anywhere else the braces are the author's and mean what they say.
+      if (t.kind === 'math' || (/[{}]/.exec(t.raw) ?? [''])[0] !== '}') return t.raw;
+      let ok = true;
+      const fixed = t.raw.replace(TORN_SEAM, (whole, body) => {
+        if (!body.trim() || !mathOk(body)) ok = false;
+        return `$${body}$`;
+      });
+      // The body ends where the block was cut, so the last `\text{` has no `}`
+      // and never had one here. It renders as nothing; the prose after it is
+      // the point.
+      const tail = fixed.replace(/\\text\s*\{(?![\s\S]*[{}])/, '');
+      if (!ok || braceBalance(tail) !== 0) return t.raw;
+      mended = true;
+      return tail;
+    })
+    .join('');
+  return mended ? out : s;
+}
+
+/**
+ * `U_{s}=\frac12kx^2=…\text{J}.\n$$\nHence,\n$$\n\boxed{…}.\n$$` — three display
+ * delimiters, so one block has lost an end. The site renders each block on its
+ * own, so the odd one out never pairs: the maths at that end is handed to the
+ * reader as source, and the wrapping passes then shred it into a span per
+ * fragment. Giving it back the delimiter it lost is one character and undoes
+ * all of that.
+ */
+export function closeTornDisplay(s) {
+  const marks = s.match(/\$\$/g);
+  if (!marks || marks.length % 2 === 0) return s;
+  // Prose is not a lost display block, and neither is anything holding an
+  // inline span — the odd `$` there is a different fault. A fenced code block
+  // is not one either: `$$```\n 67\n\times 18\n─────` is a long multiplication
+  // set as ASCII art, and closing a display round it would hand the fence and
+  // the rule to KaTeX. There the stray `$$` is the damage, not the missing one.
+  const lost = (part) =>
+    part.trim() &&
+    /\\[A-Za-z]/.test(part) &&
+    !/(?<![\\$])\$(?!\$)/.test(part) &&
+    !part.includes('```') &&
+    mathOk(part.trim(), true);
+  const first = s.indexOf('$$');
+  const head = s.slice(0, first);
+  if (lost(head)) return `$$\n${head.trim()}\n${s.slice(first)}`;
+  const last = s.lastIndexOf('$$');
+  const tail = s.slice(last + 2);
+  if (lost(tail)) return `${s.slice(0, last + 2)}\n${tail.trim()}\n$$`;
+  return s;
+}
+
+// A string that is nothing but the end of an expression: it opens with a
+// command, so it is not prose that happens to carry one.
+const TORN_HEAD = /^\s*\\[A-Za-z]+\s*[{[]/;
+
+/**
+ * `\boxed{s=-0.20\,\text{m}}\quad\text{(i.e. the block moves }0.20\,\text{m
+ * downward in the ground frame).` — the closing brace of the last group never
+ * made it into the block. Nothing in the string parses without it and the whole
+ * answer is shown as source. One brace puts it back; more than one is guesswork
+ * about structure that is no longer here, and is left alone.
+ */
+export function closeTornGroups(s) {
+  if (s.includes('$') || !TORN_HEAD.test(s) || braceBalance(s) !== 1) return s;
+  return !mathOk(s) && mathOk(`${s}}`) ? `${s}}` : s;
+}
+
+// `\textsubscript` is a LaTeX-document command with no KaTeX spelling, but the
+// script it asks for is one KaTeX has had all along.
+const TEXT_SCRIPT = /\\text(sub|super)script\s*\{([^{}]*)\}/g;
+
+export function normalizeTextScripts(s) {
+  if (!s.includes('\\text')) return s;
   const toks = [...tokenize(normalizeText(s))];
   if (toks.map((t) => t.raw).join('') !== s) return s;
   return toks
     .map((t) =>
-      // The spaces on either side go with it: what the command asked for was
-      // one gap, and leaving both behind doubles it.
-      t.kind === 'math' ? t.raw : t.raw.replace(/[ \t]*(?<!\\)\\q?quad(?![A-Za-z])[ \t]*/g, ' '),
+      t.raw.replace(TEXT_SCRIPT, (whole, which, body) => {
+        const script = `${which === 'sub' ? '_' : '^'}{\\text{${body}}}`;
+        return t.kind === 'math' ? script : `$${script}$`;
+      }),
     )
     .join('');
+}
+
+/**
+ * `\text{2\,\mathrm{s}}` is valid LaTeX and a parse error in KaTeX, which has no
+ * text-mode `\mathrm`. One command in the wrong mode fails the whole expression,
+ * so no wrapper will touch it and the reader is shown `\boxed{\text{…}}` as
+ * source — which is what most of the leaked-LaTeX tail turns out to be.
+ *
+ * Inside `\text{…}` the alphabet is already upright, so the wrapper is saying
+ * nothing and dropping it changes nothing on the page. `\mathbf`/`\mathit` do
+ * mean something, and have text-mode spellings to move to.
+ */
+const TEXT_DEGREE = /(?:\{\})?\^\s*(?:\{\s*\\circ\s*\}|\\circ(?![A-Za-z]))/g;
+
+/** The text-mode repairs, for one stretch of a `\text{…}` body. */
+const textMode = (part) =>
+  part
+    .replace(TEXT_DEGREE, '°')
+    // `16%` comments out the rest of the expression, braces and all, so a
+    // per-cent sign in a sentence takes the whole answer down with it.
+    .replace(/(?<!\\)%/g, '\\%')
+    // The space guards a collision: `\,\mathrm{C}` after a command must not lose
+    // its braces and weld into `\circC`, which does not exist. Only a letter
+    // landing straight after a letter-command needs it.
+    .replace(/\\(?:mathrm|textrm|mathsf|mathtt)\s*\{([^{}]*)\}/g, (whole, inner, at, all) =>
+      /\\[A-Za-z]+$/.test(all.slice(0, at)) && /^[A-Za-z]/.test(inner) ? ` ${inner}` : inner,
+    )
+    .replace(/\\mathbf\s*\{([^{}]*)\}/g, '\\textbf{$1}')
+    .replace(/\\mathit\s*\{([^{}]*)\}/g, '\\textit{$1}');
+
+const NESTED_SPAN = /(\$[^$]*\$)/;
+
+/**
+ * The body of one `\text{…}`, in the two readings a nested `$…$` allows.
+ *
+ * `\text{at $2\,\mathrm{s}$}` is valid LaTeX, but the site tokenizer has no way
+ * to know the span is nested: it ends the outer one there and shows the rest of
+ * the sentence as source. Absorbing the island into text mode is the reading
+ * that keeps the sentence in one piece — `2\,\mathrm{s}` is upright either way.
+ * `flat` is the fallback for an island that means something in maths and
+ * nothing in text: `}…\text{` is the same nesting expressed in braces.
+ */
+function fixTextBody(body) {
+  // mhchem has no text-mode spelling either, so a formula is an island in its
+  // own right even with no delimiters around it to say so.
+  const marked = body
+    .split(NESTED_SPAN)
+    .map((part, i) => (i % 2 ? part : part.replace(/\\ce\s*\{[^{}]*\}/g, '$$$&$$')))
+    .join('');
+  const parts = marked.split(NESTED_SPAN);
+  return {
+    absorbed: parts.map((part, i) => textMode(i % 2 ? part.slice(1, -1) : part)).join(''),
+    flat: parts.map((part, i) => (i % 2 ? `}${part.slice(1, -1)}\\text{` : textMode(part))).join(''),
+    nested: parts.length > 1,
+  };
+}
+
+export function unnestTextCommands(s) {
+  if (!/\\text(?:rm)?\s*\{/.test(s)) return s;
+  if (!/\\math(?:rm|bf|it|sf|tt)\s*\{|\^\s*\{?\s*\\circ|\\ce\s*\{|[$%]/.test(s)) return s;
+  const re = /\\text(?:rm)?\s*\{/g;
+  let out = '';
+  let cursor = 0;
+  let nested = false;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const close = matchBrace(s, open);
+    if (close < 0) continue;
+    const body = s.slice(open + 1, close);
+    const candidate = fixTextBody(body);
+    // Absorbing is preferred and has to be earned: the island only belongs in
+    // text mode if what comes out of it still parses there.
+    const fixed =
+      candidate.nested && !mathOk(`\\text{${candidate.absorbed}}`) ? candidate.flat : candidate.absorbed;
+    if (fixed === body) continue;
+    if (candidate.nested) nested = true;
+    out += s.slice(cursor, open + 1) + fixed;
+    cursor = close;
+    // Skip past the group just rewritten: an inner `\text{…}` went with it.
+    re.lastIndex = close;
+  }
+  if (!out) return s;
+  // An island at the end of a body leaves `\text{` for the group's own `}` to
+  // close. It renders as nothing either way; dropping it keeps the source clean.
+  const result = (out + s.slice(cursor)).replace(/\\text\s*\{\}/g, '');
+  // A string whose only delimiters were the nested ones now has none, and the
+  // wrappers downstream would read the `}…\text{` seam as the end of a run and
+  // span the halves separately. It is one expression; it gets one pair.
+  if (nested && !result.includes('$') && mathOk(result)) return `$${result}$`;
+  return result;
+}
+
+/**
+ * U+FFFD is a byte that did not survive the source's encoding, and nothing can
+ * be recovered from it. The sentence reads correctly without it: "lines �1 and
+ * �2 intersect at O" was "lines l₁ and l₂", and "lines 1 and 2" is still true —
+ * whereas the replacement glyph itself is visible nonsense.
+ */
+export function dropReplacementChar(s) {
+  return s.includes('�') ? s.replace(/�/g, '') : s;
+}
+
+/**
+ * Like `braceDepths`, but a `{` that never closes counts for nothing. In
+ * `$\frac12\times\text{आधार}\times\text{ऊँचाई$` the group is torn — the block was
+ * cut before its `}` — so the `$` after it is the span's own closing delimiter,
+ * not one nested inside an argument. Reading it as nested costs the expression
+ * its span, whereas the missing brace is something `repairMath` puts back.
+ */
+function closedBraceDepths(s) {
+  const open = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\') i += 1;
+    else if (s[i] === '{') open.push(i);
+    else if (s[i] === '}' && open.length) open.pop();
+  }
+  const torn = new Set(open);
+  const depth = new Array(s.length + 1).fill(0);
+  for (let i = 0, d = 0; i < s.length; i++) {
+    if (s[i] === '\\') depth[++i] = d;
+    else if (s[i] === '{') { if (!torn.has(i)) d++; }
+    else if (s[i] === '}') d = Math.max(0, d - 1);
+    depth[i + 1] = d;
+  }
+  return depth;
+}
+
+/**
+ * A `$` inside a brace group. No span can legitimately open there — `\frac{` is
+ * mid-command — so `\frac{$m_{2}$-$m_{1}$}{1+m_1m_2}` is a source that had its
+ * sub-terms spanned individually and then got pasted into a larger expression.
+ * The delimiters are the damage; the expression around them is sound.
+ */
+export function dropNestedDollars(s) {
+  if (!s.includes('$') || !/\\[A-Za-z]+\s*\{/.test(s)) return s;
+  const depth = closedBraceDepths(s);
+  let out = '';
+  let dropped = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\') { out += s.slice(i, i + 2); i += 1; continue; }
+    if (s[i] === '$' && depth[i] > 0) { dropped += 1; continue; }
+    out += s[i];
+  }
+  if (!dropped) return s;
+  return countMathFailures(out) <= countMathFailures(s) ? out : s;
 }
 
 const CURRENCY = /(?:^|[\s(])\$\d/;
@@ -1524,6 +2180,70 @@ export function separateFusedSpans(s) {
   return best;
 }
 
+// A relation makes a span a statement in its own right, so two of them side by
+// side are two steps of a derivation — `$ab(b-a)+c^2(a-b)=0$$$(b-a)(ab-c^2)=0$$`
+// — and welding them would run one line of working into the next.
+const RELATION =
+  /(?<!\\)[=<>]|\\(?:leq|geq|neq|le|ge|ne|approx|equiv|sim|cong|propto|to|rightarrow|Rightarrow|implies)(?![A-Za-z])/;
+// A span that stops mid-expression: it ends on an operator or on a `\text{…}`
+// clause — `$$u_i=\dfrac{x_i-25}{10},\ \text{ then }$$`.
+const OPEN_END =
+  /(?:[=+\-*/<>,(]|\\(?:times|cdot|div|pm|mp|to|rightarrow|Rightarrow|leq|geq|neq|le|ge|ne|approx|equiv)|\\text\s*\{[^{}]*\})\s*$/;
+// A span that starts mid-expression: a binary operator or a closing bracket. An
+// opening `(` is deliberately not here — a fresh equation begins with one just
+// as often as a continuation does.
+const OPEN_START =
+  /^\s*(?:[=*/<>,)]|[+\-](?!\s*$)|\\(?:times|cdot|div|pm|mp|leq|geq|neq|le|ge|ne|approx|equiv)(?![A-Za-z]))/;
+
+/**
+ * One expression torn across a block boundary — `$\overline{X}$$$+\frac{n+1}{2}$$`
+ * as a multiple-choice option, where the reader gets `X̄` on one line and a
+ * centred `+ (n+1)/2` on the next. Both halves parse, so nothing downstream
+ * objects; only the mismatched delimiters give it away.
+ *
+ * Welds the pair back together when the seam is visibly mid-expression, and
+ * shows the result the way the *first* half was written: the span that opened
+ * the expression is the one that knows whether it belongs in the line or on one
+ * of its own.
+ */
+// `\begin{matrix}` and the `steel` of `Y_{steel}` are labels, not sentences.
+// The prose test reads any lower-case word as one, so strip the environment
+// names and the script groups first or every matrix declines to be repaired.
+const stripLabels = (body) =>
+  body.replace(/\\(?:begin|end)\s*\{[^{}]*\}/g, '').replace(/[_^]\s*\{[^{}]*\}/g, '');
+
+export function mergeAdjacentSpans(s) {
+  if (!s.includes('$$')) return s;
+  const toks = [...tokenize(normalizeText(s))];
+  // The splice below moves text by index, so the rebuild has to be lossless.
+  if (toks.map((t) => t.raw).join('') !== s) return s;
+  let out = '';
+  for (let i = 0; i < toks.length; i++) {
+    const a = toks[i];
+    const b = toks[i + 1];
+    const left = a.kind === 'math' ? String(a.value).trim() : '';
+    const right = b && b.kind === 'math' ? String(b.value).trim() : '';
+    if (
+      left &&
+      right &&
+      a.display !== b.display &&
+      !proseSpan(stripLabels(left)) &&
+      !proseSpan(stripLabels(right)) &&
+      (OPEN_END.test(left) || (OPEN_START.test(right) && !RELATION.test(left)))
+    ) {
+      const joined = `${left} ${right}`;
+      if (mathOk(joined, a.display)) {
+        const d = a.display ? '$$' : '$';
+        out += `${d}${joined}${d}`;
+        i += 1;
+        continue;
+      }
+    }
+    out += a.raw;
+  }
+  return out;
+}
+
 /**
  * An escaped `\$` butted against a delimiter is invisible to the scanner, which
  * then pairs the wrong dollars. A space after it settles the question.
@@ -1590,14 +2310,31 @@ export function repairStringDetailed(s) {
   t = repairChem(t);
   t = repairDelimiters(t);
   t = repairCommands(t);
+  // Before every wrapper: an expression that will not parse is one they all
+  // decline, so this has to come first or the repair below it never happens.
+  // The two torn-block repairs go with it, for the same reason.
+  t = closeTornDisplay(t);
+  t = closeTornGroups(t);
+  t = mendTornText(t);
+  t = unnestTextCommands(t);
   t = stripControl(t);
+  t = dropReplacementChar(t);
   t = normalizeEscapedDollars(t);
+  t = dropNestedDollars(t);
   t = splitCodeFenceOutOfMath(t);
   t = normalizeDollarSign(t);
   t = dropEmptySpans(t);
   t = absorbDanglingScript(t);
   t = separateFusedSpans(t);
+  // After separateFusedSpans, which pulls apart the pairs that never rendered;
+  // what is left is the pair that renders as two blocks and should be one.
+  t = mergeAdjacentSpans(t);
+  // Both leave a run the wrappers below can take, so they come before them and
+  // after the passes that decide where one span ends and the next begins.
+  t = dropOrphanFences(t);
+  t = normalizeTextScripts(t);
   t = dropLayoutCommands(t);
+  t = dropMulticolumn(t);
   t = absorbLeadingCommand(t);
   t = wrapBareArrays(t);
   t = wrapBareEnvironments(t);
@@ -1616,8 +2353,18 @@ export function repairStringDetailed(s) {
   // the delimiter to put it back. dropEmptySpans sits ahead of the scanner
   // because unbalanced spans make the inside of a `\boxed{}` look like prose,
   // and after both because the wrapper can leave a lone `$` doubled.
+  // wrapBareFences goes last of the wrappers: it puts a bracket pair the others
+  // could only take a piece of back around the whole expression. absorbLeadingCommand
+  // runs a second time for the same reason — `+\hat r_{12}` has no span for it
+  // to grow until a wrapper has opened one.
   const full = dropEmptySpans(
-    wrapBareCommands(wrapBareMathRuns(dropEmptySpans(repairAsciiScripts(wrapBareExpressions(t))))),
+    absorbLeadingCommand(
+      wrapBareFences(
+        wrapBareCommands(
+          wrapBareMathRuns(dropEmptySpans(absorbScriptTail(repairAsciiScripts(wrapBareExpressions(t))))),
+        ),
+      ),
+    ),
   );
 
   // dropStrayDollar last, and only on strings the passes above already moved: a

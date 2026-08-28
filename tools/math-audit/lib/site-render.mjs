@@ -42,7 +42,7 @@ let b = String.raw`\underline{\hspace{1.35em}}`;
         function f(a2) {
           let b2 = a2.replace(/\[\/?(?:latex|katex)\]/gi, "$").replace(/(?:\u001B\[(?:KaTeX|latex)\]){2,}/gi, (a3) => a3.slice(0, a3.length / (a3.match(/\u001B/g)?.length ?? 1))).replace(/\\n(?!u(?:\b|_)|e(?:q|g)?\b|ot(?:in)?\b|abla\b|ewline\b)/g, `
 `);
-          for (let a3 of ["\x1B[KaTeX]", "\x1B[latex]", "\0", "\x02"]) b2 = (function(a4, b3) {
+          for (let a3 of ["\x1B[KaTeX]", "\x1B[latex]", "\0", ""]) b2 = (function(a4, b3) {
             let c2 = a4.split(b3).length - 1;
             return c2 < 2 || c2 % 2 != 0 ? a4.replaceAll(b3, "") : a4.split(b3).map((a5, b4) => b4 ? `$${a5}` : a5).join("");
           })(b2, a3);
