@@ -1620,6 +1620,22 @@ export function renderMathText(value, { extraClass = "math-inline" } = {}) {
 // the scrollbar gutter showing as a grey bar under the formula. Only a matrix
 // is wide enough to need scrolling inline, and `vertical-align:middle` centres
 // it on the x-height without consulting the box's own baseline.
+//
+// A bracket only grows to fit a matrix if the font offers a taller version of it
+// to grow into: stretching is a lookup in the font's OpenType MATH table, not
+// something the browser can draw for itself. The old stack asked for Cambria
+// Math (Windows and Office only), then STIX Two Math (recent macOS only), then
+// STIXGeneral, which has no MATH table at all — so Android, most Linux and older
+// iOS landed on plain `serif` and drew one normal-size `(` centred on the middle
+// row. The same gap flattened `√`, `∑`, `∫` and `|…|` everywhere else.
+//
+// `local()` comes first so Windows and macOS readers keep the font they already
+// have and download nothing; only a device with neither fetches the subset. It
+// is STIX Two Math because it is Times-based, so it matches the `serif` those
+// devices were falling back to — the letterforms stay put and only the broken
+// parts change. `serif` stays last: `<mtext>` carries Devanagari, which the
+// subset does not. See comparison/after-assets/fonts/README.md.
 export const SEMANTIC_MATH_STYLES = `<style id="studywudy-semantic-math-styles">
-.math-semantic{max-width:100%}.math-visible:not(.math-inline){display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;overflow:visible;vertical-align:baseline}.math-inline:has(mtable){overflow-x:auto;overflow-y:hidden;vertical-align:middle}.math-semantic>math{font-family:Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block math;max-width:max-content}.math-inline>math{display:inline math}.math-matrix-table>mtr>mtd{padding:.18em .42em}.math-aligned-table>mtr>mtd{padding:.14em .16em}.math-matrix-table,.math-aligned-table{math-style:normal}.math-matrix-table>mtr>mtd.math-rule-right,.math-aligned-table>mtr>mtd.math-rule-right{border-right:1px solid currentColor}.math-matrix-table>mtr>mtd.math-rule-below,.math-aligned-table>mtr>mtd.math-rule-below{border-bottom:1px solid currentColor}.math-table-framed{border:1px solid currentColor}.math-table-framed>mtr>mtd{padding:.22em .5em}mtd.math-align-left{text-align:left}mtd.math-align-right{text-align:right}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@font-face{font-family:"StudyWudy Math";src:local("Cambria Math"),local("CambriaMath"),local("STIX Two Math"),local("STIX Two Math Regular"),local("STIXTwoMath-Regular"),url("/fonts/stix-two-math-subset-v1.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+.math-semantic{max-width:100%}.math-visible:not(.math-inline){display:block;overflow-x:auto;overflow-y:hidden}.math-inline{display:inline-block;overflow:visible;vertical-align:baseline}.math-inline:has(mtable){overflow-x:auto;overflow-y:hidden;vertical-align:middle}.math-semantic>math{font-family:"StudyWudy Math",Cambria Math,STIX Two Math,STIXGeneral,serif;font-size:1.04em}.math-visible>math{display:block math;max-width:max-content}.math-inline>math{display:inline math}.math-matrix-table>mtr>mtd{padding:.18em .42em}.math-aligned-table>mtr>mtd{padding:.14em .16em}.math-matrix-table,.math-aligned-table{math-style:normal}.math-matrix-table>mtr>mtd.math-rule-right,.math-aligned-table>mtr>mtd.math-rule-right{border-right:1px solid currentColor}.math-matrix-table>mtr>mtd.math-rule-below,.math-aligned-table>mtr>mtd.math-rule-below{border-bottom:1px solid currentColor}.math-table-framed{border:1px solid currentColor}.math-table-framed>mtr>mtd{padding:.22em .5em}mtd.math-align-left{text-align:left}mtd.math-align-right{text-align:right}.math-fallback{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 </style>`;

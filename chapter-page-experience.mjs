@@ -751,7 +751,7 @@ export const CHAPTER_PAGE_EXPERIENCE_STYLES = `<style id="chapter-page-experienc
   border-radius:0 6px 6px 0;
   background:var(--formula-tint)!important;
   color:var(--hub-navy)!important;
-  font-family:"STIX Two Math","Cambria Math",Georgia,serif;
+  font-family:"StudyWudy Math","STIX Two Math","Cambria Math",Georgia,serif;
   font-size:1.05rem!important;
 }
 .chapter-formula-uses{gap:.35rem;margin-top:.65rem}

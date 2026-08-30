@@ -254,6 +254,7 @@ loading the chunk beside it.
 | `audit.mjs`, `site-audit.mjs`, `verify.mjs`, `brace-check.mjs`, `prose-scan.mjs` | measurement, before and after |
 | `split-scan.mjs`, `caret-scan.mjs`, `pattern-scan.mjs`, `prompt-text-scan.mjs` | one class each, in detail |
 | `trace.mjs`, `find-cases.mjs`, `render-probe.mjs`, `stale-check.mjs` | step one string through the passes, or find one to step |
+| `glyph-census.mjs` | which code points the corpus actually uses, so the maths webfont is cut from evidence — see `comparison/after-assets/fonts/README.md` |
 | `review.mjs` | a side-by-side HTML page of the interesting cases |
 | `test-repair*.mjs`, `test-convert.mjs` | spot-checks against the real corruption shapes |
 | everything else | one-off probes kept as a record of how a class was tracked down |

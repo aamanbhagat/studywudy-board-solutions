@@ -45,8 +45,8 @@
     },
     {
       "path": "chapter-page-experience.mjs",
-      "bytes": 50383,
-      "sha256": "05b13d6eed04d48b262ab6f2fe16bc46ee70309693f172cedc91e627df5a73a7"
+      "bytes": 50400,
+      "sha256": "298871737f44d92c37186010502f21949d93cf92f66d8043683307b34e96c7d0"
     },
     {
       "path": "choice-quality.mjs",
@@ -80240,8 +80240,8 @@
     },
     {
       "path": "comparison/after-assets/_headers",
-      "bytes": 786,
-      "sha256": "8a193630b9dfcae581850e13e898613479b1972ffe106644ae0872ae17849c79"
+      "bytes": 849,
+      "sha256": "5f847d1d35ef9184fe4c6b30775369430a768b36198924eeddb706b45fc8efcb"
     },
     {
       "path": "comparison/after-assets/_next/static/chunks/0_npo5x1nleih.css",
@@ -86814,6 +86814,21 @@
       "sha256": "bd676906a88ceff8582e95472a393d948eb5e3256d979e5f240939d82c8b1cef"
     },
     {
+      "path": "comparison/after-assets/fonts/OFL.txt",
+      "bytes": 4393,
+      "sha256": "a16b0488c873b1bae3ea6e8a79634ac924a4a6a797a1ee10a822486c7aa1b225"
+    },
+    {
+      "path": "comparison/after-assets/fonts/README.md",
+      "bytes": 3294,
+      "sha256": "4f6161cf5321f401815edfc61a3c7e86f8af73f634bd45e54aa7d6b39c1d8597"
+    },
+    {
+      "path": "comparison/after-assets/fonts/stix-two-math-subset-v1.woff2",
+      "bytes": 242868,
+      "sha256": "7a220e18856ee75118f2e6948a03af1d119af5a5eff121ff6391cdcfa5d7de13"
+    },
+    {
       "path": "comparison/after-assets/home-finder.js",
       "bytes": 7545,
       "sha256": "109721f37fd1936b9e71b93c1657250dc9e739c23a0bbdedba2bc7f7ea929bae"
@@ -86980,163 +86995,163 @@
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/fixed-charges-grammar-repair/index.html",
-      "bytes": 90986,
-      "sha256": "528dac990fdc54f00df1ac28ef1a428a6848837a278a2e5758c2f24d498b9fd5"
+      "bytes": 91930,
+      "sha256": "c41b2a25bc85e818a022a4fb3176051eae5b5593c01de49e9bec6f407c2e1a0f"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/gauss-law-density-repair/index.html",
-      "bytes": 102305,
-      "sha256": "c621fa6fd9bfeea760cc446dd9d77fe7c3eca357931f6c792d5b96ebb06eb5e8"
+      "bytes": 103249,
+      "sha256": "a3d5c99173bccdfebca4afd5a52640eac157529c88d58f50378bce7ed71f03b6"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/marathi-chapter-11-source-mismatch/index.html",
-      "bytes": 65859,
-      "sha256": "ed3c50c9fae353c930e7ba7162cc5c28c10347f4fde17b2147935ca1f7dce027"
+      "bytes": 66803,
+      "sha256": "c749dcead355ed25fb2625d2d3158d4c7235edc530da7018ec6885045080ace0"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/ncert-chemistry-source-typo/index.html",
-      "bytes": 74538,
-      "sha256": "2a4041abe20ee788df8c31f75fda831418cfde3d680359dcdac40529852d7378"
+      "bytes": 75482,
+      "sha256": "de7edcc8bdb3f532d814eca9dad518f3f65541e853813b72105697602aff6b9b"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/tamil-class-4-internal-organ/index.html",
-      "bytes": 73643,
-      "sha256": "003618c4b16f75cc5e0d4f43eff9a06684e09585cb962f1c78df6789c1b5981c"
+      "bytes": 74587,
+      "sha256": "2fc7af58a9b3e0f38cad37b671a21e964dabae143e8656b7b75474a6a7910317"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-001/index.html",
-      "bytes": 67696,
-      "sha256": "a6a91e0f7e0bdce4f2973a289bfc33b5dee0e0deabaf8833e1367206a797477c"
+      "bytes": 68640,
+      "sha256": "34df95aa8cb79f76a62e5fa0219d5b8c3108028e8c59169e701da45269b21949"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-002/index.html",
-      "bytes": 74336,
-      "sha256": "3bb7e60de6e14cf118192fbbac5662ec6faacbb86772ad5d5860943830bd034a"
+      "bytes": 75280,
+      "sha256": "2176807d16db27f46122ecaf0e1f74f5fc7d5895376209d09d4c401ec99678dd"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-003/index.html",
-      "bytes": 70598,
-      "sha256": "2645b89377b518b0e46791a7d3db8e8d3f82f3ada9747c68e6d5ca1c441803a2"
+      "bytes": 71542,
+      "sha256": "ce3711887201ad32eacb27c7a791e87310e0c9574535346da0cb01fd34ca7a70"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-004/index.html",
-      "bytes": 74225,
-      "sha256": "6e5835abbb67cc9e1f3e09f4fda30acd7266827bea3019a04fed5639295560e2"
+      "bytes": 75169,
+      "sha256": "e57e600115e6dde6cb1882f82d28721e8d94af6a40c8f3abe743771dffde1ca8"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-005/index.html",
-      "bytes": 75630,
-      "sha256": "8d4270a63e42365bbd7874f94f4763241e0f8abeaea2cb57af72d14f16c35604"
+      "bytes": 76574,
+      "sha256": "9acb1d0369fddf3f028151bd1bbb73a0a501e94e6799d8574b0d302810441a91"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-006/index.html",
-      "bytes": 75276,
-      "sha256": "df8bf4daef7906998273253350cead0a4736c46f7288b1d96e41daa8eb562386"
+      "bytes": 76220,
+      "sha256": "91146267266c3009be409295d1209f0fe80673f6bbd2c7e98a66fb845727c53e"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-007/index.html",
-      "bytes": 70140,
-      "sha256": "27ecdf200fa738c3cd7f7af650329484f1438d25f633e27b8d0c15f7b04819df"
+      "bytes": 71084,
+      "sha256": "669db9116de23c6cb3543dd8b2b02a90b471f7ce25713c4c9d0d535f5ba537c7"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-008/index.html",
-      "bytes": 71970,
-      "sha256": "9221b973f7aae29f9e42760d51a6c65c08edd5a912c38e8f4564c850d445760d"
+      "bytes": 72914,
+      "sha256": "998af4923d92cc641cef0cc0d233a0e48b0f637ee09270ceba0d8f3b41acb46e"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-009/index.html",
-      "bytes": 64204,
-      "sha256": "cc41b60ca21049190958b52e314235638ac7fda6b453caa72e96f377fdfaed70"
+      "bytes": 65148,
+      "sha256": "3b305aa1d1ab43c2a3a6091ade809c3e26bb5e79a75865d1a5f8eacdfea16adc"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-010/index.html",
-      "bytes": 74091,
-      "sha256": "a41a3518cc95a5a318e955f424ea0d03870c818ad13d5ec4d7b50ac0af43dda2"
+      "bytes": 75035,
+      "sha256": "392981203d57c3c3559d8d84954d387eb411940a0f5a0c37b9d0fbe6617b850c"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-011/index.html",
-      "bytes": 74446,
-      "sha256": "8d64d99d8ab02183fa24272362ba6778520324f236a544a7b0caa9fe74df33ab"
+      "bytes": 75390,
+      "sha256": "c450dc5eb5d5794ade2bef23de3c40d4fe55bffab2db468500fb993f120391f8"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-012/index.html",
-      "bytes": 76664,
-      "sha256": "063001e65b68b64b46d8c00d59c264800182186de1043b30381f952ad1d7be21"
+      "bytes": 77608,
+      "sha256": "b3f2185bb4bdc9ac699921b1fb92d5e6e3f178dc0bdf2ac8d6bb7e69795599d7"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-013/index.html",
-      "bytes": 73082,
-      "sha256": "0d39b720ad7ad677c1fd1892ee54ded49bcde8f98b33bd4c361bb18d79823d28"
+      "bytes": 74026,
+      "sha256": "d54ecb358f6e1b1000d54ba6922300ee143483b8aeff285ae5681041cb47e0d3"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-014/index.html",
-      "bytes": 74202,
-      "sha256": "e3b4943749c59f2fbbe3d8826ea0f26612fb08d288edfd5795badb23ba4f47ea"
+      "bytes": 75146,
+      "sha256": "bcda0abf07b1273fbfdbbaab5d12c13af505caa795e66a1b446ccd1442ca1549"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-015/index.html",
-      "bytes": 73737,
-      "sha256": "2896913f330eff0ef53bda64fa22935588d264ded91bda96019f087e40156f38"
+      "bytes": 74681,
+      "sha256": "d6b44650b796b666eafb8233d5cf1f2b4466964673206f5b75810197cca788bc"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-016/index.html",
-      "bytes": 76986,
-      "sha256": "715b3d5fb97f89410f4d0ae8a16b18087066018b58a5bd95940412c0e485a3b2"
+      "bytes": 77930,
+      "sha256": "3d2cd1e3a84de656cdf68ce2fbd42bf263ab327b556bc0037c10a28e2895caaa"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-017/index.html",
-      "bytes": 73768,
-      "sha256": "a12e4ea7258bcbeb0183f44363830b75eb56a92c14746f1c4e1559d9be052114"
+      "bytes": 74712,
+      "sha256": "aea34b080430096e5eb0ab00178f699fd6858b6d87a044b5007f4cb1d3aada68"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-018/index.html",
-      "bytes": 78850,
-      "sha256": "9ad53a9432c52eb38737e3b0f615500437304c86d908eaa0860b052b10090cfd"
+      "bytes": 79794,
+      "sha256": "f9a7182bea23d0d1b575342396727e4260afee03f0068afaaa7efc32da853951"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-019/index.html",
-      "bytes": 82713,
-      "sha256": "f3bbc973f6ae11ca3d927edab005413b79b461d68a1491a33b3a20a915b7e869"
+      "bytes": 83657,
+      "sha256": "5721835449ab473fab0f285c2353cd24a981989a022d5ecc5bf7cf46eba67220"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-020/index.html",
-      "bytes": 77926,
-      "sha256": "5d2f6fb967539494841419f9c94e49e00aefd1269d44d61c7334a0acc6a4a614"
+      "bytes": 78870,
+      "sha256": "25df53a4f8f0ca45952421ebe9f017f6d94084bdbcd728bf858027b37243ac34"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/electrostatics/q-msb-balbharati-physics-standard-12-8-021/index.html",
-      "bytes": 80879,
-      "sha256": "624d56700d5df332498b61446271e00a3ccaf2f14c40bbea8cc57c43b04a5447"
+      "bytes": 81823,
+      "sha256": "fa7b69cc66d772791953f5f813d1a80225791d31241fb0869307cf2ea78c5282"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/math/lr-circuit-question-120/index.html",
-      "bytes": 114509,
-      "sha256": "5093311b875d83c5daf7b710223fc39ab9b49fd162926fb767afce5be58ea002"
+      "bytes": 115453,
+      "sha256": "03ce53193389ec8cfc38da4a8cc1f96b8992cb29b69f7268acec3d432261c36f"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/board-maharashtra/index.html",
-      "bytes": 68499,
-      "sha256": "301e5fbd7f6512d4f090dfd1ab539158ba72d3f7103a076ff9a6cf7373d7e232"
+      "bytes": 69443,
+      "sha256": "18b0f1e5eab3166964e4da3999f0e3409e240b115cf5e084e8673ce99e329078"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/default/index.html",
-      "bytes": 38464,
-      "sha256": "8da9c6c1f4b7fc7cf065b9d1d81d87d9c7dea91899574491a4759c2f103b5a5f"
+      "bytes": 39408,
+      "sha256": "29bfdb2713133c69f020ffe5b2f7d58cf3794a49c8f2a24564c8c142328040b1"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/has-diagram/index.html",
-      "bytes": 66107,
-      "sha256": "611da0fc5ee3c131d440edbbe7fd0dd4797cab3bdcd1cbdb47af6778bb67723f"
+      "bytes": 67051,
+      "sha256": "8113adf89bb0d8ebe04954362f88954e33dd20454eb0f8fd52d11f8341c85a06"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-mcq-single/index.html",
-      "bytes": 65144,
-      "sha256": "0a23b5dba01c45430fd2f92e100f65e3fc4140faa74b4bdb93ef9450627cd4e1"
+      "bytes": 66088,
+      "sha256": "c34b836fbbf61e27df0c14cbc999467277cb59b9e7b9db2db0e6a2850742aff2"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-numerical/index.html",
-      "bytes": 68448,
-      "sha256": "811f4e7abd4db013b6f9451f9ead7d81369e62572b513a7e1412f5b8020c798a"
+      "bytes": 69392,
+      "sha256": "06dd2eeef47df5b5d911d7581c1699681ab641a06926e20ca1d19732917324ab"
     },
     {
       "path": "comparison/after-assets/pages/maharashtra-board/class-12/index.html",
@@ -87160,78 +87175,78 @@
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/answer-writing/index.html",
-      "bytes": 27002,
-      "sha256": "ecab1cb408022c2550a75766825aa7106e098531ec0cba130191ec2217ad37ff"
+      "bytes": 27302,
+      "sha256": "f45aba02e6d580b635fe9504cb2b9860d081d0d32efbda8c625c1f512dc02630"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
-      "bytes": 55388,
-      "sha256": "b061f0be52f351b6291019589df7420e1869deb4fdae0a4bf3ed3383745d8569"
+      "bytes": 55705,
+      "sha256": "f3cd1352d9d1f373d04a1f8325b6728694eb026c2562017368f62add2ea6fdba"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
-      "bytes": 27018,
-      "sha256": "2d753da256f0b0837751e9c3f625af7c80a88aad427f1a0365a11f726df24565"
+      "bytes": 27318,
+      "sha256": "e9a126d341586525ecb908a84bc17502d06118fbd1e8b5c8c5a562edac75354a"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-series/index.html",
-      "bytes": 27126,
-      "sha256": "674698b3b120815c27faf64742b279906318b8b1354a13230881639da6d2f724"
+      "bytes": 27426,
+      "sha256": "35f237df2a9af0d596c5968559610eecacfedeb0867cf0b2f1f3a37f3885f7ba"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/coulombs-law/index.html",
-      "bytes": 27171,
-      "sha256": "cbe145b79b8e64799e45f4505a6b1ca6dcda0925b7cbcb18ce8828be8844563b"
+      "bytes": 27471,
+      "sha256": "44349c2f194d825cffe4ebffc5c1a656b885e5006e8677f3ff64309cecbc7523"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/dielectric-slab-in-capacitor/index.html",
-      "bytes": 26611,
-      "sha256": "bbe60de93e58269fb03a7efb009dc6f4bad34c2eb55d62ab823fcbd7c10174cd"
+      "bytes": 26911,
+      "sha256": "79e8991c656dfcd193045876f07d4ba844a0aa2af2acf5b5dc49928261851e31"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/electric-potential/index.html",
-      "bytes": 29463,
-      "sha256": "f95467af4fe570755aa2ac459fbb107433780f328a2e2c99976cf31fdb2eec67"
+      "bytes": 29763,
+      "sha256": "4ced5dca96098060a52f016b512721883f37e8ffbf67b3b0a522f9a91ba788ac"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/energy-stored-in-capacitor/index.html",
-      "bytes": 27316,
-      "sha256": "a31f7b05d622b4a89f9fdbc1b5e052b9b7815d9977b1ddfbc8792c4c5b3de3c9"
+      "bytes": 27616,
+      "sha256": "2ca4ae4fdd699675c8f1d1c4f163b7839c9268f6a7fc5a5b8f00caa1d0917dea"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/gauss-law/index.html",
-      "bytes": 27688,
-      "sha256": "7ca5d2aecf7844a2708cd8504a57ba297c82603200f90d276ca0f4717d238a6e"
+      "bytes": 27988,
+      "sha256": "cf42e0c36a37de309569d463d05da5be271f122a17ca51f1526b8a9e0544ee17"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/parallel-plate-capacitance/index.html",
-      "bytes": 26590,
-      "sha256": "e2d8ed960f9fc69c93559e85208347ed4cc0649f79661943ce74b52520190e9e"
+      "bytes": 26890,
+      "sha256": "118360b4c2008d4d2aa3eb7b80b2eecb8f9c04c7b4efee809f9f7b688e4262a1"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/important-questions/index.html",
-      "bytes": 26171,
-      "sha256": "08ca62f30dc116fc39b4b6dfbe1c6065795aa13274013565201681ea8c3d607a"
+      "bytes": 26471,
+      "sha256": "b8015b0855941a2879b2accf8a7df500f1a9b26ec8fe16ada3825d4431072e41"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/practice/index.html",
-      "bytes": 30381,
-      "sha256": "027339d5764278dad14ea40474185289cce585eb019abaa872dc5fe3ccfc6cae"
+      "bytes": 30681,
+      "sha256": "f6e234ef621656d5b907a355a0b62f909adfb32a19dd794c43215a8918267a92"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/previous-year-questions/index.html",
-      "bytes": 24211,
-      "sha256": "bfaa299c88c175cfc60bba7797ae104a631a9251daee8dd15b2dabdfc55643f8"
+      "bytes": 24511,
+      "sha256": "00c70e7f595acdc6791e8ebc49af371f674d547b4c1620474d61b1b27e4b1d66"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/revision/index.html",
-      "bytes": 33327,
-      "sha256": "b1f2731ed7bb7717f645bf2ebfcf70515e287a2fd55044130adfc3b0e086ec42"
+      "bytes": 33627,
+      "sha256": "c26b3f424d2cf1fb8b00170b44c21f77fbec0121fd6007696adca0ce4daa980d"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/study/index.html",
-      "bytes": 28173,
-      "sha256": "274b68ccdec02285037781062bbfacc2059dbc66116d2d29e59950227a74fbcb"
+      "bytes": 28473,
+      "sha256": "19b4e7695687176c3f44638fbc97f50e0e3ae3f78da1db6dcce68cbe98f7a8c5"
     },
     {
       "path": "comparison/after-assets/pages/tamil-nadu-board/index.html",
@@ -87645,8 +87660,8 @@
     },
     {
       "path": "semantic-math.mjs",
-      "bytes": 85561,
-      "sha256": "084a5d41dc6c56cd3423d1dead1a90bead2d8d251314c0b2d4e8b96b1e706d2d"
+      "bytes": 86895,
+      "sha256": "88959a19fc2759bda08d6203e2d8ae885a8953f2911f91965424d23d8f7f4a12"
     },
     {
       "path": "source-correction-ledger.mjs",
@@ -87689,5 +87704,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "5658e534025c175568a76e162212818a1c6d855e2aee3e041e6c5ef2f638c082"
+  "aggregateSha256": "824cb763c28754f68cd68ecc243996b8adbe44c185709eeb2cddc524c6ee08d2"
 }
