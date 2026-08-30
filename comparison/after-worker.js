@@ -1363,10 +1363,21 @@ function standaloneQuestionHeader(row, route) {
   return `<a class="skip-link" href="#main-content">Skip to content</a><header class="site-header"><div class="shell header-inner"><a class="brand" href="/" aria-label="StudyWudy home"><span aria-hidden="true" class="brand-mark" data-nosnippet></span><span>Study<span>Wudy</span></span></a><nav aria-label="Primary navigation" class="desktop-nav"><a href="/boards">Boards</a><a href="/${escapeHtmlAttribute(route.board)}/${escapeHtmlAttribute(route.grade)}">Classes</a><a href="/${escapeHtmlAttribute(route.board)}/${escapeHtmlAttribute(route.grade)}/${escapeHtmlAttribute(route.subject)}">Subjects</a><a href="/search">Question bank</a></nav><div class="header-actions"><a aria-label="Search StudyWudy" class="icon-button" href="/search"><span aria-hidden="true">⌕</span></a><a class="small-button" href="/boards">Start studying</a><a aria-label="Browse study sections" class="menu-button" href="/boards"><span aria-hidden="true">☰</span></a></div></div></header>`;
 }
 
-function standaloneQuestionChapterRail(row, route) {
+// The rail carries the previous and next questions either side of the current
+// one. It is the same pair `standalonePriorityQuestionPagination` renders in the
+// main column, so the rail follows textbook order rather than publishing
+// eligibility for the same reason that does: eligibility governs recommendations
+// and indexing, not whether a student can step to the adjacent source question.
+function standaloneQuestionChapterRail(row, route, navigation = null) {
   const chapterHref = `/${route.board}/${route.grade}/${route.subject}/${route.book}/${route.chapter}`;
   const chapterNumber = String(Number(row.chapter_number) || "").padStart(2, "0");
-  return `<aside aria-label="Chapter question navigation" class="question-chapter-rail"><span>Chapter ${chapterNumber}</span><strong>${escapeHtmlAttribute(row.chapter_title)}</strong><nav aria-label="Current question"><b aria-current="page">Question ${escapeHtmlAttribute(row.display_label)}</b></nav><a href="${escapeHtmlAttribute(chapterHref)}">← All chapter questions</a></aside>`;
+  const previous = navigation?.previous
+    ? `<a href="${escapeHtmlAttribute(navigation.previous.href)}">← Question ${escapeHtmlAttribute(navigation.previous.label)}</a>`
+    : "";
+  const next = navigation?.next
+    ? `<a href="${escapeHtmlAttribute(navigation.next.href)}">Question ${escapeHtmlAttribute(navigation.next.label)} →</a>`
+    : "";
+  return `<aside aria-label="Chapter question navigation" class="question-chapter-rail"><span>Chapter ${chapterNumber}</span><strong>${escapeHtmlAttribute(row.chapter_title)}</strong><nav aria-label="Nearby questions">${previous}<b aria-current="page">Question ${escapeHtmlAttribute(row.display_label)}</b>${next}</nav><a href="${escapeHtmlAttribute(chapterHref)}">← All chapter questions</a></aside>`;
 }
 
 function standaloneQuestionContext(row, route) {
@@ -1379,13 +1390,18 @@ function standaloneQuestionFooter() {
   return `<footer class="site-footer"><div class="footer-banner"><div class="shell"><strong><span aria-hidden="true">★</span> Learn in textbook order. Understand every answer.</strong><div aria-label="StudyWudy benefits" role="list"><span role="listitem">Free to study</span><span role="listitem">17 question types</span><span role="listitem">Made for mobile</span></div></div></div><div class="shell footer-grid"><div class="footer-intro"><a class="brand brand-footer" href="/" aria-label="StudyWudy home"><span aria-hidden="true" class="brand-mark" data-nosnippet></span><span>Study<span>Wudy</span></span></a><p class="footer-eyebrow">Clear answers for curious students</p><h2>One clear answer away from understanding it.</h2><p class="footer-note">Board-wise textbook solutions, kept in the same order as your classroom and your book.</p><a class="footer-cta" href="/boards">Find my textbook <span aria-hidden="true">→</span></a></div><nav aria-label="Footer navigation" class="footer-nav"><div><h2>Explore</h2><a href="/boards">Browse all boards <span aria-hidden="true">→</span></a><a href="/search">Question bank <span aria-hidden="true">→</span></a></div><div><h2>Study promise</h2><p><span aria-hidden="true">✓</span> Free to study</p><p><span aria-hidden="true">✓</span> Textbook order</p><p><span aria-hidden="true">✓</span> Mobile friendly</p></div><div class="phase5-native-links"><h2>About</h2><a href="/about/methodology">About &amp; Methodology <span aria-hidden="true">→</span></a><a href="/reviewers">Reviewer registry <span aria-hidden="true">→</span></a><a href="/corrections">Corrections history <span aria-hidden="true">→</span></a><a href="/privacy">Privacy Policy <span aria-hidden="true">→</span></a><a href="/terms">Terms of Service <span aria-hidden="true">→</span></a><a href="/contact">Contact Us <span aria-hidden="true">→</span></a></div></nav></div><div class="shell footer-bottom"><span>© 2026 StudyWudy · Built for curious students.</span><span class="footer-made"><i aria-hidden="true">★</i> Made for students across India</span><a href="#main-content">Back to top <span aria-hidden="true">↑</span></a></div></footer>`;
 }
 
+// `row.book_slug` and `row.book_id` are only set on the same-subject fallback
+// rows, which come from a different textbook than the page being rendered. Every
+// other caller passes rows from `catalog.book_id`, so the route stays the source
+// of truth there and these hrefs are unchanged.
 function standaloneRelatedQuestionHref(row, route) {
-  return `/${route.board}/${route.grade}/${route.subject}/${route.book}/${row.chapter_slug}/questions/${row.question_id}`;
+  return `/${route.board}/${route.grade}/${route.subject}/${row.book_slug || route.book}/${row.chapter_slug}/questions/${row.question_id}`;
 }
 
 function standaloneRelatedQuestionModel(row, catalog, route, mediaIndex = {}) {
   const type = normalizedQuestionType(row);
-  const prompt = truncateSearchExcerpt(createPlainSearchText(repairKnownText(catalog.book_id, row.prompt_text)), 170);
+  const bookId = row.book_id || catalog.book_id;
+  const prompt = truncateSearchExcerpt(createPlainSearchText(repairKnownText(bookId, row.prompt_text)), 170);
   const mediaItem = mediaIndex[String(row.row_id)];
   const mediaSource = mediaItem?.url || mediaItem?.fallbackUrl || "";
   const mediaAlt = String(mediaItem?.alt || "").trim();
@@ -1399,10 +1415,11 @@ function standaloneRelatedQuestionModel(row, catalog, route, mediaIndex = {}) {
       QUESTION_TYPE_LABELS[type] || "Textbook answer",
     ),
     chapter: reviewedChapterTitle(
-      catalog.book_id,
+      bookId,
       row.chapter_slug,
-      repairKnownText(catalog.book_id, row.chapter_title),
+      repairKnownText(bookId, row.chapter_title),
     ),
+    fromAnotherBook: Boolean(row.book_slug) && row.book_slug !== route.book,
     prompt,
     media: mediaSource ? Object.freeze({
       src: standaloneMediaUrl(mediaSource),
@@ -1415,6 +1432,15 @@ function standaloneRelatedQuestionModel(row, catalog, route, mediaIndex = {}) {
   });
 }
 
+// Both windows used to be narrow enough that a chapter or textbook with a low
+// publish rate could hand back candidates that were entirely ineligible: 51
+// published pages rendered no related-question section at all and 1,956 came in
+// under the target from `relatedQuestionTargetCount`. Widening to 128/192 covers
+// all but 87 of them; past that the extra prompt text costs more per request than
+// the remaining pages are worth, so the tail is served by the same-subject
+// fallback below instead.
+const STANDALONE_SAME_CHAPTER_WINDOW = 128;
+const STANDALONE_SAME_TEXTBOOK_WINDOW = 192;
 async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
   if (!env.DB?.batch) return Object.freeze({
     sameChapter: Object.freeze([]),
@@ -1430,10 +1456,10 @@ async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
       env.DB.batch([
         env.DB.prepare(`${projection}
         WHERE q.book_id = ? AND q.chapter_slug = ? AND q.row_id != ?
-        ORDER BY ABS(q.row_id - ?) LIMIT 64`).bind(catalog.book_id, route.chapter, rowId, rowId),
+        ORDER BY ABS(q.row_id - ?) LIMIT ${STANDALONE_SAME_CHAPTER_WINDOW}`).bind(catalog.book_id, route.chapter, rowId, rowId),
         env.DB.prepare(`${projection}
         WHERE q.book_id = ? AND q.chapter_slug != ? AND q.row_id != ?
-        ORDER BY ABS(q.row_id - ?) LIMIT 96`).bind(catalog.book_id, route.chapter, rowId, rowId),
+        ORDER BY ABS(q.row_id - ?) LIMIT ${STANDALONE_SAME_TEXTBOOK_WINDOW}`).bind(catalog.book_id, route.chapter, rowId, rowId),
       ]),
       loadRelatedQuestionMediaIndex(env, catalog.book_id),
     ]);
@@ -1454,8 +1480,46 @@ async function standaloneEligibleRelatedQuestions(env, catalog, route, rowId) {
       ...eligibleSameChapterRows.filter((row) => !used.has(Number(row.row_id))),
     ].filter((row, index, rows) => rows.findIndex((candidate) => Number(candidate.row_id) === Number(row.row_id)) === index)
       .slice(0, relatedTargetCount);
+    // A textbook can be too sparsely published to reach its own target — worst
+    // case a single eligible question in the whole book. Those pages borrow from
+    // the rest of the subject at the same class level, which is the nearest
+    // genuinely related material. This second round trip fires on roughly 0.35%
+    // of pages; the primary path is unchanged.
+    let borrowedFromSubject = 0;
+    if (relatedRows.length < relatedTargetCount) {
+      const seen = new Set(relatedRows.map((row) => Number(row.row_id)));
+      const fallback = await env.DB.prepare(`SELECT q.row_id, q.question_id, q.display_label, q.type,
+        q.prompt_text, q.chapter_slug, q.book_id, c.title AS chapter_title, b.slug AS book_slug
+        FROM catalog_questions q
+        JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
+        JOIN catalog_books b ON b.id = q.book_id
+        WHERE b.board_slug = ? AND b.grade_slug = ? AND b.subject_slug = ? AND q.book_id != ?
+        ORDER BY ABS(q.row_id - ?) LIMIT ?`)
+        .bind(route.board, route.grade, route.subject, catalog.book_id, rowId, relatedTargetCount * 6)
+        .all();
+      for (const row of (fallback?.results || []).filter(eligible)) {
+        if (relatedRows.length >= relatedTargetCount) break;
+        if (seen.has(Number(row.row_id))) continue;
+        seen.add(Number(row.row_id));
+        relatedRows.push(row);
+        borrowedFromSubject += 1;
+      }
+    }
+    if (relatedRows.length < relatedTargetCount) {
+      // Distinct from `standalone_related_questions_failed`: nothing threw, the
+      // subject simply does not publish enough questions yet. Both used to be
+      // invisible, which is why the shortfall went unnoticed.
+      console.warn(JSON.stringify({
+        event: "standalone_related_questions_short",
+        questionId: route.question,
+        bookId: catalog.book_id,
+        found: relatedRows.length,
+        target: relatedTargetCount,
+        borrowedFromSubject,
+      }));
+    }
     const sameTextbook = relatedRows.map((row) => standaloneRelatedQuestionModel(row, catalog, route, mediaIndex));
-    const relatedIncludesSameChapter = relatedRows.some((row) => row.chapter_slug === route.chapter);
+    const relatedIncludesSameChapter = relatedRows.some((row) => row.chapter_slug === route.chapter && !row.book_slug);
     // Pagination follows the actual textbook order, including review-held
     // pages. Publishing eligibility controls recommendations and indexing,
     // not whether a student can move to the adjacent source question.
@@ -1492,11 +1556,17 @@ function standaloneRelatedQuestionMedia(card) {
 }
 
 function standaloneRelatedQuestionSections(recommendations, catalog, route) {
+  // Sparsely published textbooks top the list up from the rest of the subject, so
+  // the count line cannot claim every card comes from this book.
+  const borrowedCount = recommendations.sameTextbook.filter((card) => card.fromAnotherBook).length;
+  const relatedSummary = borrowedCount
+    ? `${recommendations.sameTextbook.length} questions from this textbook and other ${escapeHtmlAttribute(catalog.subject_name)} books for ${escapeHtmlAttribute(catalog.grade_label)}.`
+    : `${recommendations.sameTextbook.length} questions from this textbook.`;
   const sameChapter = recommendations.sameChapter.length
     ? `<section class="question-exercise-related" aria-labelledby="same-chapter-heading"><header><span>Same chapter</span><h2 id="same-chapter-heading">More questions from ${escapeHtmlAttribute(catalog.chapter_title)}</h2></header><div>${recommendations.sameChapter.map((card) => `<a class="question-exercise-card${card.media ? " has-related-media" : ""}" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span>${escapeHtmlAttribute(card.typeLabel)}</span><strong>Question ${escapeHtmlAttribute(card.label)}</strong><p>${escapeHtmlAttribute(card.prompt)}</p>${standaloneRelatedQuestionMedia(card)}<b>View answer →</b></a>`).join("")}</div></section>`
     : "";
   const sameTextbook = recommendations.sameTextbook.length
-    ? `<section class="related-questions" aria-labelledby="related-questions-heading" data-related-question-count="${recommendations.sameTextbook.length}" data-related-question-target="${Number(recommendations.relatedTargetCount) || recommendations.sameTextbook.length}"><header class="related-questions-heading"><div><span aria-hidden="true">+</span><div><small>Keep learning</small><h2 id="related-questions-heading">Related questions</h2></div></div><p>${recommendations.sameTextbook.length} questions from this textbook.</p></header><div class="related-question-grid">${recommendations.sameTextbook.map((card) => `<a class="related-question-link${card.media ? " has-related-media" : ""}" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span class="related-question-number">Q ${escapeHtmlAttribute(card.label)}</span>${standaloneRelatedQuestionMedia(card)}<div class="related-question-preview"><div class="related-question-copy">${escapeHtmlAttribute(card.prompt)}</div><small>${escapeHtmlAttribute(card.chapter)}</small></div><b><span>Open</span> →</b></a>`).join("")}</div></section>`
+    ? `<section class="related-questions" aria-labelledby="related-questions-heading" data-related-question-count="${recommendations.sameTextbook.length}" data-related-question-target="${Number(recommendations.relatedTargetCount) || recommendations.sameTextbook.length}"><header class="related-questions-heading"><div><span aria-hidden="true">+</span><div><small>Keep learning</small><h2 id="related-questions-heading">Related questions</h2></div></div><p>${relatedSummary}</p></header><div class="related-question-grid">${recommendations.sameTextbook.map((card) => `<a class="related-question-link${card.media ? " has-related-media" : ""}" href="${escapeHtmlAttribute(card.href)}" data-related-question-row-id="${card.rowId}"><span class="related-question-number">Q ${escapeHtmlAttribute(card.label)}</span>${standaloneRelatedQuestionMedia(card)}<div class="related-question-preview"><div class="related-question-copy">${escapeHtmlAttribute(card.prompt)}</div><small>${escapeHtmlAttribute(card.chapter)}</small></div><b><span>Open</span> →</b></a>`).join("")}</div></section>`
     : "";
   return Object.freeze({ sameChapter, sameTextbook, relatedIncludesSameChapter: Boolean(recommendations.relatedIncludesSameChapter) });
 }
@@ -1781,7 +1851,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const sitewideFlow = `${questionArticle}${standalonePriorityQuestionPagination(relatedQuestions.navigation, catalog, route)}${priorityPrimaryRelated}${priorityFollowOn}`;
   const priorityAttribute = ' data-studywudy-question-priority="pilot-v1" data-studywudy-question-structure="sitewide-v1"';
   const heroSummary = "";
-  const layoutSidebars = standaloneQuestionChapterRail(catalog, route);
+  const layoutSidebars = standaloneQuestionChapterRail(catalog, route, relatedQuestions.navigation);
   const contextSidebar = standaloneQuestionContext(catalog, route);
   const mainFlow = sitewideFlow;
   const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}"><meta name="twitter:description" content="${escapeHtmlAttribute(description)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}${QUESTION_COLUMN_TABLE_STYLES}${HORIZONTAL_SCROLL_CUE_STYLES}<script type="application/ld+json">${breadcrumbSchema}</script><script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1"${priorityAttribute}>${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(mainHeading)}"${snippetExclusion}>${standaloneQuestionInline(mainHeading, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${heroSummary}</section><div class="shell answer-page-layout">${layoutSidebars}<div class="answer-page-main">${mainFlow}</div>${contextSidebar}</div></main>${standaloneQuestionFooter()}${HORIZONTAL_SCROLL_CUE_RUNTIME}</body></html>`;

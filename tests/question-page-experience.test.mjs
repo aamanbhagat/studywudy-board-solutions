@@ -424,8 +424,19 @@ test("the bounded renderer restores publishing-gated related question sections",
   assert.match(source, /sameExerciseOrChapter/);
   assert.match(source, /relatedQuestionSections\.sameTextbook/);
   assert.match(source, /standalone_related_questions_failed/);
-  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 64/);
-  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT 96/);
+  // A short candidate pool is not an error and must not be logged as one: it was
+  // indistinguishable from a thrown query while 1,956 pages silently came in
+  // under target.
+  assert.match(source, /standalone_related_questions_short/u);
+  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT \$\{STANDALONE_SAME_CHAPTER_WINDOW\}/u);
+  assert.match(source, /ORDER BY ABS\(q\.row_id - \?\) LIMIT \$\{STANDALONE_SAME_TEXTBOOK_WINDOW\}/u);
+  assert.match(source, /const STANDALONE_SAME_CHAPTER_WINDOW = 128;/u);
+  assert.match(source, /const STANDALONE_SAME_TEXTBOOK_WINDOW = 192;/u);
+  // Textbooks too sparsely published to fill their own target borrow from the
+  // rest of the subject, so those cards carry their own book slug and must not
+  // be linked through the current route's book.
+  assert.match(source, /b\.slug AS book_slug/u);
+  assert.match(source, /row\.book_slug \|\| route\.book/u);
   assert.match(source, /relatedQuestionTargetCount\(\{ rowId, questionId: route\.question \}\)/u);
   assert.match(source, /\.slice\(0, relatedTargetCount\)/u);
   assert.match(source, /data-related-question-count=/u);
@@ -458,7 +469,13 @@ test("every bounded question page keeps the original layout and places paginatio
   assert.match(source, /Publishing eligibility controls recommendations and indexing/u);
   assert.match(source, /"x-studywudy-question-experience": "sitewide-question-first-v1"/u);
   assert.match(source, /heroSummary = ""/u);
-  assert.match(source, /layoutSidebars = standaloneQuestionChapterRail\(catalog, route\)/u);
+  assert.match(source, /layoutSidebars = standaloneQuestionChapterRail\(catalog, route, relatedQuestions\.navigation\)/u);
+  // The rail's <nav> used to hold only the current question, so no sibling link
+  // was ever emitted on any page while the stylesheet still carried the rules
+  // for the links. It takes the same neighbours as the in-column pagination.
+  assert.match(source, /<nav aria-label="Nearby questions">\$\{previous\}<b aria-current="page">Question \$\{escapeHtmlAttribute\(row\.display_label\)\}<\/b>\$\{next\}<\/nav>/u);
+  assert.match(source, /navigation\?\.previous[\s\S]*?← Question \$\{escapeHtmlAttribute\(navigation\.previous\.label\)\}/u);
+  assert.match(source, /navigation\?\.next[\s\S]*?Question \$\{escapeHtmlAttribute\(navigation\.next\.label\)\} →/u);
   assert.match(source, /contextSidebar = standaloneQuestionContext\(catalog, route\)/u);
   assert.doesNotMatch(source, /data-studywudy-question-priority="pilot-v1"\] \.answer-page-layout\{display:block\}/u);
   assert.doesNotMatch(source, /data-studywudy-question-priority="pilot-v1"\] \.question-chapter-rail[^\n]*display:none/u);
