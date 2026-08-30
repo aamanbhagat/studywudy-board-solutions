@@ -76,17 +76,31 @@ for (const [template, path] of pages) {
       mcqOptionButtonCount: document.querySelectorAll(".choice-list button").length,
       tabRoleCount: document.querySelectorAll('[role="tab"], [role="tablist"]').length,
       focusableDemoLabels: document.querySelectorAll('.demo-tabs [tabindex], .demo-tabs button, .demo-tabs [role="tab"]').length,
+      solutionTabLists: document.querySelectorAll(".solution-body .solution-tab-list").length,
+      solutionTabs: document.querySelectorAll(".solution-body .solution-tab").length,
+      solutionPanels: document.querySelectorAll(".solution-body .solution-tab-panel").length,
+      // The panels ship visible; only the runtime hides the inactive ones. If a
+      // panel were ever absent from the DOM the answer text would be JS-gated.
+      solutionPanelText: [...document.querySelectorAll(".solution-body .solution-tab-panel")]
+        .map((panel) => panel.textContent.trim().length),
+      themeTogglePresent: Boolean(document.querySelector("[data-studywudy-theme-toggle]")),
     }));
 
     const failures = [];
     if (response?.status() !== 200) failures.push(`status ${response?.status()}`);
     if (runtimeErrors.length) failures.push(`${runtimeErrors.length} runtime errors`);
     if (!sequence.some((item) => item.inHeader)) failures.push("header navigation is not keyboard reachable");
-    if (!sequence.some((item) => item.isThemeToggle)) failures.push("theme toggle is not keyboard reachable");
+    if (state.themeTogglePresent && !sequence.some((item) => item.isThemeToggle)) failures.push("theme toggle is not keyboard reachable");
+    // `outline-style: auto` is the browser's own focus ring. Chromium reports its
+    // computed width as either 1px or 3px for the same element from one run to the
+    // next, so measuring the width there flags a perfectly visible ring about half
+    // the time; only an authored outline gets the width test.
+    const hasVisibleFocusRing = (item) => item.boxShadow !== "none"
+      || item.outlineStyle === "auto"
+      || (item.outlineStyle !== "none" && (Number.parseFloat(item.outlineWidth) || 0) >= 2);
     for (const item of sequence) {
       if (!item.label) failures.push(`unnamed keyboard target: ${item.tag}.${item.classes.join(".")}`);
-      const outlineWidth = Number.parseFloat(item.outlineWidth) || 0;
-      if (!item.isSearchInput && (item.outlineStyle === "none" || outlineWidth < 2) && item.boxShadow === "none") {
+      if (!item.isSearchInput && !hasVisibleFocusRing(item)) {
         failures.push(`no visible focus indicator: ${item.tag}.${item.classes.join(".")}`);
       }
     }
@@ -99,9 +113,9 @@ for (const [template, path] of pages) {
       await page.waitForTimeout(50);
       const searchFocus = await searchInput.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { outlineStyle: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth) || 0 };
+        return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, boxShadow: style.boxShadow };
       });
-      if (searchFocus.outlineStyle === "none" || searchFocus.outlineWidth < 2) failures.push("search input has no visible focus indicator");
+      if (!hasVisibleFocusRing(searchFocus)) failures.push("search input has no visible focus indicator");
       await searchInput.fill("electrostatics");
       await Promise.all([
         page.waitForNavigation({ waitUntil: "load", timeout: 45_000 }),
@@ -114,22 +128,66 @@ for (const [template, path] of pages) {
       if (!state.mcqOptionCount) failures.push("MCQ options are missing");
       if (state.mcqOptionButtonCount) failures.push("read-only answer options unexpectedly expose quiz buttons");
     }
-    if (template.startsWith("question") && state.tabRoleCount) failures.push("question page exposes undocumented solution tabs");
+    // The solution pane ships its answer views as a tabset. Every panel is in the
+    // DOM and carries its text before solution-tabs.js runs, so the checks below
+    // are about the keyboard contract, not about whether the answer is present.
+    let solutionTabKeyboard = null;
+    if (template.startsWith("question") && state.solutionTabLists) {
+      if (state.solutionTabs !== state.solutionPanels) failures.push(`solution tabset has ${state.solutionTabs} labels for ${state.solutionPanels} panels`);
+      if (state.solutionPanelText.some((length) => !length)) failures.push("a solution panel rendered with no text");
+      if (!state.tabRoleCount) failures.push("solution tabset was never promoted to a tablist");
+
+      const tabs = page.locator(".solution-body .solution-tab");
+      await tabs.first().focus();
+      const focusedFirst = await page.evaluate(() => document.activeElement?.dataset.solutionTab ?? null);
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(50);
+      solutionTabKeyboard = await page.evaluate(() => {
+        const list = document.querySelector(".solution-body .solution-tab-list");
+        const all = [...document.querySelectorAll(".solution-body .solution-tab")];
+        const active = document.querySelector(".solution-body .solution-tab.is-active");
+        return {
+          listRole: list?.getAttribute("role") ?? null,
+          focused: document.activeElement?.dataset.solutionTab ?? null,
+          activeTab: active?.dataset.solutionTab ?? null,
+          selected: all.filter((tab) => tab.getAttribute("aria-selected") === "true").length,
+          // Roving tabindex: exactly one tab in the tab order at a time.
+          inTabOrder: all.filter((tab) => tab.tabIndex === 0).length,
+          activePanels: document.querySelectorAll(".solution-body .solution-tab-panel.is-active").length,
+          visiblePanels: [...document.querySelectorAll(".solution-body .solution-tab-panel")]
+            .filter((panel) => panel.getBoundingClientRect().height > 0).length,
+        };
+      });
+      solutionTabKeyboard.focusedBeforeArrow = focusedFirst;
+      if (solutionTabKeyboard.listRole !== "tablist") failures.push("solution tab list is not exposed as a tablist");
+      if (solutionTabKeyboard.focused === focusedFirst) failures.push("ArrowRight did not move focus between solution tabs");
+      if (solutionTabKeyboard.focused !== solutionTabKeyboard.activeTab) failures.push("arrow-key focus and the active solution panel disagree");
+      if (solutionTabKeyboard.selected !== 1) failures.push(`${solutionTabKeyboard.selected} solution tabs report aria-selected="true"`);
+      if (solutionTabKeyboard.inTabOrder !== 1) failures.push(`${solutionTabKeyboard.inTabOrder} solution tabs are in the tab order`);
+      if (solutionTabKeyboard.activePanels !== 1) failures.push(`${solutionTabKeyboard.activePanels} solution panels are active`);
+      if (solutionTabKeyboard.visiblePanels !== 1) failures.push(`${solutionTabKeyboard.visiblePanels} solution panels are visible after enhancement`);
+    }
     if (template === "homepage" && state.focusableDemoLabels) failures.push("illustrative homepage answer labels are falsely keyboard-focusable");
 
-    const themeToggle = page.locator("[data-studywudy-theme-toggle]");
-    await themeToggle.focus();
-    await page.keyboard.press("Space");
-    const toggled = await page.evaluate(() => ({
-      theme: document.documentElement.dataset.theme,
-      label: document.querySelector("[data-studywudy-theme-toggle]")?.getAttribute("aria-label"),
-      pressed: document.querySelector("[data-studywudy-theme-toggle]")?.getAttribute("aria-pressed"),
-    }));
-    if (toggled.theme !== "dark" || toggled.pressed !== "true" || toggled.label !== "Switch to light mode") {
-      failures.push("theme toggle did not activate correctly from the keyboard");
+    // The theme toggle was retired from the shipped header after this audit was
+    // written; record its absence rather than failing on it, and keep the
+    // keyboard contract checked for as long as the control exists.
+    let toggled = null;
+    if (state.themeTogglePresent) {
+      const themeToggle = page.locator("[data-studywudy-theme-toggle]");
+      await themeToggle.focus();
+      await page.keyboard.press("Space");
+      toggled = await page.evaluate(() => ({
+        theme: document.documentElement.dataset.theme,
+        label: document.querySelector("[data-studywudy-theme-toggle]")?.getAttribute("aria-label"),
+        pressed: document.querySelector("[data-studywudy-theme-toggle]")?.getAttribute("aria-pressed"),
+      }));
+      if (toggled.theme !== "dark" || toggled.pressed !== "true" || toggled.label !== "Switch to light mode") {
+        failures.push("theme toggle did not activate correctly from the keyboard");
+      }
     }
 
-    runs.push({ template, path, viewport, status: response?.status() ?? null, sequence, state, toggled, runtimeErrors, failures });
+    runs.push({ template, path, viewport, status: response?.status() ?? null, sequence, state, solutionTabKeyboard, toggled, runtimeErrors, failures });
     process.stdout.write(`${template.padEnd(20)} ${String(viewport.width).padStart(4)}px targets=${String(sequence.length).padStart(2)} failures=${failures.length}\n`);
     await context.close();
   }
@@ -141,7 +199,8 @@ const report = {
   origin,
   interpretation: {
     mcq: "Options on published solution pages are read-only answer content, not an interactive quiz; no MCQ option buttons exist.",
-    solutionTabs: "No live question format exposes a tablist. Homepage labels are a non-interactive illustrative group and are removed from the tab order.",
+    solutionTabs: "Question pages render their answer views as a tabset inside the existing .solution-body. Every panel ships visible and in source order, and solution-tabs.js then promotes the labels to a tablist with roving tabindex and arrow-key navigation. A question with a single available view renders no tablist. Homepage labels remain a non-interactive illustrative group and stay out of the tab order.",
+    themeToggle: "The header theme toggle was retired after this audit was first written; runs record themeTogglePresent so its absence is visible rather than silently passing.",
   },
   runs,
   failures: runs.flatMap((run) => run.failures.map((failure) => ({ template: run.template, viewport: run.viewport, failure }))),
