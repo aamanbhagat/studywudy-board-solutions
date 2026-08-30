@@ -292,6 +292,8 @@ const HOMEPAGE_FINDER_RUNTIME = `<script src="/home-finder.js?v=${PHASE_2_VERSIO
 const SEMANTIC_MATH_RUNTIME = `<script src="/semantic-math.js?v=${PHASE_2_VERSION}" defer data-studywudy-semantic-math="runtime"></script>`;
 const HORIZONTAL_SCROLL_CUE_RELEASE = "horizontal-scroll-cue-v1";
 const HORIZONTAL_SCROLL_CUE_RUNTIME = `<script src="/horizontal-scroll-cue.js?v=${HORIZONTAL_SCROLL_CUE_RELEASE}" defer data-studywudy-horizontal-scroll="runtime"></script>`;
+const SOLUTION_TABS_RELEASE = "solution-tabs-v1";
+const SOLUTION_TABS_RUNTIME = `<script src="/solution-tabs.js?v=${SOLUTION_TABS_RELEASE}" defer data-studywudy-solution-tabs="runtime"></script>`;
 const METHODOLOGY_STYLES = '<style id="phase4-sitewide-methodology-style">.phase4-methodology-footer{border-top:1px solid #c9c1b3;background:#f5f0e6;color:#101316}.phase4-methodology-footer .shell{display:flex;justify-content:space-between;gap:1rem;padding-top:1.15rem;padding-bottom:1.15rem}.phase4-methodology-footer nav{display:flex;flex-wrap:wrap;gap:.55rem 1rem}.phase4-methodology-footer a{font-weight:750}@media(max-width:620px){.phase4-methodology-footer .shell{align-items:flex-start;flex-direction:column}}</style>';
 const METHODOLOGY_FOOTER = '<footer class="phase4-methodology-footer"><div class="shell"><span>How each solution is checked</span><nav aria-label="Trust and corrections"><a href="/about/methodology">Publishing methodology</a><a href="/reviewers">Reviewer registry</a><a href="/corrections">Corrections history</a></nav></div></footer>';
 const CANONICAL_BREADCRUMB_STYLES = '<style data-studywudy-breadcrumb="canonical-v1">.breadcrumb-bar[data-studywudy-breadcrumb="canonical-v1"] .breadcrumb-list li:last-child>a[aria-current="page"]{color:var(--ink);font-weight:800;text-overflow:ellipsis;overflow:hidden}</style>';
@@ -1301,6 +1303,17 @@ const STANDALONE_QUESTION_STYLES = `<style data-studywudy-question-render="canon
 .standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks:empty{display:none}
 .standalone-question-page[data-studywudy-question-structure="sitewide-v1"] .question-enrichment-checks aside{display:grid;gap:7px;padding:13px;border:2px solid var(--ink);border-radius:4px;background:var(--paper-deep)}
+.standalone-question-page .solution-tab-list{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 18px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.standalone-question-page .solution-tab{border:1px solid transparent;border-radius:3px;padding:8px 12px;color:var(--ink-soft);font-size:.72rem;font-weight:850}
+.standalone-question-page .solution-tab.is-active{border:2px solid var(--ink);border-radius:3px;background:var(--gold);box-shadow:2px 2px 0 var(--ink);color:var(--ink)}
+.standalone-question-page .solution-tab-panel-label{margin:0 0 10px;color:var(--ink-soft);font-family:var(--font-manrope,Arial,sans-serif);font-size:.68rem;font-weight:900;letter-spacing:.11em;text-transform:uppercase}
+.standalone-question-page .solution-tab-panel>.direct-answer{margin:0}
+.standalone-question-page [data-solution-tabs="pending"]~.solution-tab-panel+.solution-tab-panel{margin-top:18px;padding-top:18px;border-top:1px dashed #10131661}
+.standalone-question-page [data-solution-tabs="ready"] .solution-tab{cursor:pointer}
+.standalone-question-page [data-solution-tabs="ready"] .solution-tab:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.standalone-question-page [data-solution-tabs="ready"]~.solution-tab-panel:not(.is-active){display:none}
+.standalone-question-page [data-solution-tabs="ready"]~.solution-tab-panel .solution-tab-panel-label{position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+@media(max-width:540px){.standalone-question-page .solution-tab-list{flex-wrap:nowrap;overflow-x:auto}.standalone-question-page .solution-tab{flex:none}}
 .standalone-question-page .related-media{overflow:hidden;background:var(--white)}
 .standalone-question-page .related-media img{display:block;width:100%;height:100%;object-fit:contain}
 .standalone-question-page .question-exercise-card .related-media{display:grid;width:100%;height:140px;margin:12px 0 14px;border:2px solid var(--ink);border-radius:4px;background:var(--white)}
@@ -1378,6 +1391,26 @@ function standaloneQuestionChapterRail(row, route, navigation = null) {
     ? `<a href="${escapeHtmlAttribute(navigation.next.href)}">Question ${escapeHtmlAttribute(navigation.next.label)} →</a>`
     : "";
   return `<aside aria-label="Chapter question navigation" class="question-chapter-rail"><span>Chapter ${chapterNumber}</span><strong>${escapeHtmlAttribute(row.chapter_title)}</strong><nav aria-label="Nearby questions">${previous}<b aria-current="page">Question ${escapeHtmlAttribute(row.display_label)}</b>${next}</nav><a href="${escapeHtmlAttribute(chapterHref)}">← All chapter questions</a></aside>`;
+}
+
+// Answer views ship as ordinary labelled divs: every panel is in the DOM, visible,
+// and in source order, so a crawler or a reader without JavaScript gets the
+// complete solution. solution-tabs.js upgrades the labels into a real tablist
+// afterwards and only then hides the inactive panels — no answer text is ever
+// behind a script. A single available panel produces the bare markup the solution
+// body carried before the tabset existed.
+//
+// The panels are direct `<div>` children of `.solution-body`, exactly where the
+// old bare wrapper sat, because the shipped stylesheet reaches the worked solution
+// through `.solution-body>div>section[aria-label="Answer"]`. Nesting them one level
+// deeper — inside a tabset container — would silently drop that whole rule family
+// and change how the answer lists and paragraphs look.
+function standaloneSolutionTabs(panels, panelIdPrefix) {
+  const available = panels.filter((panel) => panel.markup);
+  if (available.length < 2) return `<div>${available.map((panel) => panel.markup).join("")}</div>`;
+  const tabs = available.map((panel, index) => `<span class="solution-tab${index === 0 ? " is-active" : ""}" data-solution-tab="${escapeHtmlAttribute(panel.id)}">${escapeHtmlAttribute(panel.label)}</span>`).join("");
+  const sections = available.map((panel, index) => `<div class="solution-tab-panel${index === 0 ? " is-active" : ""}" id="${escapeHtmlAttribute(`${panelIdPrefix}-${panel.id}`)}" data-solution-panel="${escapeHtmlAttribute(panel.id)}"><h3 class="solution-tab-panel-label">${escapeHtmlAttribute(panel.label)}</h3>${panel.markup}</div>`).join("");
+  return `<div class="solution-tab-list" role="group" aria-label="Answer views" data-solution-tabs="pending">${tabs}</div>${sections}`;
 }
 
 function standaloneQuestionContext(row, route) {
@@ -1841,7 +1874,24 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const relocatedSolutionDetails = experience?.solutionOverview || experience?.solutionSupplement
     ? `<section class="priority-question-study-details" aria-label="Additional solution details">${experience?.solutionOverview || ""}${experience?.solutionSupplement || ""}</section>`
     : "";
-  const questionArticle = `<article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${questionAnswerFormat}${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy${promptLayoutClass}">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${inlineSolutionOverview}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">${escapeHtmlAttribute(solutionLabel)}</h2><div>${solutionMarkup}</div>${inlineSolutionSupplement}</section></article>`;
+  // `conciseDirectAnswer` is the one-line result the page already computes for
+  // its Answer schema and has never rendered. It only earns a view of its own
+  // when it is genuinely a summary: a fallback that repeats most of the worked
+  // solution would put the same copy on the page twice.
+  const quickAnswerText = publicDirectAnswer.trim();
+  const quickAnswerIsSummary = Boolean(quickAnswerText)
+    && quickAnswerText.length <= 240
+    && quickAnswerText.length * 2 <= createPlainSearchText(solutionMarkup).length;
+  const solutionViews = standaloneSolutionTabs([
+    { id: "step-by-step", label: "Step-by-step", markup: solutionMarkup },
+    { id: "quick-answer", label: "Quick answer", markup: quickAnswerIsSummary ? `<p class="direct-answer">${escapeHtmlAttribute(quickAnswerText)}</p>` : "" },
+    // The concept material is already rendered below the article as
+    // `relocatedSolutionDetails`, where the sitewide information order puts it.
+    // Repeating it here would duplicate body copy, so this view appears only when
+    // that block is absent.
+    { id: "concept", label: "Concept", markup: relocatedSolutionDetails ? "" : experience?.solutionSupplement || "" },
+  ], route.question);
+  const questionArticle = `<article aria-label="Question ${escapeHtmlAttribute(catalog.display_label)}" class="question-card" id="${escapeHtmlAttribute(route.question)}" data-question-row-id="${rowId}" data-question-id="${escapeHtmlAttribute(route.question)}" data-question-type="${escapeHtmlAttribute(questionType)}" data-question-book="${escapeHtmlAttribute(catalog.book_id)}"${questionAnswerFormat}${snippetExclusion}><header class="question-meta"><div class="question-number"><span>${escapeHtmlAttribute(catalog.display_label)}</span><small>${escapeHtmlAttribute(questionTypeLabel)}</small></div><div class="question-badges"><span class="pattern-code" title="StudyWudy question">SW</span></div></header><div class="question-prompt"><div class="rich-copy${promptLayoutClass}">${promptMarkup}</div>${promptMedia}${choiceMarkup}</div><section aria-labelledby="${escapeHtmlAttribute(solutionHeadingId)}" class="solution-body">${inlineSolutionOverview}<h2 class="solution-kicker solution-kicker-green" id="${escapeHtmlAttribute(solutionHeadingId)}">${escapeHtmlAttribute(solutionLabel)}</h2>${solutionViews}${inlineSolutionSupplement}</section></article>`;
   const priorityPrimaryRelated = relatedQuestionSections.sameTextbook || sameExerciseOrChapter || experience?.previousYear || "";
   const sourceVerifiedPanels = priorityQuestionSourceVerified
     ? `${priorityQuestionOptionReasoningPanel()}${priorityQuestionOfficialSourcePanel()}`
@@ -1854,7 +1904,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
   const layoutSidebars = standaloneQuestionChapterRail(catalog, route, relatedQuestions.navigation);
   const contextSidebar = standaloneQuestionContext(catalog, route);
   const mainFlow = sitewideFlow;
-  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}"><meta name="twitter:description" content="${escapeHtmlAttribute(description)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}${QUESTION_COLUMN_TABLE_STYLES}${HORIZONTAL_SCROLL_CUE_STYLES}<script type="application/ld+json">${breadcrumbSchema}</script><script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1"${priorityAttribute}>${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(mainHeading)}"${snippetExclusion}>${standaloneQuestionInline(mainHeading, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${heroSummary}</section><div class="shell answer-page-layout">${layoutSidebars}<div class="answer-page-main">${mainFlow}</div>${contextSidebar}</div></main>${standaloneQuestionFooter()}${HORIZONTAL_SCROLL_CUE_RUNTIME}</body></html>`;
+  const body = `<!doctype html><html data-scroll-behavior="smooth" lang="${escapeHtmlAttribute(languageForBookId(catalog.book_id) || "en-IN")}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0757d8"><title>${escapeHtmlAttribute(title)}</title><meta name="description" content="${escapeHtmlAttribute(description)}"><meta name="robots" content="${directive}"><link rel="canonical" href="${escapeHtmlAttribute(canonical)}"><meta property="og:type" content="website"><meta property="og:title" content="${escapeHtmlAttribute(socialTitle)}"><meta property="og:description" content="${escapeHtmlAttribute(description)}"><meta property="og:url" content="${escapeHtmlAttribute(canonical)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtmlAttribute(socialTitle)}"><meta name="twitter:description" content="${escapeHtmlAttribute(description)}">${STUDYWUDY_QUESTION_THEME_ASSETS}${DECORATIVE_TEXT_STYLES}${SEMANTIC_MATH_STYLES}${QUESTION_PAGE_EXPERIENCE_STYLES}${STANDALONE_QUESTION_STYLES}${QUESTION_COLUMN_TABLE_STYLES}${HORIZONTAL_SCROLL_CUE_STYLES}<script type="application/ld+json">${breadcrumbSchema}</script><script type="application/ld+json">${schema}</script></head><body class="manrope_6fd7433c-module__Zz-jia__variable antialiased standalone-question-page" data-studywudy-question-template="original-theme-v1"${priorityAttribute}>${standaloneQuestionHeader(catalog, route)}<main id="main-content" tabindex="-1">${standaloneQuestionBreadcrumbs(catalog, route)}<section class="answer-page-hero shell"><div><p class="eyebrow">${escapeHtmlAttribute(catalog.board_name)} · ${escapeHtmlAttribute(catalog.grade_label)} ${escapeHtmlAttribute(catalog.subject_name)}</p><h1 class="${standaloneQuestionTitleClass(mainHeading)}"${snippetExclusion}>${standaloneQuestionInline(mainHeading, catalog.book_id)} — Question ${escapeHtmlAttribute(catalog.display_label)}</h1></div><p class="answer-page-chapter"><span>Chapter ${chapterNumber}</span>${escapeHtmlAttribute(catalog.chapter_title)}</p>${heroSummary}</section><div class="shell answer-page-layout">${layoutSidebars}<div class="answer-page-main">${mainFlow}</div>${contextSidebar}</div></main>${standaloneQuestionFooter()}${HORIZONTAL_SCROLL_CUE_RUNTIME}${SOLUTION_TABS_RUNTIME}</body></html>`;
   const headers = launchStaticSecurityHeaders(new Headers({
     "content-type": "text/html; charset=utf-8",
     "cache-control": indexable ? EDGE_HTML_CACHE : "no-store",

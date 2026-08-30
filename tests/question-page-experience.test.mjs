@@ -406,7 +406,7 @@ test("overflowing tables expose a theme-matched scrollbar that appears during us
   assert.match(source, /question-horizontal-scroll-cue\.is-visible\{opacity:1\}/u);
   assert.match(source, /prefers-reduced-motion:reduce/u);
   assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_STYLES\}/u);
-  assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_RUNTIME\}<\/body>/u);
+  assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_RUNTIME\}\$\{SOLUTION_TABS_RUNTIME\}<\/body>/u);
   assert.match(runtime, /scrollWidth - scroller\.clientWidth/u);
   assert.match(runtime, /thumb\.style\.left/u);
   assert.match(runtime, /addEventListener\("scroll", \(\) => show\(state\)/u);
@@ -526,4 +526,59 @@ test("the Biology question-one pilot has a source-verified, route-scoped search 
   assert.match(source, /\/sitemaps\/priority-question-pilot\.xml/u);
   assert.match(source, /publicFaviconResponse/u);
   assert.match(source, /content-type": "image\/svg\+xml; charset=utf-8"/u);
+});
+
+test("the solution pane offers tabbed answer views without putting any answer text behind a script", async () => {
+  const fs = await import("node:fs/promises");
+  const source = await fs.readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
+  const runtime = await fs.readFile(new URL("../comparison/after-assets/solution-tabs.js", import.meta.url), "utf8");
+
+  // The tabset lives inside the existing .solution-body, under the existing
+  // kicker heading. Nothing about the three-pane layout moves.
+  assert.match(source, /class="solution-body">\$\{inlineSolutionOverview\}<h2 class="solution-kicker solution-kicker-green"[^\n]*<\/h2>\$\{solutionViews\}/u);
+  assert.match(source, /function standaloneSolutionTabs\(panels, panelIdPrefix\)/u);
+  assert.match(source, /\{ id: "step-by-step", label: "Step-by-step", markup: solutionMarkup \}/u);
+  assert.match(source, /\{ id: "quick-answer", label: "Quick answer"/u);
+  assert.match(source, /\{ id: "concept", label: "Concept"/u);
+
+  // Every panel is rendered visible and in source order; only the runtime hides
+  // the inactive ones, and only after it has upgraded the labels. A page served
+  // to a crawler, or read with JavaScript off, still carries the whole solution.
+  assert.match(source, /data-solution-tabs="pending"/u);
+  const panelTemplate = source.match(/const sections = available\.map\([^\n]*\n/u)?.[0] || "";
+  assert.ok(panelTemplate, "the tabset must build its panels from a single template");
+  assert.doesNotMatch(panelTemplate, /\bhidden\b|display:\s*none/u);
+  assert.match(source, /\[data-solution-tabs="ready"\]~\.solution-tab-panel:not\(\.is-active\)\{display:none\}/u);
+  assert.match(runtime, /list\.setAttribute\("data-solution-tabs", "ready"\)/u);
+  assert.match(source, /\$\{HORIZONTAL_SCROLL_CUE_RUNTIME\}\$\{SOLUTION_TABS_RUNTIME\}<\/body>/u);
+
+  // The panels stay direct `<div>` children of `.solution-body`, where the bare
+  // wrapper used to sit: the shipped stylesheet reaches the worked solution through
+  // `.solution-body>div>section[aria-label="Answer"]`, so an extra tabset wrapper
+  // would quietly restyle every answer list and paragraph on the site.
+  assert.match(source, /const sections = available\.map\(\(panel, index\) => `<div class="solution-tab-panel/u);
+  assert.match(source, /return `<div class="solution-tab-list" role="group" aria-label="Answer views" data-solution-tabs="pending">\$\{tabs\}<\/div>\$\{sections\}`/u);
+  assert.match(source, /\.solution-body>div>section\[aria-label="Answer"\]\{display:flow-root\}/u);
+
+  // One available view collapses back to the markup the solution body carried
+  // before the tabset existed, so single-format questions are untouched.
+  assert.match(source, /if \(available\.length < 2\) return `<div>\$\{available\.map\(\(panel\) => panel\.markup\)\.join\(""\)\}<\/div>`/u);
+
+  // The quick answer is only promoted when it is actually a summary; the
+  // conciseDirectAnswer fallback can return the whole worked solution, which
+  // would publish the same copy twice on one page.
+  assert.match(source, /quickAnswerText\.length \* 2 <= createPlainSearchText\(solutionMarkup\)\.length/u);
+  // The concept material stays where the sitewide information order puts it.
+  assert.match(source, /markup: relocatedSolutionDetails \? "" : experience\?\.solutionSupplement \|\| ""/u);
+
+  assert.match(runtime, /role", "tablist/u);
+  assert.match(runtime, /setAttribute\("role", "tab"\)/u);
+  assert.match(runtime, /setAttribute\("role", "tabpanel"\)/u);
+  assert.match(runtime, /aria-selected/u);
+  assert.match(runtime, /ArrowRight: 1, ArrowLeft: -1, ArrowDown: 1, ArrowUp: -1/u);
+  assert.match(runtime, /event\.key === "Home" \? 0 : tabs\.length - 1/u);
+  assert.match(runtime, /tab\.tabIndex = active \? 0 : -1/u);
+  // Labels ship as inert spans, so as tabs they have to answer to Enter and Space.
+  assert.match(runtime, /event\.key === "Enter" \|\| event\.key === " "/u);
+  assert.match(runtime, /panels\.some\(\(panel\) => !panel\)\) return/u);
 });
