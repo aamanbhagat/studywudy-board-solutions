@@ -53,13 +53,20 @@ function semanticPlainMath(value) {
   );
 }
 
+// NFKC also decomposes U+2026 into three full stops, and the trailing
+// punctuation strip at the end of `plainText` then deletes them. Text that
+// already carried a truncation marker therefore lost it on a second pass and
+// ended mid-phrase, or kept "...." where the marker sat mid-string. Parking the
+// marker on a private-use code point puts it out of reach of both steps.
+const ELLIPSIS_SENTINEL = "";
+
 // NFKC runs on the source rather than on the flattened result: it maps every
 // superscript onto its ASCII digit, so applied afterwards it undid the work
 // `semanticPlainMath` had just done and published `a3` where the formula reads
 // a³. Normalising first still folds the compatibility forms the raw text
 // carries, and leaves the renderer's scripts intact.
 function plainText(value) {
-  return semanticPlainMath(String(value ?? "").normalize("NFKC"))
+  return semanticPlainMath(String(value ?? "").replaceAll("…", ELLIPSIS_SENTINEL).normalize("NFKC"))
     .replace(/<\/?[A-Za-z][^<>]*>/gu, " ")
     .replace(/!\[([^\]]*)\]\([^)]*\)/gu, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
@@ -109,9 +116,21 @@ function plainText(value) {
     .replace(/[*_#`~]+/gu, " ")
     .replace(/(?:\s*;\s*){2,}/gu, "; ")
     .replace(/\s+([,.;:!?])/gu, "$1")
+    // Fill-in-the-blank prompts carry the printed dot leader from the textbook
+    // ("Water has...................... density"). Left alone it reads in a
+    // search result exactly like the truncation defect this file just fixed.
+    .replace(/\.{4,}/gu, "…")
     .replace(/\s+/gu, " ")
     .replace(/^[,.;:\s]+|[,.;:\s]+$/gu, "")
+    .replaceAll(ELLIPSIS_SENTINEL, "…")
     .trim();
+}
+
+// A sentence that already ends in its own punctuation keeps it. The description
+// template used to paste a full stop straight after a truncated topic, which is
+// how "...." reached the meta description of 124,888 pages.
+function endSentence(value) {
+  return /[.!?…]$/u.test(value) ? value : `${value}.`;
 }
 
 function compactText(value, maximum) {
@@ -175,7 +194,7 @@ function trueFalseTopic(prompt) {
     .trim();
   if (!statement) return null;
   return Object.freeze({
-    label: titleCase(compactText(statement, 82)),
+    label: titleCase(plainText(statement)),
     forceType: "True or False",
     layout: "true-false",
   });
@@ -285,7 +304,11 @@ function questionTopic(record) {
     .replace(/^(?:A|An|The)\s+/iu, "")
     .replace(/[.?!].*$/u, "")
     .trim();
-  const label = compactText(withoutInstruction || prompt, 44);
+  // The topic stays at full length here and every caller compacts it once
+  // against its own budget. Clipping to a fixed 44 characters made the topic the
+  // narrowest part of a title that had room for twice that, so any two questions
+  // in a chapter sharing a ~40-character opening produced the same <title>.
+  const label = plainText(withoutInstruction || prompt);
   return {
     label: `${label.charAt(0).toLocaleUpperCase("en-IN")}${label.slice(1)}`,
     forceType: null,
@@ -339,7 +362,16 @@ function questionDescription(record, disambiguate = false) {
     const publicContext = `${compactText(board, 12)} Class ${grade || plainText(record.grade_label)} ${compactText(subject, 12)}; ${compactText(topic.label, 24)}; ${compactBookTitle(record.book_title, 36)}; Ch ${record.chapter_number} ${compactDistinctiveText(record.chapter_title, 18)}; Q${compactText(record.display_label, 8)}`;
     return compactText(`${publicContext}: ${type} solution.`, 158);
   }
-  const lead = `Step-by-step ${type} for ${topic.label}. From ${compactText(record.book_title, 40)} in ${context}, Chapter ${record.chapter_number} ${compactText(record.chapter_title, 32)}.`;
+  // The topic is the only part of this sentence that differs between two
+  // questions in the same chapter, so it is budgeted first and the shared
+  // textbook context takes whatever is left. The old template did the reverse:
+  // it pasted in a topic pre-clipped to 44 characters and let the final
+  // compaction decide what fell off the end, which is how neighbouring
+  // questions ended up with byte-identical descriptions.
+  const head = `Step-by-step ${type} for ${endSentence(compactText(topic.label, 78))}`;
+  const source = `From ${compactText(record.book_title, 40)} in ${context}, Chapter ${record.chapter_number} ${compactText(record.chapter_title, 32)}.`;
+  const room = 158 - [...plainText(head)].length - 1;
+  const lead = room >= 24 ? `${head} ${compactText(source, room)}` : head;
   const candidate = [...plainText(lead)].length >= 130 ? lead : `${lead} ${questionPrompt(record)}`;
   return compactText(candidate, 158);
 }

@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  compactText,
+  plainText,
   questionDescription,
   questionDocumentTitle,
   questionMainHeading,
@@ -180,4 +182,43 @@ test("the Worker rewrites search metadata without replacing ordinary question H1
   assert.equal((questionSection.match(/answer-page-hero h1/gu) || []).length, 1);
   assert.match(questionSection, /if \(overrideSchema\)/u);
   assert.doesNotMatch(questionSection, /\.on\(["']h1["']/u);
+});
+
+test("compaction survives a second pass so truncated metadata keeps its marker", () => {
+  const sentence = "State the effect that the concentration of hydrogen ions has on the nature of an aqueous solution";
+  const clipped = compactText(sentence, 44);
+  assert.ok(clipped.endsWith("…"), `expected a truncation marker, got ${JSON.stringify(clipped)}`);
+  // NFKC decomposes U+2026 into three full stops and the trailing-punctuation
+  // strip then removed them, so re-compacting an already-clipped string used to
+  // publish a title that simply stopped mid-phrase.
+  assert.equal(plainText(clipped), clipped);
+  assert.equal(compactText(clipped, 200), clipped);
+  assert.doesNotMatch(`${plainText(clipped)}. From a textbook.`, /\.\.\./u);
+});
+
+test("printed dot leaders in fill-in-the-blank prompts do not read as broken truncation", () => {
+  assert.equal(plainText("Water has...................... density than ice."), "Water has… density than ice");
+  assert.equal(plainText("Express 0.99999.... in the form p/q"), "Express 0.99999… in the form p/q");
+  assert.equal(plainText("Wait... just a moment"), "Wait... just a moment");
+});
+
+test("neighbouring questions that differ only past the old 44-character cut get distinct metadata", () => {
+  const record = (prompt) => ({
+    ...academicContext,
+    row_id: 3_595,
+    question_id: `q-collision-${prompt.length}`,
+    display_label: "1",
+    type: "brief",
+    prompt_text: prompt,
+    book_title: "Lakhmir Singh Chemistry Class 10",
+    chapter_number: 2,
+    chapter_title: "Acids Bases and Salts",
+  });
+  const first = record("What effect does the concentration of H+ ions have on the nature of a solution?");
+  const second = record("What effect does the concentration of OH- ions have on the nature of a solution?");
+  assert.notEqual(questionDocumentTitle(first), questionDocumentTitle(second));
+  assert.notEqual(questionDescription(first), questionDescription(second));
+  for (const value of [questionDocumentTitle(first), questionDescription(first)]) {
+    assert.ok([...value].length <= 160, `${value} is ${[...value].length} characters`);
+  }
 });

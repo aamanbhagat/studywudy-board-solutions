@@ -3,11 +3,13 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { gunzipSync } from "node:zlib";
 import {
   QUESTION_PROMPT_OVERRIDES,
   questionDescription,
   questionDocumentTitle,
 } from "../question-seo.mjs";
+import { contentToText } from "../answer-completeness.mjs";
 import { ACCOUNTANCY_SAMPLE_TITLE } from "../public-title-quality.mjs";
 
 const args = new Map();
@@ -38,6 +40,39 @@ const rows = database.prepare(`SELECT q.row_id, q.display_label, q.type, q.promp
     AND s.slug = b.subject_slug
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   ORDER BY q.row_id`).all();
+
+// `catalog_questions.prompt_text` is a flattened copy of the prompt written
+// before the content repair and never rewritten by it, so it disagrees with the
+// chunk on roughly 20,000 rows. The Worker reconciles the two before it builds a
+// title (comparison/after-worker.js, standaloneQuestionResponse), so a
+// collision set computed from the column alone describes text that never ships:
+// it both disambiguates pages that are already unique and misses pages that
+// collide only after the repair. Reconcile here the same way.
+const chunksForBook = database.prepare("SELECT content_chunk FROM catalog_book_chunks WHERE book_id = ? ORDER BY chunk_index");
+let reconciledPromptCount = 0;
+{
+  const repairedPromptText = new Map();
+  for (const { book_id: bookId } of database.prepare("SELECT DISTINCT book_id FROM catalog_book_chunks ORDER BY book_id").all()) {
+    let pack;
+    try {
+      pack = JSON.parse(gunzipSync(Buffer.concat(chunksForBook.all(bookId).map((chunk) => Buffer.from(chunk.content_chunk)))).toString("utf8"));
+    } catch (error) {
+      throw new Error(`Unable to decode catalog_book_chunks for ${bookId}: ${error}`);
+    }
+    for (const chapter of pack.chapters || [])
+      for (const exercise of chapter.exercises || [])
+        for (const question of exercise.questions || []) {
+          const text = contentToText(question.prompt);
+          if (text.trim()) repairedPromptText.set(question.id, text);
+        }
+  }
+  for (const row of rows) {
+    const repaired = repairedPromptText.get(row.question_id);
+    if (!repaired || repaired === row.prompt_text) continue;
+    row.prompt_text = repaired;
+    reconciledPromptCount += 1;
+  }
+}
 
 function normalizeSimilarity(value) {
   return value.normalize("NFKC").toLocaleLowerCase("en-IN").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
@@ -148,6 +183,7 @@ const report = {
   generatedAt,
   sourceDatabase: sourcePath,
   corpusCount: rows.length,
+  reconciledPromptCount,
   promptOverrides: Object.keys(QUESTION_PROMPT_OVERRIDES).length,
   initialTitleCollisionRows: titleCollisionRows.size,
   initialDescriptionCollisionRows: descriptionCollisionRows.size,
