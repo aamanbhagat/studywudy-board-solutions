@@ -50,14 +50,29 @@ function countLabel(value) {
 
 const DOCUMENT_TITLE_SUFFIX = " | StudyWudy";
 const DOCUMENT_TITLE_LIMIT = 160;
+// Google clips the SERP line by pixel width, somewhere around 55-60 characters.
+// Hub titles may run past that — a chapter name is worth printing in full for
+// the browser tab and the social card — but everything that tells two hub pages
+// apart has to sit inside this budget, or the clip publishes duplicates.
+const SERP_HUB_TITLE_BUDGET = 60;
+
+// A clip that never ends mid-word and never ends on a dangling function word,
+// which is how a truncated book title came back as "HC Verma Concepts of…".
+const TRAILING_FUNCTION_WORD = /[\s,;:–—-]+(?:and|of|the|for|in|to|a|an|on|with|by|from)$/iu;
+
+function clipWords(value, limit) {
+  const characters = [...cleanText(value)];
+  if (characters.length <= limit) return characters.join("");
+  const clipped = characters.slice(0, limit - 1).join("");
+  let wordSafe = clipped.replace(/\s+\S*$/u, "").trimEnd();
+  while (TRAILING_FUNCTION_WORD.test(wordSafe)) wordSafe = wordSafe.replace(TRAILING_FUNCTION_WORD, "");
+  return `${wordSafe || clipped.trimEnd()}…`;
+}
 
 function documentTitle(socialTitle) {
   const available = DOCUMENT_TITLE_LIMIT - [...DOCUMENT_TITLE_SUFFIX].length;
-  const characters = [...cleanText(socialTitle)];
-  if (characters.length <= available) return `${characters.join("")}${DOCUMENT_TITLE_SUFFIX}`;
-  const clipped = characters.slice(0, available - 1).join("");
-  const wordSafe = clipped.replace(/\s+\S*$/u, "").trimEnd() || clipped.trimEnd();
-  return `${wordSafe}…${DOCUMENT_TITLE_SUFFIX}`;
+  const clipped = clipWords(socialTitle, available);
+  return `${clipped}${DOCUMENT_TITLE_SUFFIX}`;
 }
 
 function boardSearchName(record) {
@@ -99,6 +114,74 @@ function bookSearchLead(record) {
   return withoutContext || source || "Textbook";
 }
 
+// Subject names run to 37 characters ("Mathematics and Statistics (Commerce)"),
+// which alone would eat two thirds of the visible window. Every subject in the
+// corpus longer than 16 characters has an entry here, so nothing reaches the
+// clamp below and no title carries a subject truncated mid-word.
+const SHORT_SUBJECT_NAMES = Object.freeze({
+  "Mathematics": "Maths",
+  "Mathematics And Statistics (Commerce)": "Maths-Stats Com",
+  "Mathematics And Statistics (Arts And Science)": "Maths-Stats Sci",
+  "Organisation Of Commerce And Management": "OCM",
+  "Book-Keeping And Accountancy": "Book-Keeping",
+  "Information Technology": "IT",
+  "Information Technology (Commerce)": "IT (Commerce)",
+  "Environmental Studies": "EVS",
+  "Computer Science": "Comp Sci",
+  "Political Science": "Pol Sci",
+  "Social Science": "Social Sci",
+  "Business Studies": "Business",
+  "Physical Education": "PE",
+  "General Studies": "Gen Studies",
+});
+
+function shortSubjectName(record) {
+  const subject = subjectName(record);
+  return SHORT_SUBJECT_NAMES[subject] || clipWords(subject, 16);
+}
+
+// bookSearchLead strips the grade and subject; these strip the boilerplate that
+// survives it, so a book code spends its characters on the distinguishing words.
+const BOOK_CODE_ABBREVIATIONS = Object.freeze([
+  [/\bInformation Technology\b/giu, "IT"],
+  [/\bMathematics and Statistics\b/giu, "Maths-Stats"],
+  [/\bMathematics\b/giu, "Maths"],
+  [/\bArts and Science\b/giu, "Arts-Science"],
+  [/\bCompany Accounts and Analysis of Financial Statements\b/giu, "Company Accounts"],
+  [/\bOrganisation of Commerce and Management\b/giu, "OCM"],
+  [/\bUniversity Press\b/giu, "UP"],
+  [/\bBrothers Prakashan\b/giu, "Bros"],
+  [/\bStandard\b/giu, ""],
+  [/\bTextbook\b/giu, ""],
+  [/\bPrakashan\b/giu, ""],
+  [/\bPublications?\b/giu, ""],
+  [/\bPart\b/giu, "Pt"],
+  [/\bVolume\b/giu, "Vol"],
+]);
+
+function bookCodeLead(record) {
+  let lead = bookSearchLead(record);
+  for (const [pattern, replacement] of BOOK_CODE_ABBREVIATIONS) lead = lead.replace(pattern, replacement);
+  // bookSearchLead removes the subject name verbatim, so a compound subject
+  // strands its conjunction: "Mathematics and Statistics 1 Standard XII" comes
+  // back as "and Statistics 1". Six Maharashtra books open on that conjunction,
+  // which is 1,921 question titles starting with a lowercase word.
+  lead = lead.replace(/^(?:and|of|the|for|in)\s+/iu, "");
+  return cleanText(lead) || "Textbook";
+}
+
+// The shelf mark a hub title is built around. `record.book_code` comes from the
+// phase-3 build manifest and is the shortest string unique within the book's
+// class and subject — which is exactly the scope the rest of the title pins
+// down. Records that arrive without one fall back to a plain clamp, which is
+// not guaranteed unique; scripts/search-metadata-gate.mjs fails the release if
+// any catalogue hub takes that path.
+const BOOK_CODE_LIMIT = 18;
+
+function hubBookCode(record) {
+  return cleanText(record.book_code || record.bookCode) || clipWords(bookCodeLead(record), BOOK_CODE_LIMIT);
+}
+
 function bookSearchName(record) {
   const subject = subjectName(record);
   const withoutGrade = titleWithoutGrade(record);
@@ -118,7 +201,10 @@ function subjectSearchMetadata(record) {
   const books = integer(record.book_count);
   const chapters = integer(record.chapter_count);
   const questions = integer(record.question_count);
-  const socialTitle = `${board} Class ${grade} ${subject} Solutions and Question Bank`;
+  // "Textbook Solutions" rather than a bare "Solutions": a subject that stocks a
+  // single book whose code is the board name ("CBSE Class 12 Entrepreneurship")
+  // would otherwise clip to the same visible title as that book's own hub.
+  const socialTitle = `${board} Class ${grade} ${subject} Textbook Solutions`;
   const description = `Explore ${board} Class ${grade} ${subject} solutions and question bank across ${countLabel(books)} ${books === 1 ? "textbook" : "textbooks"}, ${countLabel(chapters)} chapters and ${countLabel(questions)} textbook-order answers.`;
   return { socialTitle, documentTitle: documentTitle(socialTitle), description };
 }
@@ -127,7 +213,9 @@ function bookSearchMetadata(record) {
   const name = bookSearchName(record);
   const chapters = integer(record.chapter_count);
   const questions = integer(record.question_count);
-  const socialTitle = `${name} Solutions – All ${countLabel(chapters)} Chapters`;
+  // bookSearchName runs to 134 characters, which pushed the chapter count — the
+  // only varying part of the old title — past the clip on 476 of 477 books.
+  const socialTitle = `${hubBookCode(record)} Class ${classNumber(record)} ${subjectName(record)} Solutions`;
   const description = `Study ${name} solutions across all ${countLabel(chapters)} chapters, with ${countLabel(questions)} textbook-order answers, chapter navigation and worked exam practice.`;
   return { socialTitle, documentTitle: documentTitle(socialTitle), description };
 }
@@ -203,12 +291,13 @@ function chapterSearchMetadata(record, suppliedQuestions = null) {
   const questions = suppliedQuestions || chapterQuestions(record.chapter);
   const phrases = chapterTypePhrases(questions);
   const textbook = cleanText(record.book_title || record.textbook || "the mapped textbook");
-  const sourceLabel = bookSearchName(record);
   // The same syllabus chapter often exists in NCERT, Exemplar and several
-  // reference books. Include the source textbook in the title so each real
-  // chapter URL has distinct search intent instead of publishing duplicate
-  // title tags across different textbooks.
-  const socialTitle = `${sourceLabel} Chapter ${chapterNumber}: ${chapterTitle} Solutions – ${board}`;
+  // reference books, so the source textbook has to be in the title. Spelling it
+  // out was the problem: "Balbharati Physics Class 12 Chapter 8: …" spent the
+  // whole visible window on context shared by every chapter of the book, and
+  // 1,367 chapter pages clipped to the same 60 characters. The compact prefix
+  // below is byte-identical to the one this chapter's question pages carry.
+  const socialTitle = `${hubBookCode(record)} Cl${grade} ${shortSubjectName(record)} Ch${chapterNumber}: ${chapterTitle} Solutions`;
   const includes = phrases.length
     ? `including ${phrases.join(", ")} and step-by-step textbook answers from ${textbook}`
     : `including ${countLabel(questions.length || record.question_count)} step-by-step textbook answers from ${textbook}`;
@@ -218,7 +307,10 @@ function chapterSearchMetadata(record, suppliedQuestions = null) {
 
 export {
   BOARD_SEARCH_NAMES,
+  SERP_HUB_TITLE_BUDGET,
+  SHORT_SUBJECT_NAMES,
   boardSearchName,
+  bookCodeLead,
   bookSearchLead,
   bookSearchMetadata,
   bookSearchName,
@@ -227,7 +319,10 @@ export {
   chapterSearchMetadata,
   chapterTypePhrases,
   cleanText,
+  clipWords,
   documentTitle,
+  hubBookCode,
+  shortSubjectName,
   subjectName,
   subjectSearchMetadata,
   titleWithoutGrade,

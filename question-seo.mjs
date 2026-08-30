@@ -1,4 +1,4 @@
-import { boardSearchName } from "./search-metadata.mjs";
+import { boardSearchName, bookSearchLead, shortSubjectName } from "./search-metadata.mjs";
 import { normalizedQuestionType } from "./question-classification.mjs";
 import { formulaRepresentations } from "./semantic-math.mjs";
 
@@ -346,9 +346,41 @@ function questionSocialTitle(record, disambiguate = false) {
   return `${compactText(topic.label, topicBudget)} ${fixed}`;
 }
 
-function questionDocumentTitle(record, disambiguate = false) {
-  const title = questionSocialTitle(record, disambiguate);
-  return questionTopic(record).layout === "true-false" ? title : `${title} | StudyWudy`;
+// Google clips the SERP line by pixel width, so the cut floats somewhere around
+// 55-60 characters. Anything that tells two pages apart therefore has to sit at
+// the front: appending a qualifier buys uniqueness that is never displayed. This
+// is what §2 got wrong — it gated "zero duplicate full titles", which was true
+// while 96,985 pages still shared their first 60 characters.
+const SERP_TITLE_BUDGET = 60;
+
+// Shared with the chapter hub template so a chapter page and its question pages
+// carry a byte-identical `{code} Cl{g} {subject} Ch{n}` prefix.
+function questionShortSubject(record) {
+  return shortSubjectName({ subject_name: questionSubject(record) });
+}
+
+// The identifying half of the title. `bookCode` comes from the build manifest
+// (scripts/phase3-build-question-seo.mjs) and is unique within a class+subject,
+// which is exactly the scope the rest of this prefix pins down. Without one we
+// fall back to a compacted book title, which is not guaranteed unique — the
+// builder's SERP collision gate is what keeps that path unused.
+function questionTitlePrefix(record, bookCode) {
+  // bookSearchLead drops the grade and subject, which this prefix already
+  // prints. compactBookTitle keeps them, so the fallback used to read
+  // "Physics Std 12 Cl12 Physics Ch8".
+  const code = plainText(bookCode) || compactDistinctiveText(bookSearchLead(record), 18);
+  const grade = questionClassNumber(record);
+  const subject = questionShortSubject(record);
+  const context = grade ? `Cl${grade} ${subject}` : subject;
+  return `${code} ${context} Ch${record.chapter_number} Q${compactText(record.display_label, 8)}`;
+}
+
+function questionDocumentTitle(record, bookCode = "") {
+  const prefix = questionTitlePrefix(record, bookCode);
+  // Whatever the identifier leaves inside the visible window goes to the
+  // question itself, with a floor so no page ships a title that is only an ID.
+  const room = Math.max(24, SERP_TITLE_BUDGET - [...prefix].length - 2);
+  return `${prefix}: ${compactText(questionMainHeading(record), room)}`;
 }
 
 function questionDescription(record, disambiguate = false) {
@@ -378,6 +410,9 @@ function questionDescription(record, disambiguate = false) {
 
 export {
   QUESTION_PROMPT_OVERRIDES,
+  SERP_TITLE_BUDGET,
+  compactBookTitle,
+  compactDistinctiveText,
   compactText,
   plainText,
   questionAnswerOverride,
@@ -385,5 +420,7 @@ export {
   questionDocumentTitle,
   questionMainHeading,
   questionPrompt,
+  questionShortSubject,
   questionSocialTitle,
+  questionTitlePrefix,
 };

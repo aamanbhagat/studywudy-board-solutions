@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
-import { questionDescription, questionSocialTitle } from "../question-seo.mjs";
+import { questionDescription, questionDocumentTitle } from "../question-seo.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 2) {
@@ -18,6 +18,7 @@ const workerPath = resolve(root, "worker.js");
 const database = new DatabaseSync(databasePath, { readOnly: true });
 
 const QUESTION_SEO_DISAMBIGUATED_ROWS = new Set(PHASE3_QUESTION_SEO.disambiguatedRowIds);
+const QUESTION_SEO_BOOK_CODES = PHASE3_QUESTION_SEO.bookTitleCodes;
 
 const BOARD_METADATA = {
   "maharashtra-board": {
@@ -124,14 +125,18 @@ const entries = [];
 const paths = new Set();
 const templateCounts = new Map();
 
-function record(path, template, title, description) {
+// Hub and hierarchy titles are still assembled here and clipped to the shared
+// 72-character shell budget. Question titles are not: comparison/after-worker.js
+// generates them whole from questionDocumentTitle, without the brand suffix, so
+// re-clipping and re-suffixing one here would audit a string no page renders.
+function record(path, template, title, description, { shellTitle = true } = {}) {
   if (paths.has(path)) throw new Error(`Duplicate indexable path in audit model: ${path}`);
   paths.add(path);
   templateCounts.set(template, (templateCounts.get(template) || 0) + 1);
   entries.push({
     path,
     template,
-    title: `${seoText(title, 72)} | StudyWudy`,
+    title: shellTitle ? `${seoText(title, 72)} | StudyWudy` : title,
     description: seoText(description, 160),
   });
 }
@@ -241,7 +246,13 @@ let excludedQuestions = 0;
 for (const question of questions) {
   const path = `/${question.board_slug}/${question.grade_slug}/${question.subject_slug}/${question.book_slug}/${question.chapter_slug}/questions/${question.question_id}`;
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(Number(question.row_id));
-  record(path, "question", questionSocialTitle(question, disambiguate), questionDescription(question, disambiguate));
+  record(
+    path,
+    "question",
+    questionDocumentTitle(question, QUESTION_SEO_BOOK_CODES[question.book_id]),
+    questionDescription(question, disambiguate),
+    { shellTitle: false },
+  );
 }
 
 const exactTitles = collisionReport(entries, "title");

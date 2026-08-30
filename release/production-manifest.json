@@ -87180,8 +87180,8 @@
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/chapter/index.html",
-      "bytes": 56364,
-      "sha256": "28884595dd6eac0061b42335835e4692a5ba7f64f85f0faab5d5d6a9cc5170af"
+      "bytes": 56236,
+      "sha256": "6487b6b621a201b18d1b552879b1712af30a0811f2a5b12e896eb81bcda503dd"
     },
     {
       "path": "comparison/after-assets/pages/study-cluster/concepts/capacitors-in-parallel/index.html",
@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 217001,
-      "sha256": "ef69b706e66b644a3c996fb65f8e2d8acfe1383597561719838f0d9b492a7f5a"
+      "bytes": 217395,
+      "sha256": "d9afc8a05cf54f876a6b90ef22777aed969c24c382b219b499e0cfdf21f449e6"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87525,8 +87525,8 @@
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
-      "bytes": 546690,
-      "sha256": "2d47e790c80eb92ddb66f5b5e0c95d01bd0205cbb00f89a084732f05b3112500"
+      "bytes": 605295,
+      "sha256": "596ab077929d5386f72d1083061a041c0e1a53204dfee7dbe7406dad483acfcf"
     },
     {
       "path": "phase4-publish-manifest.mjs",
@@ -87570,8 +87570,8 @@
     },
     {
       "path": "public-title-quality.mjs",
-      "bytes": 2621,
-      "sha256": "e178d1fd93520c5304165ab1f83ead4bc6438d3cc6c13b6618eff25f8a13c005"
+      "bytes": 2891,
+      "sha256": "c136c49cbe7682b1ddd1c41aa6b0952fcedab7f2ca0194b5e9b02a96542212aa"
     },
     {
       "path": "question-classification.mjs",
@@ -87615,8 +87615,8 @@
     },
     {
       "path": "question-seo.mjs",
-      "bytes": 18719,
-      "sha256": "8f730614d9350d0274e0df426dd9fed816b65b6492320bb352bc5f4a8a11d22a"
+      "bytes": 20712,
+      "sha256": "9cffd30d0b12f188691ff60d16c45a272f3385e1a03c0e6d0d4c2fb30b3fce6f"
     },
     {
       "path": "question-showcase-manifest.mjs",
@@ -87655,8 +87655,8 @@
     },
     {
       "path": "search-metadata.mjs",
-      "bytes": 10280,
-      "sha256": "5ede04eb9c9d7d0280eb1108c0b8fc384be4578560622e62c0b1c3863afa1c4b"
+      "bytes": 14839,
+      "sha256": "cfd204b6f904e9f3b46226ae986d0c9d3fba58f34d0e3abde23c0f6f17950810"
     },
     {
       "path": "semantic-link-graph.mjs",
@@ -87709,5 +87709,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "0c45314c1cdc6b12322eafe60207ed59161f7a577a5c651f5b7d7274ad95b813"
+  "aggregateSha256": "be8e8dcd84abe8f1e9f3932f3cae1ee3a2a1da3b153a882bb1f1d2c581f93516"
 }

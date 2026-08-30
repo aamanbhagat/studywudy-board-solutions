@@ -5,12 +5,13 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
-import { questionDocumentTitle } from "../question-seo.mjs";
+import { SERP_TITLE_BUDGET, questionDocumentTitle, questionSocialTitle } from "../question-seo.mjs";
 import {
   bookSearchMetadata,
   chapterSearchMetadata,
   subjectSearchMetadata,
 } from "../search-metadata.mjs";
+import { serpCollisionGroups } from "../technical-seo.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -62,7 +63,7 @@ for (const book of books) {
   records.push({
     type: "book",
     path: `/${book.board_slug}/${book.grade_slug}/${book.subject_slug}/${book.book_slug}`,
-    ...bookSearchMetadata(book),
+    ...bookSearchMetadata({ ...book, book_code: PHASE3_QUESTION_SEO.bookTitleCodes[book.book_id] }),
   });
 }
 
@@ -92,7 +93,7 @@ for (const chapter of database.prepare(`SELECT c.book_id, c.slug AS chapter_slug
   records.push({
     type: "chapter",
     path: `/${chapter.board_slug}/${chapter.grade_slug}/${chapter.subject_slug}/${chapter.book_slug}/${chapter.chapter_slug}`,
-    ...chapterSearchMetadata(chapter, questions),
+    ...chapterSearchMetadata({ ...chapter, book_code: PHASE3_QUESTION_SEO.bookTitleCodes[chapter.book_id] }, questions),
   });
 }
 
@@ -135,7 +136,14 @@ const targetQuestion = database.prepare(`SELECT q.row_id, q.book_id, q.question_
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   WHERE q.question_id = ? LIMIT 1`).get("q-msb-balbharati-physics-standard-12-8-002");
 const disambiguatedQuestionRows = new Set(PHASE3_QUESTION_SEO.disambiguatedRowIds);
+// The document title takes the book's group-minimal code so its identifying
+// tokens land inside the SERP window; the social title stays prompt-first and
+// takes the appended qualifier, which og:title has room for.
 const targetQuestionTitle = questionDocumentTitle(
+  targetQuestion,
+  PHASE3_QUESTION_SEO.bookTitleCodes[targetQuestion.book_id],
+);
+const targetQuestionSocialTitle = questionSocialTitle(
   targetQuestion,
   disambiguatedQuestionRows.has(Number(targetQuestion.row_id)),
 );
@@ -145,10 +153,46 @@ const duplicateTitles = duplicateGroups("documentTitle");
 const titleLengths = records.map((record) => [...record.documentTitle].length);
 const descriptionLengths = records.map((record) => [...record.description].length);
 const exactTemplates = {
-  subject: targetSubject?.documentTitle === "Maharashtra Board Class 12 Physics Solutions and Question Bank | StudyWudy",
-  textbook: targetBook?.documentTitle === "Balbharati Physics Class 12 Solutions – All 16 Chapters | StudyWudy",
-  chapter: targetChapter?.documentTitle === "Balbharati Physics Class 12 Chapter 8: Electrostatics Solutions – Maharashtra Board | StudyWudy",
-  normalizedQuestionType: targetQuestionTitle === "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8 | StudyWudy",
+  subject: targetSubject?.documentTitle === "Maharashtra Board Class 12 Physics Textbook Solutions | StudyWudy",
+  textbook: targetBook?.documentTitle === "Balbharati Class 12 Physics Solutions | StudyWudy",
+  chapter: targetChapter?.documentTitle === "Balbharati Cl12 Physics Ch8: Electrostatics Solutions | StudyWudy",
+  normalizedQuestionType: targetQuestionSocialTitle === "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8",
+};
+const serpEvidence = {
+  questionIdentityLeadsTitle: targetQuestionTitle === "Balbharati Cl12 Physics Ch8 Q2: A slab of material of…",
+  questionTitleWithinSerpBudget: [...targetQuestionTitle].length <= SERP_TITLE_BUDGET,
+  // Google appends the site name to the SERP line itself; spending 12 characters
+  // of a 60-character budget repeating it is what pushed the identity out of view.
+  questionTitleDropsBrandSuffix: !/\|\s*StudyWudy\s*$/u.test(targetQuestionTitle),
+  hubTitlesKeepBrandSuffix: [targetSubject, targetBook, targetChapter]
+    .every((record) => /\|\s*StudyWudy\s*$/u.test(record?.documentTitle || "")),
+};
+// Google clips the SERP line by pixel width, so the cut floats: a hub title that
+// is unique at 60 characters can still be a duplicate at 50. Measuring one budget
+// is what let 1,439 hub pages ship a shared visible title.
+const HUB_SERP_BUDGETS = [45, 50, 55, 60];
+const hubSerpEntries = records.map((record) => ({ path: record.path, title: record.documentTitle }));
+const hubSerpCollisions = Object.fromEntries(HUB_SERP_BUDGETS.map((budget) => {
+  const report = serpCollisionGroups(hubSerpEntries, budget);
+  return [budget, {
+    collisionGroups: report.collisionGroups,
+    collidingPages: report.collidingPages,
+    paths: report.largestGroups.flatMap((group) => group.examplePaths).sort(),
+  }];
+}));
+// Two Maharashtra subjects are named "Information Technology" and "Information
+// Technology (Commerce)", so a board-first subject title cannot separate them
+// before character 51. Naming the pair rather than allowing a count keeps the
+// gate tight: any *other* hub collision at 45 or 50 still fails it.
+const KNOWN_TIGHT_BUDGET_COLLISION = [
+  "/maharashtra-board/class-12/information-technology",
+  "/maharashtra-board/class-12/information-technology-commerce",
+];
+const hubSerpEvidence = {
+  noHubCollisionsAtSixty: hubSerpCollisions[60].collidingPages === 0,
+  noHubCollisionsAtFiftyFive: hubSerpCollisions[55].collidingPages === 0,
+  onlyKnownHubCollisionsWhenClippedTight: [45, 50].every((budget) =>
+    JSON.stringify(hubSerpCollisions[budget].paths) === JSON.stringify(KNOWN_TIGHT_BUDGET_COLLISION)),
 };
 const descriptionEvidence = {
   electrostaticsHasRealTypeMix: /including MCQs, brief answers, capacitor numericals/iu.test(targetChapter?.description || ""),
@@ -166,6 +210,9 @@ const report = {
     totalPages: records.length,
   },
   exactTemplates,
+  serpEvidence,
+  hubSerpEvidence,
+  hubSerpCollisions,
   descriptionEvidence,
   duplicateTitleGroups: duplicateTitles.length,
   duplicateTitleCompositions: Object.fromEntries([...duplicateTitles.reduce((counts, group) => {
@@ -180,7 +227,9 @@ const report = {
   questionCorpus: {
     count: PHASE3_QUESTION_SEO.corpusCount,
     disambiguatedCount: PHASE3_QUESTION_SEO.disambiguatedCount,
-    targetNormalizedQuestionTitle: targetQuestionTitle,
+    bookTitleCodeCount: Object.keys(PHASE3_QUESTION_SEO.bookTitleCodes).length,
+    targetQuestionDocumentTitle: targetQuestionTitle,
+    targetNormalizedQuestionTitle: targetQuestionSocialTitle,
   },
   targetElectrostatics: {
     title: targetChapter?.documentTitle,
@@ -188,6 +237,8 @@ const report = {
   },
 };
 report.pass = Object.values(exactTemplates).every(Boolean)
+  && Object.values(serpEvidence).every(Boolean)
+  && Object.values(hubSerpEvidence).every(Boolean)
   && Object.values(descriptionEvidence).every(Boolean)
   && report.duplicateTitleGroups === 0
   && report.titleLength.maximum <= 160;

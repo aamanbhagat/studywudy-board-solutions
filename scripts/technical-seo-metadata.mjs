@@ -5,7 +5,8 @@ import { join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { contentToText } from "../answer-completeness.mjs";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
-import { questionDescription, questionDocumentTitle } from "../question-seo.mjs";
+import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
+import { questionDescription, questionDocumentTitle, questionSocialTitle } from "../question-seo.mjs";
 import { bookSearchMetadata, chapterSearchMetadata, subjectSearchMetadata } from "../search-metadata.mjs";
 import {
   SERP_TITLE_BUDGET,
@@ -22,6 +23,12 @@ import {
   staticAssetProvenance,
   titleLength,
 } from "../technical-seo.mjs";
+
+// Question titles and both book-bearing hub titles are built around the
+// group-minimal shelf mark that scripts/phase3-build-question-seo.mjs computes.
+// The Worker reads the same table (comparison/after-worker.js:279), so an audit
+// that omitted it would measure titles no page ever renders.
+const BOOK_TITLE_CODES = PHASE3_QUESTION_SEO.bookTitleCodes;
 
 const QUESTION_ROWS_SQL = `SELECT q.row_id, q.display_label, q.type, q.prompt_text, q.question_id,
   q.concept_tags, q.chapter_slug, b.id AS book_id, b.slug AS book_slug, b.title AS book_title,
@@ -96,8 +103,10 @@ function reconcilePromptText(database, rows) {
 }
 
 // The Worker only appends a disambiguator to rows that would otherwise collide,
-// so the shipped title depends on a corpus-wide collision pass. Mirrors
-// scripts/phase3-build-question-seo.mjs:80-101.
+// so the shipped og:title and description depend on a corpus-wide collision
+// pass. Mirrors scripts/phase3-build-question-seo.mjs:175-204 — including the
+// fact that the document title is no longer part of it, because the book code
+// makes it unique by construction.
 function disambiguatedRowIds(rows) {
   const collisionRows = (generator, normalizer = (value) => value) => {
     const firstRowByValue = new Map();
@@ -114,9 +123,9 @@ function disambiguatedRowIds(rows) {
     return collisions;
   };
   return new Set([
-    ...collisionRows(questionDocumentTitle),
+    ...collisionRows(questionSocialTitle),
     ...collisionRows(questionDescription),
-    ...collisionRows(questionDocumentTitle, normalizeSimilarity),
+    ...collisionRows(questionSocialTitle, normalizeSimilarity),
     ...collisionRows(questionDescription, normalizeSimilarity),
   ]);
 }
@@ -146,11 +155,24 @@ function staticDocuments(root) {
     const title = documentTitleFromHtml(html);
     if (!title) continue;
     const route = `/${path.slice(base.length + 1).replace(/(?:^|\/)index\.html$/u, "").replace(/\.html$/u, "")}`;
+    const pathname = route.replace(/^\/pages/u, "") || "/";
+    // Several prerendered surfaces deliberately repeat one title: the six
+    // /launch-hot-path/search variants, the corpus-quality review stubs, the
+    // launch-hot-path question mirrors. All are noindex and point their canonical
+    // at the page they mirror, so they are not pages Google can show — counting
+    // them as visible-title duplicates measures the alias, not the site.
+    const robots = html.match(/<meta[^>]+name="robots"[^>]+content="([^"]*)"/iu)?.[1] || "";
+    const canonical = html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]*)"/iu)?.[1] || "";
+    let canonicalPath = "";
+    try {
+      canonicalPath = canonical ? new URL(canonical).pathname.replace(/\/$/u, "") || "/" : "";
+    } catch { canonicalPath = ""; }
     records.push({
-      template: route.startsWith("/pages/launch-hot-path") ? "launch-hot-path" : "static",
-      path: route.replace(/^\/pages/u, "") || "/",
+      template: pathname.startsWith("/launch-hot-path") ? "launch-hot-path" : "static",
+      path: pathname,
       title,
       description: metaDescriptionFromHtml(html),
+      indexable: !/\bnoindex\b/iu.test(robots) && (!canonicalPath || canonicalPath === pathname),
     });
   }
   return records;
@@ -178,7 +200,7 @@ export function collectTitles(database, root, { includeQuestions = true } = {}) 
     entries.push({ template: "subject", path: `/${path}`, title: metadata.documentTitle, description: metadata.description });
   }
   for (const book of books) {
-    const metadata = bookSearchMetadata(book);
+    const metadata = bookSearchMetadata({ ...book, book_code: BOOK_TITLE_CODES[book.book_id] });
     entries.push({
       template: "textbook",
       path: `/${book.board_slug}/${book.grade_slug}/${book.subject_slug}/${book.book_slug}`,
@@ -196,7 +218,7 @@ export function collectTitles(database, root, { includeQuestions = true } = {}) 
   }
   for (const chapter of database.prepare(CHAPTER_ROWS_SQL).iterate()) {
     if (isBookQuarantined(chapter.book_id)) continue;
-    const metadata = chapterSearchMetadata(chapter, questionsByChapter.get(`${chapter.book_id}\u0000${chapter.chapter_slug}`) || []);
+    const metadata = chapterSearchMetadata({ ...chapter, book_code: BOOK_TITLE_CODES[chapter.book_id] }, questionsByChapter.get(`${chapter.book_id}\u0000${chapter.chapter_slug}`) || []);
     entries.push({
       template: "chapter",
       path: `/${chapter.board_slug}/${chapter.grade_slug}/${chapter.subject_slug}/${chapter.book_slug}/${chapter.chapter_slug}`,
@@ -217,11 +239,16 @@ export function collectTitles(database, root, { includeQuestions = true } = {}) 
       entries.push({
         template: "question",
         path: questionPath(row),
-        title: questionDocumentTitle(row, disambiguate),
+        title: questionDocumentTitle(row, BOOK_TITLE_CODES[row.book_id]),
         description: questionDescription(row, disambiguate),
       });
     }
   }
+
+  // Every corpus-derived route is self-canonical and indexable; only the
+  // prerendered documents carry a robots or canonical override, and
+  // staticDocuments has already read theirs.
+  for (const entry of entries) if (entry.indexable === undefined) entry.indexable = true;
 
   return { entries, counts };
 }
@@ -258,6 +285,23 @@ export function auditMetadata({ database, root, corpus, includeQuestions = true 
   // pre-measured 96,985 pages / 27,846 groups; the all-template total is a
   // strict superset of it and would silently absorb a regression.
   const questionSerpCollisions = serpCollisionGroups(entries.filter((entry) => entry.template === "question"));
+  // What Google can actually show. The all-document figure counts noindex
+  // mirrors and canonicalised aliases, which repeat a title on purpose.
+  const indexableEntries = entries.filter((entry) => entry.indexable);
+  const indexableSerpCollisions = serpCollisionGroups(indexableEntries);
+  // Google clips the SERP line by pixel width, so the cut floats around 55-60.
+  // Measuring only 60 hides a shape that is unique there and duplicated at 50.
+  const SERP_BUDGET_SWEEP = [45, 50, 55, SERP_TITLE_BUDGET];
+  const serpCollisionsByBudget = Object.fromEntries(SERP_BUDGET_SWEEP.map((budget) => {
+    const all = serpCollisionGroups(entries, budget);
+    const indexable = serpCollisionGroups(indexableEntries, budget);
+    return [budget, {
+      collidingPages: all.collidingPages,
+      collisionGroups: all.collisionGroups,
+      indexableCollidingPages: indexable.collidingPages,
+      indexableCollisionGroups: indexable.collisionGroups,
+    }];
+  }));
   const titleFindings = [];
   if (overall.overBudget > 0) {
     titleFindings.push(finding({
@@ -272,21 +316,42 @@ export function auditMetadata({ database, root, corpus, includeQuestions = true 
           .map(([template, stats]) => [template, `${stats.overBudget}/${stats.pages} over, p50 ${stats.p50}, max ${stats.maximum}`])),
         budgetConstants: [
           "search-metadata.mjs:52 DOCUMENT_TITLE_LIMIT = 160",
-          "question-seo.mjs:334 Math.max(18, 154 - [...fixed].length)",
-          "question-seo.mjs:345 Math.max(8, 146 - [...fixed].length - 1)",
+          "search-metadata.mjs:57 SERP_HUB_TITLE_BUDGET = 60",
+          "question-seo.mjs:382 Math.max(24, SERP_TITLE_BUDGET - [...prefix].length - 2)",
         ],
+        // The floor is why a title can still run past 60: a long book code plus a
+        // long subject leaves under 24 characters, and a title that is only an
+        // identifier is worse in results than one whose prompt tail gets clipped.
+        overBudgetCause: "identifier prefix longer than 34 characters (question template)",
       },
     }));
   }
-  if (serpCollisions.collisionGroups > 0) {
+  const worstBudget = SERP_BUDGET_SWEEP
+    .reduce((worst, budget) => (serpCollisionsByBudget[budget].indexableCollidingPages
+      > serpCollisionsByBudget[worst].indexableCollidingPages ? budget : worst), SERP_TITLE_BUDGET);
+  if (serpCollisionsByBudget[worstBudget].indexableCollisionGroups > 0) {
+    const worst = serpCollisionsByBudget[worstBudget];
     titleFindings.push(finding({
       id: "serp-visible-title-collisions",
       checklistItem: "title-budget",
       severity: SEVERITY.critical,
-      summary: `${serpCollisions.collidingPages.toLocaleString("en-IN")} pages (${((serpCollisions.collidingPages / entries.length) * 100).toFixed(1)}%) share a title with another page once clipped to ${SERP_TITLE_BUDGET} characters, across ${serpCollisions.collisionGroups.toLocaleString("en-IN")} groups.`,
+      summary: `${worst.indexableCollidingPages.toLocaleString("en-IN")} indexable pages (${((worst.indexableCollidingPages / indexableEntries.length) * 100).toFixed(1)}%) share a title with another page once clipped to ${worstBudget} characters, across ${worst.indexableCollisionGroups.toLocaleString("en-IN")} groups.`,
       evidence: {
         note: "Every title is unique in full - the existing gate is correct about that. The disambiguator lands in the tail Google truncates, so the pages are indistinguishable in results.",
-        distinctVisibleTitles: serpCollisions.distinctVisibleTitles,
+        worstBudget,
+        byBudget: serpCollisionsByBudget,
+        distinctVisibleTitles: indexableSerpCollisions.distinctVisibleTitles,
+        largestGroups: indexableSerpCollisions.largestGroups,
+      },
+    }));
+  } else if (serpCollisions.collisionGroups > 0) {
+    titleFindings.push(finding({
+      id: "serp-visible-title-collisions-noindex-only",
+      checklistItem: "title-budget",
+      severity: SEVERITY.low,
+      summary: `${serpCollisions.collidingPages.toLocaleString("en-IN")} pages share a clipped title, but every one of them is noindex or canonicalised onto another page, so none can be shown twice.`,
+      evidence: {
+        byBudget: serpCollisionsByBudget,
         largestGroups: serpCollisions.largestGroups,
       },
     }));
@@ -333,12 +398,26 @@ export function auditMetadata({ database, root, corpus, includeQuestions = true 
   return [
     checklistEntry({
       id: "title-budget",
-      status: overall.overBudget > 0 ? STATUS.fail : STATUS.pass,
+      // A title running past the budget loses its tail; two titles sharing the
+      // visible window lose the page. Only the second is a failure — deriving
+      // the status from overBudget alone made a corpus-wide collision fix
+      // invisible in statusCounts.
+      status: (() => {
+        if (indexableSerpCollisions.collisionGroups > 0) return STATUS.fail;
+        return overall.overBudget > 0 ? STATUS.warn : STATUS.pass;
+      })(),
       metrics: {
         budget: SERP_TITLE_BUDGET,
         overall,
         perTemplate,
         serpVisibleTitleCollisions: serpCollisions,
+        indexableSerpVisibleTitleCollisions: {
+          pages: indexableEntries.length,
+          distinctVisibleTitles: indexableSerpCollisions.distinctVisibleTitles,
+          collisionGroups: indexableSerpCollisions.collisionGroups,
+          collidingPages: indexableSerpCollisions.collidingPages,
+        },
+        serpCollisionsByBudget,
         questionSerpVisibleTitleCollisions: {
           distinctVisibleTitles: questionSerpCollisions.distinctVisibleTitles,
           collisionGroups: questionSerpCollisions.collisionGroups,

@@ -70,11 +70,17 @@ for (const record of records) {
 
   if (response.status !== 200) failures.push(`status ${response.status}`);
   if (charCount > 60) failures.push(`title length ${charCount} exceeds 60`);
-  if (title !== `${openGraphTitle} | StudyWudy`) failures.push("document title is not the single social-title field plus site suffix");
+  // The <title> and og:title are separate generators now. The document title is
+  // identifier-first and unsuffixed so its distinguishing tokens survive
+  // Google's clip; og:title stays prompt-first and long for the social card.
+  if (/\|\s*StudyWudy\s*$/.test(title)) failures.push("question document title still carries the site suffix");
+  if (title === openGraphTitle) failures.push("document title was not rewritten away from the social title");
   if (openGraphTitle !== twitterTitle) failures.push("og:title and twitter:title differ");
   if (generatedEllipses > 1) failures.push(`${generatedEllipses} generated ellipses indicate colliding truncation`);
-  if (!openGraphTitle.startsWith(`Q${record.display_label}: `)) failures.push("question label prefix is missing");
-  if (!openGraphTitle.endsWith(` — Ch${record.chapter_number}`)) failures.push("stable chapter-number suffix is missing");
+  // "{book code} Cl{n} {subject} Ch{n} Q{label}: {prompt…}" — the chapter and
+  // question tokens are what separate two sibling questions, so they have to be
+  // present and inside the 60 characters checked above.
+  if (!title.includes(` Ch${record.chapter_number} Q`)) failures.push("chapter and question identity is missing from the document title");
 
   results.push({
     ...record,

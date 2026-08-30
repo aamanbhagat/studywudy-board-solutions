@@ -1,6 +1,10 @@
-export const PUBLIC_TITLE_QUALITY_RELEASE = "descriptive-public-context-v1";
+export const PUBLIC_TITLE_QUALITY_RELEASE = "serp-visible-identity-v2";
 export const HOMEPAGE_DOCUMENT_TITLE = "Textbook Solutions for CBSE, Maharashtra, ICSE and Tamil Nadu | StudyWudy";
-export const ACCOUNTANCY_SAMPLE_TITLE = "A Company Is an Artificial Person – True or False | Class 12 Accountancy";
+// Question titles are built identifier-first so the part that tells two pages
+// apart survives Google's ~60-character clip, and they carry no " | StudyWudy"
+// suffix — there is no room for it beside a 33-character identifier, and Google
+// appends the site name to the SERP line itself.
+export const ACCOUNTANCY_SAMPLE_TITLE = "NCERT Company Cl12 Accountancy Ch1 Q1: A company is an…";
 export const ACCOUNTANCY_SAMPLE_PATH = "/cbse/class-12/accountancy/ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12/accounting-for-share-capital/questions/q-cbse-ncert-accountancy-company-accounts-and-analysis-of-financial-statements-class-12-1-001";
 
 function decodeHtmlText(value) {

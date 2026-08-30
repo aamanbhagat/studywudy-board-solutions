@@ -277,6 +277,9 @@ const COURSE_METADATA_LABELS = Object.freeze({
   "tn-hse-commerce": "Tamil Nadu HSE Commerce",
 });
 const QUESTION_SEO_DISAMBIGUATED_ROWS = new Set(PHASE3_QUESTION_SEO.disambiguatedRowIds);
+// One shelf mark per book, unique within its class and subject, so a question
+// <title> can identify its page inside the ~60 characters Google displays.
+const QUESTION_SEO_BOOK_CODES = PHASE3_QUESTION_SEO.bookTitleCodes;
 // The recovered RSC payload already references this opaque Next font URL. Its
 // asset is replaced with IBM Plex Sans so the preload and CSS stay byte-identical.
 const FONT_PRELOAD = "/_next/static/media/a343f882a40d2cc9-s.p.1sj6eobyi31rd.woff2";
@@ -783,6 +786,7 @@ async function academicSearchMetadataResponse(response, env, url) {
         .first();
       if (row) {
         row.book_title = reviewedBookTitle(row.book_id, repairKnownText(row.book_id, row.book_title));
+        row.book_code = QUESTION_SEO_BOOK_CODES[row.book_id];
         metadata = bookSearchMetadata(row);
         breadcrumbs = academicBreadcrumbItems(row);
       }
@@ -1824,7 +1828,7 @@ async function standaloneQuestionResponse(request, env, url, route) {
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     : "noindex, follow";
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(rowId);
-  const title = repairKnownText(catalog.book_id, questionDocumentTitle(catalog, disambiguate));
+  const title = repairKnownText(catalog.book_id, questionDocumentTitle(catalog, QUESTION_SEO_BOOK_CODES[catalog.book_id]));
   const socialTitle = repairKnownText(catalog.book_id, questionSocialTitle(catalog, disambiguate));
   const description = priorityQuestionPilot
     ? `Find the correct option, explanation and why the other choices do not fit for ${repairKnownText(catalog.book_id, questionPrompt(catalog))}. Official Balbharati source checked.`
@@ -2165,6 +2169,7 @@ async function chapterPageExperienceResponse(response, env, url, requestMethod, 
           board_slug: route.boardSlug,
           class_number: route.classNumber,
           subject_slug: route.subjectSlug,
+          book_code: QUESTION_SEO_BOOK_CODES[bookId],
           chapter,
         }, chapterQuestions(chapter));
       }
@@ -2355,7 +2360,7 @@ async function questionMetadataResponse(response, env, url) {
   result.chapter_title = reviewedChapterTitle(result.book_id, route.chapter, repairKnownText(result.book_id, result.chapter_title));
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(Number(result.row_id));
   const socialTitle = questionSocialTitle(result, disambiguate);
-  const documentTitle = questionDocumentTitle(result, disambiguate);
+  const documentTitle = questionDocumentTitle(result, QUESTION_SEO_BOOK_CODES[result.book_id]);
   const description = questionDescription(result, disambiguate);
   const promptOverride = questionPrompt(result) !== String(result.prompt_text || "").replace(/\s+/g, " ").trim()
     ? questionPrompt(result)

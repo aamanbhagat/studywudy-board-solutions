@@ -6,9 +6,14 @@ import { DatabaseSync } from "node:sqlite";
 import { gunzipSync } from "node:zlib";
 import {
   QUESTION_PROMPT_OVERRIDES,
+  SERP_TITLE_BUDGET,
+  compactDistinctiveText,
+  plainText,
   questionDescription,
   questionDocumentTitle,
+  questionSocialTitle,
 } from "../question-seo.mjs";
+import { bookCodeLead } from "../search-metadata.mjs";
 import { contentToText } from "../answer-completeness.mjs";
 import { ACCOUNTANCY_SAMPLE_TITLE } from "../public-title-quality.mjs";
 
@@ -29,7 +34,7 @@ const manifestPath = resolve(root, args.get("--manifest-output") || "phase3-ques
 const outputPath = resolve(root, args.get("--output") || "audits/phase-3/question-seo-full-corpus.json");
 const database = new DatabaseSync(sourcePath, { readOnly: true });
 const rows = database.prepare(`SELECT q.row_id, q.display_label, q.type, q.prompt_text, q.question_id,
-  q.concept_tags, b.title AS book_title, b.board_slug, b.grade_slug, b.subject_slug,
+  q.concept_tags, q.book_id, b.title AS book_title, b.board_slug, b.grade_slug, b.subject_slug,
   bo.name AS board_name, bo.short_name AS board_short_name,
   g.class_number, g.label AS grade_label, s.name AS subject_name,
   c.number AS chapter_number, c.title AS chapter_title
@@ -78,6 +83,95 @@ function normalizeSimilarity(value) {
   return value.normalize("NFKC").toLocaleLowerCase("en-IN").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+// ---------------------------------------------------------------------------
+// Book codes
+// ---------------------------------------------------------------------------
+// A question title identifies its page as "{book code} Cl{n} {subject} Ch{n}
+// Q{label}". Everything but the code is already printed, so the code only has to
+// be unique within a class+subject — 134 small groups rather than one global
+// namespace, which is what keeps it short enough to fit the visible window.
+//
+// Fixed-width truncation of the book title does not work: every variant of it
+// leaves 1,400-2,500 colliding pages, because long publisher names truncate to
+// the same prefix. The shortest word-prefix that separates a book from its own
+// group does, and measures 15 characters at p50.
+
+const BOOK_CODE_LENGTH = 18;
+// A one-word author surname ("Huma", "Austine") is unique but useless as a shelf
+// mark, so a code keeps growing until it carries enough of the title to read.
+const BOOK_CODE_MINIMUM = 8;
+// bookCodeLead lives in search-metadata.mjs because the chapter and textbook hub
+// templates build the same shelf mark; keeping one copy is what stops a hub page
+// and its question pages from naming the same book two different ways.
+function buildBookTitleCodes(books) {
+  const groups = new Map();
+  for (const book of books) {
+    const key = `${Number(book.class_number) || book.grade_slug}|${plainText(book.subject_name)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(book);
+  }
+  const codes = {};
+  let numberedCount = 0;
+  for (const group of groups.values()) {
+    const leads = new Map(group.map((book) => [book.id, bookCodeLead(book)]));
+    const claimed = new Set();
+    for (const book of group) {
+      const lead = leads.get(book.id);
+      const others = group.filter((other) => other.id !== book.id)
+        .map((other) => leads.get(other.id).toLocaleLowerCase("en-IN"));
+      const words = lead.split(/\s+/u).filter(Boolean);
+      let code = null;
+      for (let count = 1; count <= words.length; count += 1) {
+        const candidate = words.slice(0, count).join(" ");
+        if ([...candidate].length < BOOK_CODE_MINIMUM && count < words.length) continue;
+        if (others.some((other) => other.startsWith(candidate.toLocaleLowerCase("en-IN")))) continue;
+        const clamped = compactDistinctiveText(candidate, BOOK_CODE_LENGTH);
+        // Uniqueness has to hold *after* clamping and normalisation, not before.
+        // compactDistinctiveText elides the middle with "…", and normalisation
+        // strips it — so "Balbharati…Ekatmik" compares equal to a sibling book's
+        // literal "Balbharati Ekatmik" and the disambiguator disambiguates
+        // nothing. Checking the raw prefix instead left 10 colliding pages.
+        if (claimed.has(normalizeSimilarity(clamped))) continue;
+        code = clamped;
+        break;
+      }
+      // Before resorting to an ordinal, spend a few more characters: a wider
+      // clamp keeps the edition token ("Pt 2", "Bhag 2") that tells two printings
+      // apart, which a bare " 2" never conveys. This drops the ordinals from 26
+      // books to 3 — all of them genuine near-duplicate editions.
+      if (code === null) {
+        for (const wider of [BOOK_CODE_LENGTH + 4, BOOK_CODE_LENGTH + 8, BOOK_CODE_LENGTH + 12]) {
+          const clamped = compactDistinctiveText(lead, wider);
+          if (claimed.has(normalizeSimilarity(clamped))) continue;
+          code = clamped;
+          break;
+        }
+      }
+      if (code === null) code = compactDistinctiveText(lead, BOOK_CODE_LENGTH);
+      let final = code;
+      for (let ordinal = 2; claimed.has(normalizeSimilarity(final)); ordinal += 1) final = `${code} ${ordinal}`;
+      if (final !== code) numberedCount += 1;
+      claimed.add(normalizeSimilarity(final));
+      codes[book.id] = final;
+    }
+  }
+  return { codes, numberedCount, groupCount: groups.size };
+}
+
+const books = database.prepare(`SELECT b.id, b.title AS book_title, b.board_slug, b.grade_slug,
+  b.subject_slug, g.class_number, s.name AS subject_name
+  FROM catalog_books b
+  JOIN catalog_grades g ON g.board_slug = b.board_slug AND g.slug = b.grade_slug
+  JOIN catalog_subjects s ON s.board_slug = b.board_slug AND s.grade_slug = b.grade_slug
+    AND s.slug = b.subject_slug
+  ORDER BY b.id`).all();
+// ORDER BY is load-bearing: the ordinal fallback is assigned in iteration order,
+// so an unordered read would reshuffle codes between builds.
+const { codes: bookTitleCodes, numberedCount: numberedBookCodes, groupCount: bookCodeGroups } = buildBookTitleCodes(books);
+for (const row of rows) {
+  if (!bookTitleCodes[row.book_id]) throw new Error(`No book code for ${row.book_id} (row ${row.row_id})`);
+}
+
 function collisionRows(generator, normalizer = (value) => value) {
   const firstRowByValue = new Map();
   const collisions = new Set();
@@ -93,9 +187,14 @@ function collisionRows(generator, normalizer = (value) => value) {
   return collisions;
 }
 
-const titleCollisionRows = collisionRows(questionDocumentTitle);
+// The appended " · board · book · chapter · Q{n}" qualifier now serves og:title
+// and the meta description only. The document title no longer needs it — it is
+// unique by construction from the book code — but dropping it here would hand
+// back 70,157 duplicate og:titles and 64,496 duplicate descriptions, so the
+// per-row disambiguation set stays.
+const titleCollisionRows = collisionRows(questionSocialTitle);
 const descriptionCollisionRows = collisionRows(questionDescription);
-const normalizedTitleCollisionRows = collisionRows(questionDocumentTitle, normalizeSimilarity);
+const normalizedTitleCollisionRows = collisionRows(questionSocialTitle, normalizeSimilarity);
 const normalizedDescriptionCollisionRows = collisionRows(questionDescription, normalizeSimilarity);
 const disambiguatedRows = new Set([
   ...titleCollisionRows,
@@ -128,11 +227,20 @@ const publicTitleQuality = {
   overlongTitles: 0,
   accountancySampleMatches: false,
 };
+// What a search engine actually shows. Google truncates by pixel width, so the
+// cut floats: a shape that is unique at 60 can still collide at 50.
+const SERP_BUDGETS = [45, 50, 55, 60];
+const serpVisibleTitles = new Map(SERP_BUDGETS.map((budget) => [budget, new Map()]));
 
 for (const row of rows) {
   const disambiguate = disambiguatedRows.has(Number(row.row_id));
-  const title = questionDocumentTitle(row, disambiguate);
+  const title = questionDocumentTitle(row, bookTitleCodes[row.book_id]);
   const description = questionDescription(row, disambiguate);
+  for (const budget of SERP_BUDGETS) {
+    const visible = normalizeSimilarity([...title].slice(0, budget).join(""));
+    const seen = serpVisibleTitles.get(budget);
+    seen.set(visible, (seen.get(visible) || 0) + 1);
+  }
   const searchTitle = title.replace(/\s+\|\s+StudyWudy$/u, "");
   const artifactTitle = searchTitle.replace(/\s+\|\s+(?=Class\b)/gu, " ");
   if (/\$/u.test(searchTitle)) metadataArtifacts.titleRawMathDelimiter += 1;
@@ -168,6 +276,22 @@ for (const questionId of Object.keys(QUESTION_PROMPT_OVERRIDES)) {
   if (!rows.some((row) => row.question_id === questionId)) throw new Error(`SEO override does not match a catalog question: ${questionId}`);
 }
 
+// The gate this build was missing. Full-string uniqueness was asserted above and
+// passed while 96,985 pages shared a visible title, because the qualifier that
+// made them unique started at character 67 at the earliest.
+const serpCollisions = {};
+for (const budget of SERP_BUDGETS) {
+  const colliding = [...serpVisibleTitles.get(budget).values()].filter((count) => count > 1);
+  serpCollisions[budget] = {
+    groups: colliding.length,
+    pages: colliding.reduce((total, count) => total + count, 0),
+  };
+}
+for (const budget of SERP_BUDGETS) {
+  const { groups, pages } = serpCollisions[budget];
+  if (pages > 0) throw new Error(`${pages} pages across ${groups} groups share a title clipped to ${budget} characters`);
+}
+
 const generatedAt = new Date().toISOString();
 const manifest = {
   generatedAt,
@@ -178,6 +302,7 @@ const manifest = {
   normalizedDescriptionCollisionCount: normalizedDescriptionCollisionRows.size,
   disambiguatedCount: disambiguatedRows.size,
   disambiguatedRowIds: [...disambiguatedRows].sort((left, right) => left - right),
+  bookTitleCodes,
 };
 const report = {
   generatedAt,
@@ -195,6 +320,13 @@ const report = {
   finalSimilarDescriptionGroups: rows.length - finalNormalizedDescriptions.size,
   titleLength: { minimum: minimumTitleLength, maximum: maximumTitleLength },
   descriptionLength: { minimum: minimumDescriptionLength, maximum: maximumDescriptionLength },
+  bookCodes: {
+    books: books.length,
+    groups: bookCodeGroups,
+    distinct: new Set(Object.values(bookTitleCodes)).size,
+    numbered: numberedBookCodes,
+  },
+  serpCollisions,
   metadataArtifacts,
   publicTitleQuality,
   pass: finalTitles.size === rows.length
@@ -206,7 +338,8 @@ const report = {
     && publicTitleQuality.catalogueReferences === 0
     && publicTitleQuality.lowercaseTitleOpenings === 0
     && publicTitleQuality.overlongTitles === 0
-    && publicTitleQuality.accountancySampleMatches,
+    && publicTitleQuality.accountancySampleMatches
+    && SERP_BUDGETS.every((budget) => serpCollisions[budget].pages === 0),
 };
 
 mkdirSync(dirname(manifestPath), { recursive: true });

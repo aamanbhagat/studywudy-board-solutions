@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  SERP_TITLE_BUDGET,
   compactText,
   plainText,
   questionDescription,
@@ -50,22 +51,37 @@ test("subject, textbook and chapter titles match real student search language", 
     chapter_count: 32,
     question_count: 1_038,
   });
+  // book_code is the group-minimal shelf mark the phase-3 builder emits; the
+  // Worker passes it in on every hub render. Left out, hubBookCode derives the
+  // same lead from the title, which is what keeps a prerender honest.
   const book = bookSearchMetadata({
     ...academicContext,
     book_title: "Balbharati Physics Standard 12",
+    book_code: "Balbharati",
     chapter_count: 16,
     question_count: 497,
   });
   const chapter = chapterSearchMetadata({
     ...academicContext,
     book_title: "Balbharati Physics Standard 12",
+    book_code: "Balbharati",
     chapter_number: 8,
     chapter_title: "Electrostatics",
   }, electrostaticsQuestions());
 
-  assert.equal(subject.documentTitle, "Maharashtra Board Class 12 Physics Solutions and Question Bank | StudyWudy");
-  assert.equal(book.documentTitle, "Balbharati Physics Class 12 Solutions – All 16 Chapters | StudyWudy");
-  assert.equal(chapter.documentTitle, "Balbharati Physics Class 12 Chapter 8: Electrostatics Solutions – Maharashtra Board | StudyWudy");
+  assert.equal(subject.documentTitle, "Maharashtra Board Class 12 Physics Textbook Solutions | StudyWudy");
+  assert.equal(book.documentTitle, "Balbharati Class 12 Physics Solutions | StudyWudy");
+  assert.equal(chapter.documentTitle, "Balbharati Cl12 Physics Ch8: Electrostatics Solutions | StudyWudy");
+  // Everything that tells two hub pages apart has to sit inside the clip Google
+  // applies to the SERP line, or the visible titles are duplicates however
+  // distinct the full strings are. The brand suffix is allowed to fall outside it.
+  for (const title of [subject.documentTitle, book.documentTitle, chapter.documentTitle]) {
+    const identity = title.replace(/\s+\|\s+StudyWudy$/u, "");
+    assert.ok([...identity].length <= SERP_TITLE_BUDGET, `${identity} is ${[...identity].length} characters`);
+  }
+  // The chapter hub and its question pages must name the same book, class and
+  // subject the same way — they share hubBookCode and shortSubjectName for it.
+  assert.ok(chapter.documentTitle.startsWith("Balbharati Cl12 Physics Ch8"));
   assert.equal(chapter.description, "Complete Maharashtra Board Class 12 Physics Chapter 8 Electrostatics solutions, including MCQs, brief answers, capacitor numericals and step-by-step textbook answers from Balbharati Physics Standard 12 on pages 212–213.");
 });
 
@@ -82,9 +98,16 @@ test("the dielectric-slab title uses its normalized MCQ type rather than a numer
     chapter_number: 8,
     chapter_title: "Electrostatics",
   };
-  assert.equal(questionDocumentTitle(record), "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8 | StudyWudy");
+  assert.equal(questionSocialTitle(record), "Dielectric Slab Capacitor MCQ Solution – Class 12 Physics Chapter 8");
+  // The <title> is a separate generator: identifier-first, so the tokens that
+  // separate two sibling questions land inside Google's ~60-character clip
+  // instead of past it. It carries no " | StudyWudy" — Google appends the site
+  // name to the SERP line itself, and there is no room for it here.
+  const documentTitle = questionDocumentTitle(record, "Balbharati");
+  assert.equal(documentTitle, "Balbharati Cl12 Physics Ch8 Q2: A slab of material of…");
+  assert.ok([...documentTitle].length <= SERP_TITLE_BUDGET, `${documentTitle} is ${[...documentTitle].length} characters`);
   assert.equal(record.prompt_text, prompt);
-  assert.ok(questionDocumentTitle(record).length < prompt.length);
+  assert.ok(documentTitle.length < prompt.length);
 });
 
 test("true-or-false titles use the statement and never expose the private database row ID", () => {
@@ -106,9 +129,12 @@ test("true-or-false titles use the statement and never expose the private databa
     chapter_number: 1,
     chapter_title: "Accounting for Share Capital",
   };
-  assert.equal(questionDocumentTitle(record), ACCOUNTANCY_SAMPLE_TITLE);
-  assert.equal(questionSocialTitle(record), ACCOUNTANCY_SAMPLE_TITLE);
-  assert.doesNotMatch(questionDescription(record), /39148|catalogue reference/iu);
+  // "NCERT Company" is the group-minimal book code the phase-3 builder emits for
+  // this book; the Worker passes it in from the manifest on every render.
+  assert.equal(questionDocumentTitle(record, "NCERT Company"), ACCOUNTANCY_SAMPLE_TITLE);
+  assert.equal(questionSocialTitle(record), "A Company Is an Artificial Person – True or False | Class 12 Accountancy");
+  const surfaces = `${questionDocumentTitle(record, "NCERT Company")} ${questionSocialTitle(record)} ${questionDescription(record)}`;
+  assert.doesNotMatch(surfaces, /39148|catalogue reference/iu);
 });
 
 test("collision handling uses public textbook context and genuine question labels", () => {
@@ -123,7 +149,7 @@ test("collision handling uses public textbook context and genuine question label
     chapter_number: 8,
     chapter_title: "Electrostatics",
   };
-  const title = questionDocumentTitle(record, true);
+  const title = questionDocumentTitle(record, "Balbharati");
   const description = questionDescription(record, true);
   assert.match(title, /Maharashtra Board|Balbharati|Q7\(b\)/u);
   assert.doesNotMatch(`${title} ${description}`, /987654321|catalogue reference/iu);
@@ -203,22 +229,31 @@ test("printed dot leaders in fill-in-the-blank prompts do not read as broken tru
 });
 
 test("neighbouring questions that differ only past the old 44-character cut get distinct metadata", () => {
-  const record = (prompt) => ({
+  const record = (label, prompt) => ({
     ...academicContext,
     row_id: 3_595,
-    question_id: `q-collision-${prompt.length}`,
-    display_label: "1",
+    question_id: `q-collision-${label}`,
+    display_label: label,
     type: "brief",
     prompt_text: prompt,
     book_title: "Lakhmir Singh Chemistry Class 10",
     chapter_number: 2,
     chapter_title: "Acids Bases and Salts",
   });
-  const first = record("What effect does the concentration of H+ ions have on the nature of a solution?");
-  const second = record("What effect does the concentration of OH- ions have on the nature of a solution?");
-  assert.notEqual(questionDocumentTitle(first), questionDocumentTitle(second));
-  assert.notEqual(questionDescription(first), questionDescription(second));
-  for (const value of [questionDocumentTitle(first), questionDescription(first)]) {
-    assert.ok([...value].length <= 160, `${value} is ${[...value].length} characters`);
+  const first = record("1", "What effect does the concentration of H+ ions have on the nature of a solution?");
+  const second = record("2", "What effect does the concentration of OH- ions have on the nature of a solution?");
+  const titles = [first, second].map((row) => questionDocumentTitle(row, "Lakhmir Singh"));
+  // These two prompts are identical for 44 characters, so the prompt tail cannot
+  // be what separates the titles — the Q label is, and it sits at character 30.
+  // Both titles fit the SERP budget whole, so differing here is the same thing
+  // as differing after Google's clip.
+  assert.notEqual(titles[0], titles[1]);
+  for (const title of titles) {
+    assert.ok([...title].length <= SERP_TITLE_BUDGET, `${title} is ${[...title].length} characters`);
   }
+  // The description and social card stay prompt-first, so they separate on the
+  // prompt tail instead and must carry the disambiguating qualifier to do it.
+  assert.notEqual(questionDescription(first, true), questionDescription(second, true));
+  assert.notEqual(questionSocialTitle(first, true), questionSocialTitle(second, true));
+  assert.ok([...questionDescription(first, true)].length <= 160, questionDescription(first, true));
 });

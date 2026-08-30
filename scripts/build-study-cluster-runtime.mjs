@@ -10,6 +10,7 @@ import {
   findChapterPageContext,
   renderChapterPageExperience,
 } from "../chapter-page-experience.mjs";
+import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
 import { chapterQuestions, chapterSearchMetadata } from "../search-metadata.mjs";
@@ -88,6 +89,9 @@ function runtimeSource() {
         board_slug: primaryRoute.boardSlug,
         class_number: primaryRoute.classNumber,
         subject_slug: primaryRoute.subjectSlug,
+        // Same shelf mark the Worker stamps on this chapter's question pages, so
+        // the prerendered cluster page and the live route agree byte for byte.
+        book_code: PHASE3_QUESTION_SEO.bookTitleCodes[primaryBookId],
         chapter,
       }, chapterQuestions(chapter)),
       breadcrumbs: academicBreadcrumbItems({
