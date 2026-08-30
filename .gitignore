@@ -29,6 +29,8 @@ audits/sitewide/*.sqlite3-shm
 audits/sitewide/*.sqlite3-wal
 audits/sitewide/*.lock
 !audits/sitewide/README.md
+audits/technical-seo/*.json
+!audits/technical-seo/README.md
 
 # The D1 snapshot the maths audit reads, and everything it writes from it: the
 # reports, the review page, and the delta SQL. All of it is derived from a
