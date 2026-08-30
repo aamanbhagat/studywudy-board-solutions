@@ -176,7 +176,10 @@ test("static search cards are re-filtered through the current final publishing g
   assert.doesNotMatch(filtered.html, /data-question-row-id="251535"/u);
   assert.match(filtered.html, /data-search-result-count="1"/u);
   assert.match(filtered.html, /1 eligible match is rendered below\./u);
-  assert.match(filtered.html, /data-search-final-gate="phase4-v14-source-input-integrity"/u);
+  // Stamped from the manifest, so assert against the manifest. A literal here
+  // pins the attestation to whichever policy generation happened to be checked
+  // in, which is how the corpus stayed on v14 for a week after the gate moved.
+  assert.match(filtered.html, new RegExp(`data-search-final-gate="${PHASE4_GATE_MANIFEST.policyVersion}"`, "u"));
 });
 
 test("production smoke covers every structured filter and relevance ranking", async () => {

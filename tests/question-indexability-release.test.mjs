@@ -22,10 +22,22 @@ function popcountByte(value) {
   return count;
 }
 
+// Pinning these to a literal is what let the manifest fall three policy
+// generations behind the gate that writes it: a7199151 bumped both constants on
+// 2026-08-24 without regenerating, and a test asserting the checked-in value
+// cannot notice that the generator moved on. Read them back out of the script
+// instead, so the assertion fails the moment the two disagree.
+function gateScriptConstant(name) {
+  const source = readFileSync(resolve(root, "scripts/phase4-content-gate.mjs"), "utf8");
+  const match = source.match(new RegExp(`^const ${name} = "([^"]+)";$`, "mu"));
+  assert.ok(match, `scripts/phase4-content-gate.mjs no longer declares ${name}`);
+  return match[1];
+}
+
 test("the generated publishing manifest has no word-count threshold", () => {
-  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, "phase4-v14-source-input-integrity");
+  assert.equal(PHASE4_GATE_MANIFEST.policyVersion, gateScriptConstant("POLICY_VERSION"));
   assert.match(PHASE4_GATE_MANIFEST.multilingualTextPolicy, /unresolved Hindi and Tamil imports are quarantined/u);
-  assert.equal(PHASE4_GATE_MANIFEST.questionPageExperienceVersion, "question-specific-trust-v2");
+  assert.equal(PHASE4_GATE_MANIFEST.questionPageExperienceVersion, gateScriptConstant("QUESTION_PAGE_EXPERIENCE_VERSION"));
   assert.match(PHASE4_GATE_MANIFEST.formulaAccessibilityPolicy, /semantic-token preservation.*MathML/i);
   assert.match(PHASE4_GATE_MANIFEST.promptRequirementsPolicy, /draw, working, comparison, reason and derivation/i);
   assert.equal(typeof PHASE4_GATE_MANIFEST.equationReviewBitsetBase64, "string");
