@@ -6,7 +6,17 @@ import { gunzipSync } from "node:zlib";
 import { contentToText } from "../answer-completeness.mjs";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
 import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
-import { questionDescription, questionDocumentTitle, questionSocialTitle } from "../question-seo.mjs";
+import {
+  questionDescription,
+  questionDocumentTitle,
+  questionLegacyDocumentTitle,
+  questionSocialTitle,
+} from "../question-seo.mjs";
+import {
+  QUESTION_TITLE_ROLLOUT_STAGE,
+  QUESTION_TITLE_STAGE_ROWS,
+  questionTitleRolledOut,
+} from "../question-title-rollout.mjs";
 import { bookSearchMetadata, chapterSearchMetadata, subjectSearchMetadata } from "../search-metadata.mjs";
 import {
   SERP_TITLE_BUDGET,
@@ -234,12 +244,21 @@ export function collectTitles(database, root, { includeQuestions = true } = {}) 
     counts.reconciledPromptRows = reconcilePromptText(database, rows);
     const disambiguated = disambiguatedRowIds(rows);
     counts.disambiguatedRows = disambiguated.size;
+    // The identity-first title ships in stages (question-title-rollout.mjs), so
+    // the audit has to measure what the Worker would actually serve today. Using
+    // questionDocumentTitle unconditionally here would report zero collisions
+    // from the first canary onward while ~95K pages still served the legacy
+    // title - a green number for a site that had not changed.
+    counts.titleRolloutStage = QUESTION_TITLE_ROLLOUT_STAGE;
+    counts.titleRolloutRows = QUESTION_TITLE_ROLLOUT_STAGE === "all" ? rows.length : QUESTION_TITLE_STAGE_ROWS.length;
     for (const row of rows) {
       const disambiguate = disambiguated.has(Number(row.row_id));
       entries.push({
         template: "question",
         path: questionPath(row),
-        title: questionDocumentTitle(row, BOOK_TITLE_CODES[row.book_id]),
+        title: questionTitleRolledOut(row.row_id)
+          ? questionDocumentTitle(row, BOOK_TITLE_CODES[row.book_id])
+          : questionLegacyDocumentTitle(row, disambiguate),
         description: questionDescription(row, disambiguate),
       });
     }

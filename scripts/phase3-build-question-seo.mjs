@@ -289,7 +289,14 @@ for (const budget of SERP_BUDGETS) {
 }
 for (const budget of SERP_BUDGETS) {
   const { groups, pages } = serpCollisions[budget];
-  if (pages > 0) throw new Error(`${pages} pages across ${groups} groups share a title clipped to ${budget} characters`);
+  if (pages > 0) {
+    if (process.argv.includes("--explain-collisions")) {
+      const worst = [...serpVisibleTitles.get(budget).entries()]
+        .filter(([, count]) => count > 1).sort((a, b) => b[1] - a[1]).slice(0, 25);
+      for (const [title, count] of worst) console.error(`${String(count).padStart(5)}  ${JSON.stringify(title)}`);
+    }
+    throw new Error(`${pages} pages across ${groups} groups share a title clipped to ${budget} characters`);
+  }
 }
 
 const generatedAt = new Date().toISOString();

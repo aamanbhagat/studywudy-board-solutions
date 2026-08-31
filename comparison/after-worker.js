@@ -8,10 +8,12 @@ import {
   questionAnswerOverride,
   questionDescription,
   questionDocumentTitle,
+  questionLegacyDocumentTitle,
   questionMainHeading,
   questionPrompt,
   questionSocialTitle,
 } from "../question-seo.mjs";
+import { questionTitleRolledOut } from "../question-title-rollout.mjs";
 import {
   cleanupPhase5ContactRequests,
   enhancePhase5Response,
@@ -1834,7 +1836,16 @@ async function standaloneQuestionResponse(request, env, url, route) {
     ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     : "noindex, follow";
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(rowId);
-  const title = repairKnownText(catalog.book_id, questionDocumentTitle(catalog, QUESTION_SEO_BOOK_CODES[catalog.book_id]));
+  // Staged: question-title-rollout.mjs decides per row whether this page has
+  // moved to the identity-first title yet. Outside the stage the page keeps the
+  // byte-identical legacy title, so a batch can be widened or withdrawn without
+  // touching the generator.
+  const title = repairKnownText(
+    catalog.book_id,
+    questionTitleRolledOut(rowId)
+      ? questionDocumentTitle(catalog, QUESTION_SEO_BOOK_CODES[catalog.book_id])
+      : questionLegacyDocumentTitle(catalog, disambiguate),
+  );
   const socialTitle = repairKnownText(catalog.book_id, questionSocialTitle(catalog, disambiguate));
   const description = priorityQuestionPilot
     ? `Find the correct option, explanation and why the other choices do not fit for ${repairKnownText(catalog.book_id, questionPrompt(catalog))}. Official Balbharati source checked.`
@@ -2366,7 +2377,9 @@ async function questionMetadataResponse(response, env, url) {
   result.chapter_title = reviewedChapterTitle(result.book_id, route.chapter, repairKnownText(result.book_id, result.chapter_title));
   const disambiguate = QUESTION_SEO_DISAMBIGUATED_ROWS.has(Number(result.row_id));
   const socialTitle = questionSocialTitle(result, disambiguate);
-  const documentTitle = questionDocumentTitle(result, QUESTION_SEO_BOOK_CODES[result.book_id]);
+  const documentTitle = questionTitleRolledOut(result.row_id)
+    ? questionDocumentTitle(result, QUESTION_SEO_BOOK_CODES[result.book_id])
+    : questionLegacyDocumentTitle(result, disambiguate);
   const description = questionDescription(result, disambiguate);
   const promptOverride = questionPrompt(result) !== String(result.prompt_text || "").replace(/\s+/g, " ").trim()
     ? questionPrompt(result)

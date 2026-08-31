@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 218085,
-      "sha256": "d73c0fa16c5505ec2d8a22615c2f9b216af1fed954f5e45927764f06fc5d924d"
+      "bytes": 218667,
+      "sha256": "9a7d53cc87ce26eb4b7e9be413fcfcc92783c4fa74289e295e6aabaf728665cc"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87520,13 +87520,13 @@
     },
     {
       "path": "package.json",
-      "bytes": 12426,
-      "sha256": "23e3efeb7188462864495b363118b5b48c8f38637b053c253be62cb0402ac2db"
+      "bytes": 12641,
+      "sha256": "627d388c1adcd1b4afb498e93170930e4ca6cc2647b79e4e66e1a4a68924139b"
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
-      "bytes": 605295,
-      "sha256": "596ab077929d5386f72d1083061a041c0e1a53204dfee7dbe7406dad483acfcf"
+      "bytes": 605057,
+      "sha256": "cab4ab47ce50b043a12dc52cc6df0ff74ae88a4d9982ed3a5927c637ee18af5f"
     },
     {
       "path": "phase4-publish-manifest.mjs",
@@ -87615,8 +87615,8 @@
     },
     {
       "path": "question-seo.mjs",
-      "bytes": 20712,
-      "sha256": "9cffd30d0b12f188691ff60d16c45a272f3385e1a03c0e6d0d4c2fb30b3fce6f"
+      "bytes": 22373,
+      "sha256": "e7baf697a00c252a18c30578557ccb6802d9b3c990c0b15e1a054512ef351663"
     },
     {
       "path": "question-showcase-manifest.mjs",
@@ -87632,6 +87632,11 @@
       "path": "question-solution-media.mjs",
       "bytes": 2109,
       "sha256": "2ba6e8e8d3cae58536fd6ffb9c81dbb5349bfd9c0bbecdbe16f50f3188f3e241"
+    },
+    {
+      "path": "question-title-rollout.mjs",
+      "bytes": 4924,
+      "sha256": "1e09ac040a72055d8593e95c7f367cd67499666ca0ed5ff45ffd4121fe8a26e5"
     },
     {
       "path": "question-type-labels.mjs",
@@ -87655,8 +87660,8 @@
     },
     {
       "path": "search-metadata.mjs",
-      "bytes": 14839,
-      "sha256": "cfd204b6f904e9f3b46226ae986d0c9d3fba58f34d0e3abde23c0f6f17950810"
+      "bytes": 15765,
+      "sha256": "41326fad53ceacfc9eb56dff6e524ba4b2c6748fc53da9bfa3cfc642dbf1df3a"
     },
     {
       "path": "semantic-link-graph.mjs",
@@ -87709,5 +87714,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "a7aec7a86aaee3399c55ae569432727edfd72d97a29c51471038be23d646eb32"
+  "aggregateSha256": "0e07b259fcdea4362f237b21ee8d7ab72f58ba8f9bfc0c6e39d207a313e08fcd"
 }

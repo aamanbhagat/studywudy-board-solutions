@@ -160,7 +160,20 @@ const BOOK_CODE_ABBREVIATIONS = Object.freeze([
 ]);
 
 function bookCodeLead(record) {
-  let lead = bookSearchLead(record);
+  // The subject comes out here rather than via bookSearchLead because a compound
+  // subject strands its conjunction mid-string. Deleting "Mathematics" from
+  // "Balbharati Mathematics and Statistics 1 Arts and Science" left "Balbharati
+  // and Statistics 1 Arts and Science" — which also stops the "Mathematics and
+  // Statistics" abbreviation below from ever matching, since its first half is
+  // already gone. That clamped to the contentless code "Balbharati and…" and put
+  // 111 pages into a single 45-character SERP group. Swallowing the conjunction
+  // along with the subject keeps the distinctive half of the compound instead.
+  const escapedSubject = subjectName(record).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  let lead = titleWithoutGrade(record)
+    .replace(new RegExp(`\\b${escapedSubject}\\b(?:\\s+(?:and|&)\\b)?`, "giu"), " ")
+    .replace(/\s*[-–—:]\s*/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim() || bookSearchLead(record);
   for (const [pattern, replacement] of BOOK_CODE_ABBREVIATIONS) lead = lead.replace(pattern, replacement);
   // bookSearchLead removes the subject name verbatim, so a compound subject
   // strands its conjunction: "Mathematics and Statistics 1 Standard XII" comes

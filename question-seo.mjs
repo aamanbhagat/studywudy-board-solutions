@@ -148,10 +148,31 @@ function compactDistinctiveText(value, maximum) {
   const available = Math.max(4, maximum - 1);
   const leadingLength = Math.ceil(available * 0.56);
   const trailingLength = available - leadingLength;
-  const leading = characters.slice(0, leadingLength).join("").replace(/\s+\S*$/u, "").trimEnd()
-    || characters.slice(0, leadingLength).join("").trimEnd();
-  const trailing = characters.slice(-trailingLength).join("").replace(/^\S*\s+/u, "").trimStart()
-    || characters.slice(-trailingLength).join("").trimStart();
+  // Both halves must land on a word boundary. Slicing by character count and
+  // then stripping a partial word only works when the slice happens to contain
+  // whitespace: "NCERT Mathematics Exemplar" puts the whole tail inside one
+  // word, so the strip matched nothing and the code read "NCERT…xemplar".
+  // Building each half out of whole words cannot produce a fragment at all.
+  const words = normalized.split(/\s+/u).filter(Boolean);
+  let leading = "";
+  let elided = 0;
+  for (const word of words) {
+    const next = leading ? `${leading} ${word}` : word;
+    if ([...next].length > leadingLength) break;
+    leading = next;
+    elided += 1;
+  }
+  let trailing = "";
+  // Start past `elided` so at least one word is always dropped; otherwise the
+  // ellipsis would sit between two adjacent words and elide nothing.
+  for (let index = words.length - 1; index > elided; index -= 1) {
+    const next = trailing ? `${words[index]} ${trailing}` : words[index];
+    if ([...next].length > trailingLength) break;
+    trailing = next;
+  }
+  // One word longer than its own half leaves nothing to elide around. A plain
+  // word-boundary clip reads better than an ellipsis with a fragment beside it.
+  if (!leading || !trailing) return compactText(normalized, maximum);
   return `${leading}…${trailing}`;
 }
 
@@ -383,6 +404,18 @@ function questionDocumentTitle(record, bookCode = "") {
   return `${prefix}: ${compactText(questionMainHeading(record), room)}`;
 }
 
+// The pre-70cf3c09 document title, restored verbatim so the identity-first
+// rewrite can be rolled out a batch at a time instead of flipping ~300K pages
+// in one deploy. Every page outside the current rollout stage keeps serving
+// exactly the string it served before, so a batch is reversible by shrinking
+// question-title-rollout.mjs rather than by reverting code.
+//
+// Delete this together with the rollout module once the stage reaches "all".
+function questionLegacyDocumentTitle(record, disambiguate = false) {
+  const title = questionSocialTitle(record, disambiguate);
+  return questionTopic(record).layout === "true-false" ? title : `${title} | StudyWudy`;
+}
+
 function questionDescription(record, disambiguate = false) {
   const topic = questionTopic(record);
   const type = questionSearchType(record, topic).toLocaleLowerCase("en-IN");
@@ -418,6 +451,7 @@ export {
   questionAnswerOverride,
   questionDescription,
   questionDocumentTitle,
+  questionLegacyDocumentTitle,
   questionMainHeading,
   questionPrompt,
   questionShortSubject,
