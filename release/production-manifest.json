@@ -87005,13 +87005,13 @@
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/marathi-chapter-11-source-mismatch/index.html",
-      "bytes": 71943,
-      "sha256": "724e86f473891444cafe1b353a46bc6365303b47846b92a0d6061ea05c3e5fda"
+      "bytes": 71946,
+      "sha256": "73b5061136c76c496286c7f8f1834fa77b78c2285c0ed10a4aef1f0f390b6e14"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/ncert-chemistry-source-typo/index.html",
-      "bytes": 81042,
-      "sha256": "90cb9a350ebc3cb9f4149ecab1253516bf9b13b1b0f9d284ad177bb0633d19a8"
+      "bytes": 81044,
+      "sha256": "13ead7587677d8abaa44bb568815aac82480025516025c5bfb9a9c57a419069d"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/content-quality/tamil-class-4-internal-organ/index.html",
@@ -87130,28 +87130,28 @@
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/board-maharashtra/index.html",
-      "bytes": 70494,
-      "sha256": "9a4de5041fab1165d0a2ee88aef93f2d7acbe2cc62ed958aadf432b82ecc20dd"
+      "bytes": 70491,
+      "sha256": "59dc7094fcf180a2e5d296ff101e056aa4b4b5d5e344eb4a8bb90f89f600c928"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/default/index.html",
-      "bytes": 40120,
-      "sha256": "1b7ce23958e3fbfbd995ce3e2fa5d62e8de6e6369b3ef5daecf844bcc26b8f25"
+      "bytes": 40117,
+      "sha256": "fa09dc44ec904c5bf7b35f11a53801e4c0a5203e2e8d7834a2e69798c5a5f176"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/has-diagram/index.html",
-      "bytes": 67340,
-      "sha256": "247ab6a74cd2e631ee3af4d4a9aa5ff269276044c75c629a23d62e3db9f573e1"
+      "bytes": 67337,
+      "sha256": "472580664ef5188b617fe351a52d896e221355a851ba578d1616871810167150"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-mcq-single/index.html",
-      "bytes": 66806,
-      "sha256": "8bf8b56043272a4d64c1b9ec19b6c2de55f26daab6f3bb48cc99e4b16bbb976c"
+      "bytes": 66803,
+      "sha256": "0a1c3dc5c144c5c82e32e59785be20c4e1fb868eb58e59dd2a99fe0765f5aad5"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-numerical/index.html",
-      "bytes": 70074,
-      "sha256": "6d54bf4e88531e7e2bbc26757f7c7d4e9a06600afa7579a5252bc33462309a5c"
+      "bytes": 70071,
+      "sha256": "d781faa57cc3aba61a881ec43e46f6fc06ed4f83878e199b1e586734b0736895"
     },
     {
       "path": "comparison/after-assets/pages/maharashtra-board/class-12/index.html",
@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 218667,
-      "sha256": "9a7d53cc87ce26eb4b7e9be413fcfcc92783c4fa74289e295e6aabaf728665cc"
+      "bytes": 219291,
+      "sha256": "c407e03f47ea92b0d6e5b67def10f63592305541806ce1b2b86f4902ed058b64"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87615,8 +87615,8 @@
     },
     {
       "path": "question-seo.mjs",
-      "bytes": 22373,
-      "sha256": "e7baf697a00c252a18c30578557ccb6802d9b3c990c0b15e1a054512ef351663"
+      "bytes": 24246,
+      "sha256": "89c76a72fb8c0f351ef0f40b8bb6875007be79dbf6b6749495148b6bc2d70699"
     },
     {
       "path": "question-showcase-manifest.mjs",
@@ -87635,8 +87635,8 @@
     },
     {
       "path": "question-title-rollout.mjs",
-      "bytes": 4924,
-      "sha256": "1e09ac040a72055d8593e95c7f367cd67499666ca0ed5ff45ffd4121fe8a26e5"
+      "bytes": 5592,
+      "sha256": "0ad2ceb396d76e61e31533f09491086dad7df08478af9868e54904aff23862ad"
     },
     {
       "path": "question-type-labels.mjs",
@@ -87714,5 +87714,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "0e07b259fcdea4362f237b21ee8d7ab72f58ba8f9bfc0c6e39d207a313e08fcd"
+  "aggregateSha256": "fde771fe67a1904ac050b1ea797f14851839a30e042bbc84e6d7e3892c2042a4"
 }

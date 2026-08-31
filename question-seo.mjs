@@ -176,6 +176,36 @@ function compactDistinctiveText(value, maximum) {
   return `${leading}…${trailing}`;
 }
 
+// The character-slice elision that shipped before compactDistinctiveText was
+// rewritten above. It is kept verbatim, and it is not a duplicate to be tidied
+// away: every string a page outside the rollout stage renders has to be the
+// byte string production already serves, or the stage is not holding anything
+// back. Sharing the fixed primitive with the legacy path changed the <title> on
+// 11,695 unstaged rows - 5,336 of them inside the 60-character SERP window -
+// and the meta description on 28,223, because a whole-word qualifier is longer
+// than a sliced one and topicBudget subtracts it from the prompt at the FRONT
+// of the title. A deploy that claims 28 changed pages and delivers 11,695 is
+// also not reversible: shrinking the stage would not put them back.
+//
+// So the fragment bug is fixed only where the fragment is actually read - the
+// book code of the identity-first title. This branch keeps its old output,
+// mid-word tails and all, until its rows are rolled out and stop calling it.
+function compactLegacyDistinctiveText(value, maximum) {
+  const normalized = plainText(value);
+  const characters = [...normalized];
+  if (characters.length <= maximum) return normalized;
+  const available = Math.max(4, maximum - 1);
+  const leadingLength = Math.ceil(available * 0.56);
+  const trailingLength = available - leadingLength;
+  const leading = characters.slice(0, leadingLength).join("").replace(/\s+\S*$/u, "").trimEnd()
+    || characters.slice(0, leadingLength).join("").trimEnd();
+  const trailing = characters.slice(-trailingLength).join("").replace(/^\S*\s+/u, "").trimStart()
+    || characters.slice(-trailingLength).join("").trimStart();
+  return `${leading}…${trailing}`;
+}
+
+// Only ever reached from questionSocialTitle and questionDescription, both of
+// which are legacy-shaped, so it elides the legacy way.
 function compactBookTitle(value, maximum) {
   const academicTitle = plainText(value)
     .replace(/^Balbharati\s+/iu, "")
@@ -186,7 +216,7 @@ function compactBookTitle(value, maximum) {
     .replace(/\bCompany Accounts and Analysis of Financial Statements\b/giu, "Company Accounts Analysis")
     .replace(/\bStandard\b/giu, "Std")
     .replace(/\bPart\b/giu, "Pt");
-  return compactDistinctiveText(academicTitle, maximum);
+  return compactLegacyDistinctiveText(academicTitle, maximum);
 }
 
 const TITLE_SMALL_WORDS = new Set([
@@ -349,7 +379,7 @@ function questionSocialTitle(record, disambiguate = false) {
   if (topic.layout === "true-false") {
     const context = grade && subject ? `Class ${grade} ${subject}` : compactText(record.book_title, 44);
     const qualifier = disambiguate
-      ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
+      ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactLegacyDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
       : "";
     const fixed = ` – ${type} | ${context}${qualifier}`;
     const topicBudget = Math.max(18, 154 - [...fixed].length);
@@ -360,7 +390,7 @@ function questionSocialTitle(record, disambiguate = false) {
     ? `Class ${grade} ${titleSubject} ${disambiguate ? "Ch" : "Chapter"} ${record.chapter_number}`
     : `Chapter ${record.chapter_number}`;
   const qualifier = disambiguate
-    ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
+    ? ` · ${compactText(boardSearchName(record), 16)} · ${compactBookTitle(record.book_title, 36)} · ${compactLegacyDistinctiveText(record.chapter_title, 24)} · Q${compactText(record.display_label, 8)}`
     : "";
   const fixed = `${type} – ${context}${qualifier}`;
   const topicBudget = Math.max(8, 146 - [...fixed].length - 1);
@@ -424,7 +454,7 @@ function questionDescription(record, disambiguate = false) {
   const board = boardSearchName(record);
   const context = grade && subject ? `${board} Class ${grade} ${subject}` : compactText(record.book_title, 48);
   if (disambiguate) {
-    const publicContext = `${compactText(board, 12)} Class ${grade || plainText(record.grade_label)} ${compactText(subject, 12)}; ${compactText(topic.label, 24)}; ${compactBookTitle(record.book_title, 36)}; Ch ${record.chapter_number} ${compactDistinctiveText(record.chapter_title, 18)}; Q${compactText(record.display_label, 8)}`;
+    const publicContext = `${compactText(board, 12)} Class ${grade || plainText(record.grade_label)} ${compactText(subject, 12)}; ${compactText(topic.label, 24)}; ${compactBookTitle(record.book_title, 36)}; Ch ${record.chapter_number} ${compactLegacyDistinctiveText(record.chapter_title, 18)}; Q${compactText(record.display_label, 8)}`;
     return compactText(`${publicContext}: ${type} solution.`, 158);
   }
   // The topic is the only part of this sentence that differs between two

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compactDistinctiveText, questionDocumentTitle, questionLegacyDocumentTitle } from "../question-seo.mjs";
+import {
+  compactDistinctiveText,
+  questionDescription,
+  questionDocumentTitle,
+  questionLegacyDocumentTitle,
+  questionSocialTitle,
+} from "../question-seo.mjs";
 import {
   QUESTION_TITLE_PINNED_ROWS,
   QUESTION_TITLE_ROLLOUT_ROWS,
@@ -43,6 +49,59 @@ test("the legacy title is the pre-rollout string, not a second identity-first va
     questionLegacyDocumentTitle({ ...ACCOUNTANCY, type: "mcq_single", prompt_text: "Find the value of x." }),
     /\| StudyWudy$/u,
   );
+});
+
+// Row 4,962, one of the 80,966 rows the manifest marks `disambiguate`. The
+// strings below were read out of the deployed tree (87eafb5a) against the real
+// corpus row, then reproduced from this trimmed fixture - so they are the bytes
+// production is serving, not the bytes this file would like them to be.
+const VERONA = Object.freeze({
+  board_slug: "cbse",
+  board_name: "Central Board of Secondary Education",
+  board_short_name: "CBSE",
+  class_number: 10,
+  grade_label: "Class 10",
+  grade_slug: "class-10",
+  subject_name: "English",
+  subject_slug: "english",
+  row_id: 4962,
+  question_id: "q-cbse-cbse-english-literature-reader-class-10-1-009",
+  display_label: "9",
+  type: "detailed",
+  prompt_text: "**Read the extract given below and answer the questions that follow.** | As we made the rounds, my interest was again provoked by their remarkable demeanour.",
+  book_title: "CBSE English Literature Reader Class 10",
+  chapter_number: 1,
+  chapter_title: "F. 1 Two Gentlemen of Verona",
+});
+
+test("a disambiguated row outside the stage still serves the deployed bytes", () => {
+  // The whole point of the stage is that an unrolled row is untouched, and the
+  // qualifier is the only part of the legacy title that moves - so this is the
+  // branch that had to be pinned and was not. Every other test here calls
+  // questionLegacyDocumentTitle with `disambiguate` defaulted to false, the one
+  // branch that returns an empty qualifier and never reaches the elision at all.
+  // That blind spot let a shared truncation primitive rewrite the <title> on
+  // 11,695 unstaged rows - 5,336 inside the 60-character SERP window - and the
+  // meta description on 28,223, while the suite stayed green.
+  assert.ok(!questionTitleRolledOut(VERONA.row_id), "row 4962 must stay outside the stage for this test to mean anything");
+  assert.equal(
+    questionLegacyDocumentTitle(VERONA, true),
+    "Read the extract given below and answer the… Long Answer – Class 10 English Ch 1 · CBSE · CBSE English…Class 10 · F. 1 Two…of Verona · Q9 | StudyWudy",
+  );
+  // og:title and the meta description run through the same elision and are not
+  // staged at all, so they have to be pinned here or nothing pins them.
+  assert.equal(
+    questionSocialTitle(VERONA, true),
+    "Read the extract given below and answer the… Long Answer – Class 10 English Ch 1 · CBSE · CBSE English…Class 10 · F. 1 Two…of Verona · Q9",
+  );
+  assert.equal(
+    questionDescription(VERONA, true),
+    "CBSE Class 10 English; Read the extract given…; CBSE English…Class 10; Ch 1 F. 1 Two…Verona; Q9: long answer solution",
+  );
+  // "CBSE English…Class 10" and "F. 1 Two…Verona" both cut mid-word. That is the
+  // old elision and it stays: fixing it here would be the same defect again,
+  // changing a page the stage promised not to touch.
+  assert.match(questionLegacyDocumentTitle(VERONA, true), /CBSE English…Class 10/u);
 });
 
 test("an elided book code never keeps half a word", () => {

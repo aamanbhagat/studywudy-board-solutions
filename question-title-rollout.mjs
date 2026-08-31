@@ -77,7 +77,17 @@ const STAGE_ROWS = Object.freeze({
 });
 
 /** The rows serving the identity-first title in the checked-in stage. */
-export const QUESTION_TITLE_STAGE_ROWS = STAGE_ROWS[QUESTION_TITLE_ROLLOUT_STAGE] || QUESTION_TITLE_ROLLOUT_ROWS;
+export const QUESTION_TITLE_STAGE_ROWS = (() => {
+  if (QUESTION_TITLE_ROLLOUT_STAGE === "all") return QUESTION_TITLE_ROLLOUT_ROWS;
+  const rows = STAGE_ROWS[QUESTION_TITLE_ROLLOUT_STAGE];
+  // A typo used to fall through to the 150-row canary, which is the widest stage
+  // in the table - so misspelling "release-gates" would have rolled out 122 rows
+  // nobody asked for, and every audit and gate would have agreed with it, because
+  // they all read this same constant. Refusing to load is the only safe default
+  // for a switch whose whole purpose is to be narrower than the corpus.
+  if (!rows) throw new Error(`Unknown question title rollout stage "${QUESTION_TITLE_ROLLOUT_STAGE}"; expected one of ${["all", ...Object.keys(STAGE_ROWS)].join(", ")}`);
+  return rows;
+})();
 
 const ROLLED_OUT = new Set(QUESTION_TITLE_STAGE_ROWS);
 

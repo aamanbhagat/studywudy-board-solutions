@@ -9,6 +9,7 @@ import { corpusQuestionSearchEligible } from "../corpus-quality.mjs";
 import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
 import { extractCrawlerVisibleText } from "../crawler-visible-text.mjs";
 import { getQuestionUrl, questionRecordFromCatalogRow } from "../question-routes.mjs";
+import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
 import { QUESTION_SHOWCASE_ENTRIES } from "../question-showcase-manifest.mjs";
@@ -43,7 +44,13 @@ const typeLabels = Object.freeze({
   passage: "Passage-based", numerical: "Numerical", diagram: "Diagram-based",
 });
 const questionDecorativeTextStyles = '<style data-studywudy-decorative-text="pseudo-v3">.brand-mark::before{content:"S"}.board-card-meta [data-label]::before{content:attr(data-label)}</style>';
-const searchRuntimeRelease = "20260825-search-solution-action-v104";
+// Hand-kept equal to PHASE_2_VERSION (comparison/after-worker.js): that constant
+// is both the asset cache buster and the edge HTML cache key, and these five
+// documents bake their ?v= strings onto disk, so a bump there that stops here
+// leaves prerendered pages pointing at a different asset generation than every
+// rendered page. tests/question-search.test.mjs pins worker, builder and HTML to
+// one string precisely to catch that drift - it is the gate, not a formality.
+const searchRuntimeRelease = "20260831-serp-visible-identity-v105";
 
 function outputPath(entry) {
   return resolve(assetsRoot, entry.assetPath.replace(/^\//u, ""), "index.html");
@@ -180,6 +187,20 @@ function inspect(entry, html) {
   if (/\\(?:frac|varepsilon|epsilon|text|mathrm|times)\b|\$\$/u.test(text)) failures.push("raw TeX is crawler-visible");
   if (entry.kind.endsWith("-question")) {
     if (!source.includes(`id="${entry.questionId}"`)) failures.push("question identity is missing");
+    // These 27 documents are served straight off disk by launchHotPathStaticResponse
+    // (comparison/after-worker.js), which returns before question routing, so their
+    // <title> is whatever the last --write captured and no request-time generator
+    // ever revisits it. When the book-code elision was fixed, two of them kept the
+    // fragment codes "NCERT…xemplar" and "Balbharati…mposite" - and the chemistry
+    // page is index,follow, so that fragment was a live SERP title. Every other gate
+    // passed, because none of them compares this HTML against today's generator.
+    // Codes are rebuilt corpus-wide by scripts/phase3-build-question-seo.mjs, so a
+    // code the manifest no longer contains is proof the document is stale.
+    const documentTitle = (source.match(/<title>([^<]*)<\/title>/u) || [])[1] || "";
+    const bookCode = documentTitle.split(" Cl")[0];
+    if (!Object.values(PHASE3_QUESTION_SEO.bookTitleCodes).includes(bookCode)) {
+      failures.push(`book code "${bookCode}" is not in the current question-SEO manifest; re-run build:launch-hot-path-static`);
+    }
     if (!source.includes('data-studywudy-question-template="original-theme-v1"')) failures.push("original StudyWudy question template is missing");
     if (!source.includes('/_next/static/chunks/3utpp1hmg6_bb.css')) failures.push("original StudyWudy question stylesheet is missing");
     if (!source.includes('data-studywudy-decorative-text="pseudo-v3"')) failures.push("accessible brand monogram styling is missing");

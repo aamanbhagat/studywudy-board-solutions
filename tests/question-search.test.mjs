@@ -89,9 +89,22 @@ test("search cards use a concise green View solution action", async () => {
     assert.match(source, /class="search-solution-button" data-search-description="plain-v2">View solution <span aria-hidden="true">→<\/span><\/b>/u);
   }
   assert.match(styles, /\.search-result-list > a > b\.search-solution-button \{[\s\S]*background: var\(--green, #137a4a\) !important;[\s\S]*color: #fff !important;/u);
-  assert.match(worker, /20260825-search-solution-action-v104/u);
-  assert.match(builder, /20260825-search-solution-action-v104/u);
-  assert.match(html, /navigation-feedback\.css\?v=20260825-search-solution-action-v104/u);
+  // PHASE_2_VERSION is two things at once: the asset ?v= cache buster and the
+  // edge HTML cache key (edgeHtmlCacheKey), so any deploy that changes rendered
+  // HTML has to bump it - and the builder keeps its own copy, while these five
+  // search documents bake the string onto disk. Three artifacts, one value,
+  // maintained by hand. Pinning the literal made every legitimate bump a
+  // three-file chore that failed here first; deriving it from the worker keeps
+  // the drift check and drops the chore. The shape assertion is what stops the
+  // derivation from passing on an empty or malformed capture.
+  const version = (worker.match(/^const PHASE_2_VERSION = "([^"]+)";$/mu) || [])[1];
+  assert.match(String(version), /^\d{8}-[a-z0-9-]+-v\d+$/u);
+  // Compared as extracted strings rather than assert.match against the sources:
+  // a regex miss here prints the entire 25 KB builder as `actual`, which buries
+  // the one token that differs.
+  assert.equal((builder.match(/^const searchRuntimeRelease = "([^"]+)";$/mu) || [])[1], version);
+  assert.ok(html.includes(`navigation-feedback.css?v=${version}`), `prerendered search HTML is pinned to a different asset generation than ${version}`);
+  assert.ok(html.includes(`semantic-math.js?v=${version}`), `prerendered search HTML is pinned to a different asset generation than ${version}`);
   assert.doesNotMatch(html, /data-search-description="plain-v2">(?:Explain|Calculate|Derive|Test your understanding of)\b/iu);
 });
 
