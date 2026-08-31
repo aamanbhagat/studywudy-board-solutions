@@ -50,7 +50,7 @@ const questionDecorativeTextStyles = '<style data-studywudy-decorative-text="pse
 // leaves prerendered pages pointing at a different asset generation than every
 // rendered page. tests/question-search.test.mjs pins worker, builder and HTML to
 // one string precisely to catch that drift - it is the gate, not a formality.
-const searchRuntimeRelease = "20260831-serp-visible-identity-v105";
+const searchRuntimeRelease = "20260831-title-canary-1-v106";
 
 function outputPath(entry) {
   return resolve(assetsRoot, entry.assetPath.replace(/^\//u, ""), "index.html");

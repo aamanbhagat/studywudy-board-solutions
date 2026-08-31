@@ -87130,28 +87130,28 @@
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/board-maharashtra/index.html",
-      "bytes": 70491,
-      "sha256": "59dc7094fcf180a2e5d296ff101e056aa4b4b5d5e344eb4a8bb90f89f600c928"
+      "bytes": 70470,
+      "sha256": "2e4889bf90dba9d638b00391995e4ace736ad98453f05152e2b0390f5aa97b81"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/default/index.html",
-      "bytes": 40117,
-      "sha256": "fa09dc44ec904c5bf7b35f11a53801e4c0a5203e2e8d7834a2e69798c5a5f176"
+      "bytes": 40096,
+      "sha256": "2de227120fcf5ced296407c30bcee60a63be618fb1eefb010b01b3d166da98a1"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/has-diagram/index.html",
-      "bytes": 67337,
-      "sha256": "472580664ef5188b617fe351a52d896e221355a851ba578d1616871810167150"
+      "bytes": 67316,
+      "sha256": "fbe3f4baa3154d0b37d00cbad040ae06732dbc20d1ea7affc5df436333ac345b"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-mcq-single/index.html",
-      "bytes": 66803,
-      "sha256": "0a1c3dc5c144c5c82e32e59785be20c4e1fb868eb58e59dd2a99fe0765f5aad5"
+      "bytes": 66782,
+      "sha256": "c3612dfbed3aa468d25b469de722cbcc5d5607fbdc12fd18a8bceae730434a88"
     },
     {
       "path": "comparison/after-assets/pages/launch-hot-path/search/type-numerical/index.html",
-      "bytes": 70071,
-      "sha256": "d781faa57cc3aba61a881ec43e46f6fc06ed4f83878e199b1e586734b0736895"
+      "bytes": 70050,
+      "sha256": "db44458df11e06c4dcfa34dfb6d73d8347e251c909e959e03b8cad28dfa10bf8"
     },
     {
       "path": "comparison/after-assets/pages/maharashtra-board/class-12/index.html",
@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 219291,
-      "sha256": "c407e03f47ea92b0d6e5b67def10f63592305541806ce1b2b86f4902ed058b64"
+      "bytes": 219284,
+      "sha256": "f08a0ee05dfe0753102f1dd7a7c4678bf42292bd04307aa5598913c83b3591cd"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87635,8 +87635,8 @@
     },
     {
       "path": "question-title-rollout.mjs",
-      "bytes": 5592,
-      "sha256": "0ad2ceb396d76e61e31533f09491086dad7df08478af9868e54904aff23862ad"
+      "bytes": 5587,
+      "sha256": "b04ec1c24d429b2a1a42a80487286865dacafa984d3bf002df4b3cf25de1537e"
     },
     {
       "path": "question-type-labels.mjs",
@@ -87714,5 +87714,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "fde771fe67a1904ac050b1ea797f14851839a30e042bbc84e6d7e3892c2042a4"
+  "aggregateSha256": "a66123f0a600804af25c25fa666f7b3928befc437f6477121eaf4af37023b308"
 }

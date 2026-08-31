@@ -189,7 +189,7 @@ const BOARD_PAGE_SLUGS = new Set(["maharashtra-board", "cbse", "cisce", "tamil-n
 // s-maxage=3600, and smoke:production:public-title - which runs seconds after
 // wrangler deploy, from the same machine and colo, and which warms the entry
 // itself - would fail on the stale copy and fail the whole deploy chain.
-const PHASE_2_VERSION = "20260831-serp-visible-identity-v105";
+const PHASE_2_VERSION = "20260831-title-canary-1-v106";
 const PRIORITY_QUESTION_PILOT_PATH = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-001";
 const PRIORITY_QUESTION_PILOT_ROW_ID = 212031;
 const PRIORITY_QUESTION_SOURCE_REVIEW = Object.freeze({

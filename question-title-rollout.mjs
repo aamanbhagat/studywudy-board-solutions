@@ -35,7 +35,7 @@
 // deploy without dragging the title rewrite along - the five Section-3 commits
 // are stacked with the title commit oldest, so holding it back at the row level
 // is the only way to separate them without rewriting history.
-export const QUESTION_TITLE_ROLLOUT_STAGE = "release-gates";
+export const QUESTION_TITLE_ROLLOUT_STAGE = "canary-1";
 
 // Not optional in any stage, for two independent reasons.
 //   27 rows are prerendered under comparison/after-assets/pages/launch-hot-path/**
