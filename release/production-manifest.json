@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 219284,
-      "sha256": "f08a0ee05dfe0753102f1dd7a7c4678bf42292bd04307aa5598913c83b3591cd"
+      "bytes": 220159,
+      "sha256": "87e343e6288d5b80edee57ff5fe26179e87c3f27754ee081ee24050d3b37fbb5"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87714,5 +87714,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "e6bef56aaab245f6c92919c3c3d580efb9792f9c77b4381de952c77ac45537ee"
+  "aggregateSha256": "4a8117af5a5327d2e4a8139dc384456b260f724ea00f60c2ca8177b79024a222"
 }

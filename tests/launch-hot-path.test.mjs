@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import { corpusQuestionIndexEligible } from "../corpus-quality.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import {
+  isQuestionPubliclyEligible,
+  isQuestionSitemapEligible,
+} from "../public-question-eligibility.mjs";
 import {
   CONTENT_QUALITY_STATIC_QUESTION_COUNT,
   ELECTROSTATICS_STATIC_QUESTION_COUNT,
@@ -56,6 +64,47 @@ test("all launch-critical Electrostatics answers and public search filters have 
   assert.equal(
     launchHotPathDocument("https://example.test/cbse/class-12/physics/ncert-exemplar-physics-exemplar-class-12/electric-charges-and-fields/questions/q-cbse-ncert-exemplar-physics-exemplar-class-12-1-030")?.rowId,
     63247,
+  );
+});
+
+test("a prerendered row is never served index, follow unless a sitemap would submit it", async () => {
+  // launchHotPathStaticResponse runs first in the fetch chain, so for these 27
+  // rows its X-Robots-Tag is the one Google sees - the dynamic path at :1819 is
+  // never reached. It used to decide on the publishing gate alone while the
+  // sitemap builder also required the corpus-quality rule, which is the Section 3
+  // defect with the sign flipped: served `index`, never submitted. No row
+  // diverges today, so only this invariant would catch it coming back.
+  const questions = LAUNCH_HOT_PATH_DOCUMENTS.filter(({ rowId }) => rowId);
+  assert.equal(questions.length, 27);
+  for (const { rowId, questionId } of questions) {
+    const served = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, rowId)
+      && corpusQuestionIndexEligible({
+        questionId,
+        rowId: Number(rowId),
+        duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+      });
+    const submitted = isQuestionSitemapEligible(PHASE4_GATE_MANIFEST, {
+      rowId,
+      questionId,
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    });
+    assert.equal(served, submitted, `row ${rowId} is served ${served ? "index" : "noindex"} but ${submitted ? "is" : "is not"} sitemap-eligible`);
+  }
+  // Adding a prerendered row to the duplicate-choice list is the change that
+  // would have broken this, so pin that it now withdraws the index directive
+  // rather than leaving the header behind.
+  const [{ rowId, questionId }] = questions;
+  assert.equal(
+    corpusQuestionIndexEligible({ questionId, rowId, duplicateRowIds: [rowId] }),
+    false,
+  );
+  // The composition above has to be the one the Worker actually performs; this
+  // branch is only reachable through the static asset response, so the source is
+  // what pins it.
+  const source = await readFile(new URL("../comparison/after-worker.js", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /const indexable = isQuestionPubliclyEligible\(PHASE4_GATE_MANIFEST, document\.rowId\)\s*\n\s*&& corpusQuestionIndexEligible\(\{/u,
   );
 });
 

@@ -3637,7 +3637,21 @@ async function launchHotPathStaticResponse(request, env, url) {
     headers.set("X-StudyWudy-Search-Filter", SEARCH_FILTER_RELEASE);
     if (!document.search) headers.set("X-StudyWudy-Question-Showcase", QUESTION_SHOWCASE_SOURCE_GATE.policyVersion);
   } else {
-    const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, document.rowId);
+    // The publishing gate alone is not the indexability rule: every other path
+    // that sets X-Robots-Tag conjoins the corpus-quality rule too (:899 for the
+    // hot-path route, :1819 for the dynamic render, and questionSitemapEligibility
+    // for submission). This branch omitted it, and because
+    // launchHotPathStaticResponse runs first in the fetch chain its header wins
+    // for the 27 prerendered rows - so a row added to
+    // CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS would serve `index, follow` on a URL
+    // no sitemap submits. That is the Section 3 defect again with the sign
+    // flipped, and it stays latent only until the duplicate list next changes.
+    const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, document.rowId)
+      && corpusQuestionIndexEligible({
+        questionId: document.questionId,
+        rowId: Number(document.rowId),
+        duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+      });
     headers.set("cache-control", indexable ? EDGE_HTML_CACHE : "no-store");
     headers.set("X-Robots-Tag", indexable
       ? "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
