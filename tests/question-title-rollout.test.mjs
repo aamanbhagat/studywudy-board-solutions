@@ -8,6 +8,7 @@ import {
   questionSocialTitle,
 } from "../question-seo.mjs";
 import {
+  QUESTION_TITLE_BATCH_5K_ROWS,
   QUESTION_TITLE_PINNED_ROWS,
   QUESTION_TITLE_ROLLOUT_ROWS,
   QUESTION_TITLE_ROLLOUT_STAGE,
@@ -150,8 +151,8 @@ test("membership is an explicit, stable row set rather than a sample", () => {
   // The same URL must return the same title on every request. A hash or
   // percentage split would let one page's title flicker between two strings,
   // which is worse for search than either title on its own.
-  assert.ok(["release-gates", "canary-1", "all"].includes(QUESTION_TITLE_ROLLOUT_STAGE));
-  for (const rows of [QUESTION_TITLE_PINNED_ROWS, QUESTION_TITLE_ROLLOUT_ROWS]) {
+  assert.ok(["release-gates", "canary-1", "batch-5k", "all"].includes(QUESTION_TITLE_ROLLOUT_STAGE));
+  for (const rows of [QUESTION_TITLE_PINNED_ROWS, QUESTION_TITLE_ROLLOUT_ROWS, QUESTION_TITLE_BATCH_5K_ROWS]) {
     assert.equal(rows.length, new Set(rows).size);
     assert.ok(rows.every((rowId) => Number.isSafeInteger(rowId) && rowId > 0));
     assert.deepEqual([...rows].sort((a, b) => a - b), [...rows]);
@@ -159,9 +160,17 @@ test("membership is an explicit, stable row set rather than a sample", () => {
   // The canary the rollout was sized for; the pinned set is a floor, not a stage
   // anyone chose, so only the canary carries the 100-200 bound.
   assert.ok(QUESTION_TITLE_ROLLOUT_ROWS.length >= 100 && QUESTION_TITLE_ROLLOUT_ROWS.length <= 200);
+  assert.equal(QUESTION_TITLE_BATCH_5K_ROWS.length, 5_000);
   // Widening a stage may never drop a page back to the legacy title: a URL that
-  // moved forward and then back would show Google two titles for one page.
-  assert.ok(QUESTION_TITLE_PINNED_ROWS.every((rowId) => QUESTION_TITLE_ROLLOUT_ROWS.includes(rowId)));
+  // moved forward and then back would show Google two titles for one page. The
+  // ladder is therefore cumulative, and asserting it pairwise is what stops a
+  // re-selected batch from quietly dropping rows an earlier stage published.
+  const ladder = [QUESTION_TITLE_PINNED_ROWS, QUESTION_TITLE_ROLLOUT_ROWS, QUESTION_TITLE_BATCH_5K_ROWS];
+  for (let index = 1; index < ladder.length; index += 1) {
+    const wider = new Set(ladder[index]);
+    assert.ok(ladder[index - 1].every((rowId) => wider.has(rowId)), `stage ${index} drops rows from stage ${index - 1}`);
+    assert.ok(ladder[index].length > ladder[index - 1].length);
+  }
   for (let index = 0; index < 3; index += 1) assert.ok(questionTitleRolledOut(QUESTION_TITLE_STAGE_ROWS[0]));
 });
 

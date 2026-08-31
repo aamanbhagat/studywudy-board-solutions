@@ -21,7 +21,7 @@ import { PHASE3_QUESTION_SEO } from "../phase3-question-seo-manifest.mjs";
 import { getQuestionUrl, questionRecordFromCatalogRow } from "../question-routes.mjs";
 import { bookCodeLead } from "../search-metadata.mjs";
 import { questionDocumentTitle, questionLegacyDocumentTitle } from "../question-seo.mjs";
-import { QUESTION_TITLE_ROLLOUT_STAGE, questionTitleRolledOut } from "../question-title-rollout.mjs";
+import { QUESTION_TITLE_ROLLOUT_STAGE, QUESTION_TITLE_STAGE_ROWS, questionTitleRolledOut } from "../question-title-rollout.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -181,7 +181,10 @@ const submitted = submittedPaths();
 if (args.has("--select")) {
   const stage = args.get("--stage") || "canary-1";
   const size = Number(args.get("--size") || 150);
-  process.stdout.write(JSON.stringify(selectStage(rows, submitted, stage, size), null, 2));
+  const selection = args.has("--bulk")
+    ? selectBulkStage(rows, submitted, stage, size, QUESTION_TITLE_STAGE_ROWS)
+    : selectStage(rows, submitted, stage, size);
+  process.stdout.write(JSON.stringify(selection, null, 2));
   process.exit(0);
 }
 
@@ -328,5 +331,101 @@ function selectStage(allRows, submittedSet, stage, size) {
       for (const why of entry.why) acc[why] = (acc[why] || 0) + 1;
       return acc;
     }, { "representative-spread": spread.length }),
+  };
+}
+
+// A bulk stage is not a canary, and selectStage cannot produce one. That
+// sampler takes at most one row per board|grade|subject per pass over six
+// passes, so with 259 buckets it tops out near 1,430 rows no matter what
+// --size says - asking it for 5,000 silently returns 1,432. That ceiling is
+// correct for a canary, whose job is to touch as many distinct books and edge
+// cases as possible in a set small enough to read by hand.
+//
+// A 5K+ batch wants the opposite property: a proportional slice of the
+// submitted corpus that leaves every bucket's share intact, so the batch's
+// collision behaviour actually predicts the remainder's. A bucket that is 4% of
+// the sitemap should be 4% of the batch; over-sampling the odd corners the way
+// a canary does would make the numbers look worse than the rollout really is,
+// and under-sampling them would hide the failures the canary was built to find.
+//
+// Deterministic throughout - largest-remainder apportionment over buckets
+// sorted by key, then a fixed stride within each bucket. No RNG, so re-running
+// --select on the same corpus reproduces the same stage exactly.
+function selectBulkStage(allRows, submittedSet, stage, size, carryForward) {
+  // Every bulk stage carries forward the rows already rolled out. Dropping one
+  // would send a page that served the identity-first title back to the legacy
+  // string, and a title that flickers between two values across recrawls is the
+  // single failure this staged rollout exists to avoid - worse than either
+  // title on its own.
+  const carried = new Set([...carryForward].map(Number));
+  const pool = allRows.filter((row) => submittedSet.has(row.path) && !carried.has(Number(row.row_id)));
+  const remaining = Math.max(0, size - carried.size);
+  if (remaining > pool.length) {
+    throw new Error(`stage "${stage}" wants ${remaining} new rows but only ${pool.length} submitted rows remain outside the current stage`);
+  }
+
+  const buckets = new Map();
+  for (const row of pool) {
+    const key = `${row.board_slug}|${row.grade_slug}|${row.subject_slug}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(row);
+  }
+  const keys = [...buckets.keys()].sort();
+
+  // Hamilton apportionment: floor of each bucket's exact quota, then hand out
+  // what floor discarded to the largest fractional parts. Ties break on key so
+  // the result does not depend on Map iteration order.
+  const quota = new Map(keys.map((key) => [key, (buckets.get(key).length / pool.length) * remaining]));
+  const allocation = new Map(keys.map((key) => [key, Math.floor(quota.get(key))]));
+  const shortfall = () => remaining - [...allocation.values()].reduce((total, value) => total + value, 0);
+  const byRemainder = [...keys].sort((left, right) => {
+    const delta = (quota.get(right) % 1) - (quota.get(left) % 1);
+    return delta !== 0 ? delta : (left < right ? -1 : 1);
+  });
+  // Cycles because a bucket can hit its own row count before the shortfall is
+  // gone; a single pass would then return fewer rows than asked for, which is
+  // the exact bug this function replaces.
+  while (shortfall() > 0) {
+    let placed = 0;
+    for (const key of byRemainder) {
+      if (shortfall() <= 0) break;
+      if (allocation.get(key) >= buckets.get(key).length) continue;
+      allocation.set(key, allocation.get(key) + 1);
+      placed += 1;
+    }
+    if (placed === 0) throw new Error(`cannot allocate ${shortfall()} more rows: every bucket is exhausted`);
+  }
+
+  // Stride within the bucket rather than the first N: rows arrive in row_id
+  // order, which is import order, which clusters by book and chapter. Taking
+  // the head of each bucket would rebuild the whole batch out of first chapters.
+  const selected = [];
+  for (const key of keys) {
+    const bucket = buckets.get(key);
+    const want = allocation.get(key);
+    if (!want) continue;
+    const stride = bucket.length / want;
+    for (let index = 0; index < want; index += 1) selected.push(bucket[Math.floor(index * stride)]);
+  }
+
+  const rowIds = [...new Set([...carried, ...selected.map((row) => Number(row.row_id))])].sort((a, b) => a - b);
+  if (rowIds.length !== size) {
+    throw new Error(`selected ${rowIds.length} rows for stage "${stage}" but asked for ${size}`);
+  }
+  return {
+    stage,
+    rowIds,
+    reasons: {
+      "carried-forward": carried.size,
+      "proportional-spread": selected.length,
+      buckets: keys.filter((key) => allocation.get(key) > 0).length,
+    },
+    coverage: {
+      boards: [...new Set(selected.map((row) => row.board_slug))].sort(),
+      classes: [...new Set(selected.map((row) => row.grade_slug))].sort(),
+      subjects: new Set(selected.map((row) => row.subject_slug)).size,
+      books: new Set(selected.map((row) => row.book_id)).size,
+      chapters: new Set(selected.map((row) => `${row.book_id}#${row.chapter_number}`)).size,
+    },
   };
 }
