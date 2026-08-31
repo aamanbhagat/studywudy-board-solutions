@@ -12,6 +12,8 @@ import {
   invalidRenderedMathFound,
 } from "../semantic-math.mjs";
 import { LAUNCH_HOT_PATH_RELEASE } from "../launch-hot-path.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
 import { STUDY_CLUSTER_BASE } from "../study-cluster.mjs";
 import { PRODUCTION_ORIGIN } from "./featured-study-route-smoke.mjs";
 
@@ -23,6 +25,7 @@ const sphericalShellWorkSource = "W=\\frac{Q^2}{8\\pi\\varepsilon_0}\\left(\\fra
 const dielectricSlabCanonical = formulaRepresentations(CANONICAL_EQUATION_SOURCES.dielectricSlabRegionCapacitances);
 const practicePath = `${STUDY_CLUSTER_BASE}/practice`;
 const lrQuestionPath = "/cbse/class-12/physics/hc-verma-concepts-of-physics-volume-1-and-2-class-12/electromagnetic-induction/questions/q-cbse-hc-verma-concepts-of-physics-volume-1-and-2-class-12-38-120";
+const lrQuestionRowId = 62_208;
 const transmissionQuestionPath = "/cbse/class-12/physics/ncert-exemplar-physics-exemplar-class-12/alternating-current/questions/q-cbse-ncert-exemplar-physics-exemplar-class-12-7-028";
 const geometryQuestionPath = "/cbse/class-9/mathematics/ncert-mathematics-class-9/quadrilaterals/questions/q-cbse-ncert-mathematics-class-9-8-012";
 const circlesQuestionPath = "/cbse/class-10/mathematics/ncert-exemplar-mathematics-exemplar-class-10/circles/questions/q-cbse-ncert-exemplar-mathematics-exemplar-class-10-9-037";
@@ -216,9 +219,35 @@ export async function smokeMathRendering({
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status !== 200) throw new Error(`${pathname} returned ${response.status}`);
-    if (pathname === lrQuestionPath
-      && !/; complete$/u.test(response.headers.get("x-studywudy-publish-gate") || "")) {
-      throw new Error(`${pathname} did not pass the semantic publishing gate`);
+    if (pathname === lrQuestionPath) {
+      // This used to demand a literal "; complete". It was written when the gate
+      // judged the raw answer; v15 judges applyQuestionEnrichmentForQuality(...),
+      // which is the answer the Worker actually renders, and row 62208 has an
+      // enrichment that fails semanticAnswer:basicGrammarAndReadability. So the
+      // row is now correctly de-indexed and the literal was asserting a verdict
+      // the corpus no longer supports - it failed the deploy as a math-rendering
+      // bug when nothing about the math had changed.
+      //
+      // What is worth gating is that the deployed Worker and the deployed
+      // manifest agree about this row, because that divergence is a real and
+      // observed failure: the Worker imports semantic-math.mjs rather than
+      // bundling it, so it can evaluate today's validators against a stale
+      // bitset and serve noindex while the header claims complete. Deriving the
+      // expectation catches that and survives a policy change, the same
+      // treatment a7199151's drift forced onto the two tests that pinned
+      // POLICY_VERSION as a literal.
+      const indexable = isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, lrQuestionRowId);
+      const expected = `${PHASE4_GATE_MANIFEST.policyVersion}; ${indexable ? "complete" : "incomplete"}`;
+      const actual = response.headers.get("x-studywudy-publish-gate") || "";
+      if (actual !== expected) {
+        throw new Error(`${pathname} publish gate is "${actual}"; the deployed manifest says "${expected}"`);
+      }
+      // The robots directive is derived from the same boolean, so a page that
+      // disagrees with its own header is drift the header alone cannot show.
+      const robots = response.headers.get("x-robots-tag") || "";
+      if (indexable !== !/\bnoindex\b/u.test(robots)) {
+        throw new Error(`${pathname} serves "${robots}" while the manifest says indexable=${indexable}`);
+      }
     }
     const result = inspectMathRendering(pathname, await response.text());
     if (result.failures.length) throw new Error(`${pathname}: ${result.failures.join("; ")}`);
