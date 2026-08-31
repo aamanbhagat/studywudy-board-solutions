@@ -7,6 +7,11 @@ import { DatabaseSync } from "node:sqlite";
 import { isQuestionRowIndexable } from "../answer-completeness.mjs";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { bookIdFromPathname, isBookQuarantined } from "../multilingual-text-quality.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
+import {
+  PUBLIC_QUESTION_SITEMAP_ELIGIBILITY_POLICY_VERSION,
+  questionSitemapEligibility,
+} from "../public-question-eligibility.mjs";
 import { SOURCE_TEXT_INTEGRITY_MANIFEST } from "../source-text-integrity-manifest.mjs";
 import { isSourceTextIntegrityRowPassed } from "../source-text-integrity.mjs";
 
@@ -69,7 +74,12 @@ test("source-input integrity is a separate fail-closed publishing prerequisite",
   }
 });
 
-test("production sitemap assets contain exactly the type-complete question set", () => {
+// A sitemap is a submission for indexing, so the set it carries has to match what
+// the Worker will actually serve as `index, follow` — not the looser publishing
+// manifest. The Worker conjoins the manifest with `corpusQuestionIndexEligible`
+// (comparison/after-worker.js:1799-1812); asserting the bare `indexableCount`
+// here is what let 216 URLs be submitted and then served `noindex, follow`.
+test("production sitemap assets contain exactly the set the Worker will index", () => {
   const sitemapDirectory = resolve(root, "comparison/after-assets/sitemaps");
   const questionFiles = readdirSync(sitemapDirectory).filter((name) => /^questions-\d+\.xml\.gz$/u.test(name));
   const paths = [];
@@ -78,22 +88,45 @@ test("production sitemap assets contain exactly the type-complete question set",
     for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/gu)) paths.push(new URL(match[1]).pathname);
   }
   assert.equal(new Set(paths).size, paths.length);
-  assert.equal(paths.length, PHASE4_GATE_MANIFEST.indexableCount);
   assert.equal(paths.some((path) => isBookQuarantined(bookIdFromPathname(path))), false);
+
+  // The build report is sha256-pinned by release/production-manifest.json, so
+  // tying the artifact to it is not circular — but it is only a consistency
+  // check, and the independent recomputation below is the real assertion.
+  const build = JSON.parse(readFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), "utf8"));
+  assert.equal(build.policyVersion, PHASE4_GATE_MANIFEST.policyVersion);
+  assert.equal(build.sitemapEligibilityPolicyVersion, PUBLIC_QUESTION_SITEMAP_ELIGIBILITY_POLICY_VERSION);
+  assert.equal(build.expectedIndexableQuestionCount, Number(PHASE4_GATE_MANIFEST.indexableCount));
+  assert.equal(build.expectedSitemapQuestionCount, Number(PHASE4_GATE_MANIFEST.indexableCount) - build.corpusQualityExcluded);
+  assert.equal(paths.length, build.expectedSitemapQuestionCount);
 
   const databasePath = resolve(root, "../data/d1/studywudy-content.sqlite3");
   if (!existsSync(databasePath)) return;
   const database = new DatabaseSync(databasePath, { readOnly: true });
-  const rows = database.prepare(`SELECT q.row_id,
+  const rows = database.prepare(`SELECT q.row_id, q.book_id, q.question_id,
     '/' || b.board_slug || '/' || b.grade_slug || '/' || b.subject_slug || '/' ||
     b.slug || '/' || q.chapter_slug || '/questions/' || q.question_id AS path
     FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id`).all();
-  const rowByPath = new Map(rows.map((row) => [row.path, Number(row.row_id)]));
-  for (const path of paths) {
-    assert.ok(rowByPath.has(path), `sitemap question is missing from D1: ${path}`);
-    assert.equal(isQuestionRowIndexable(PHASE4_GATE_MANIFEST, rowByPath.get(path)), true, `sitemap question failed its gate: ${path}`);
+  const expected = new Set();
+  let corpusQualityExcluded = 0;
+  for (const row of rows) {
+    if (isBookQuarantined(row.book_id)) continue;
+    const verdict = questionSitemapEligibility(PHASE4_GATE_MANIFEST, {
+      rowId: Number(row.row_id),
+      questionId: row.question_id,
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    });
+    if (verdict.pageEligible && !verdict.corpusQualityClear) corpusQualityExcluded += 1;
+    if (verdict.eligible) expected.add(row.path);
   }
   database.close();
+
+  assert.equal(corpusQualityExcluded, build.corpusQualityExcluded);
+  const submittedButNotIndexable = paths.filter((path) => !expected.has(path));
+  assert.deepEqual(submittedButNotIndexable.slice(0, 5), [], `${submittedButNotIndexable.length} sitemap URLs would be served noindex`);
+  const submitted = new Set(paths);
+  const indexableButNotSubmitted = [...expected].filter((path) => !submitted.has(path));
+  assert.equal(indexableButNotSubmitted.length, 0, `${indexableButNotSubmitted.length} indexable questions are missing from the sitemaps`);
 });
 
 test("the live methodology and final response layer use the completeness policy", () => {

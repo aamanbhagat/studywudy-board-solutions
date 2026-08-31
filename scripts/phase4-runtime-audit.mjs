@@ -6,6 +6,12 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { isQuestionRowIndexable } from "../answer-completeness.mjs";
+import { isBookQuarantined } from "../multilingual-text-quality.mjs";
+import {
+  CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+  CORPUS_QUALITY_MANIFEST,
+} from "../corpus-quality-manifest.mjs";
+import { isQuestionSitemapEligible } from "../public-question-eligibility.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 2) args.set(process.argv[index], process.argv[index + 1]);
@@ -93,12 +99,21 @@ for (const child of childUrls) {
   });
 }
 
-const manifestPaths = new Set(database.prepare(`SELECT q.row_id, '/' || b.board_slug || '/' || b.grade_slug || '/' || b.subject_slug || '/' || b.slug || '/' || q.chapter_slug || '/questions/' || q.question_id AS path
+// Comparing the sitemap against the bare publishing manifest reported 216 paths
+// as `missingFromSitemap` that are correctly absent: the Worker vetoes them with
+// `corpusQuestionIndexEligible` at render time, so submitting them would be a
+// false claim. The expected set has to be the same conjunction the Worker uses.
+const sitemapEligiblePaths = new Set(database.prepare(`SELECT q.row_id, q.book_id, q.question_id, '/' || b.board_slug || '/' || b.grade_slug || '/' || b.subject_slug || '/' || b.slug || '/' || q.chapter_slug || '/questions/' || q.question_id AS path
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id`).all()
-  .filter((row) => isQuestionRowIndexable(PHASE4_GATE_MANIFEST, Number(row.row_id)))
+  .filter((row) => !isBookQuarantined(row.book_id))
+  .filter((row) => isQuestionSitemapEligible(PHASE4_GATE_MANIFEST, {
+    rowId: Number(row.row_id),
+    questionId: row.question_id,
+    duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+  }))
   .map((row) => row.path));
-const missingFromSitemap = [...manifestPaths].filter((path) => !questionPaths.has(path));
-const unexpectedInSitemap = [...questionPaths].filter((path) => !manifestPaths.has(path));
+const missingFromSitemap = [...sitemapEligiblePaths].filter((path) => !questionPaths.has(path));
+const unexpectedInSitemap = [...questionPaths].filter((path) => !sitemapEligiblePaths.has(path));
 const methodologySchemas = schemas(methodologyPage.text);
 const aboutGraph = methodologySchemas.flatMap((schema) => schema["@graph"] || [schema]);
 const methodologyBreadcrumb = aboutGraph.find((schema) => schema["@type"] === "BreadcrumbList");
@@ -137,10 +152,16 @@ const report = {
     completenessPassedCount: Number(PHASE4_GATE_MANIFEST.completenessPassedCount),
     queuedCount,
     manifestPassedCount: PHASE4_GATE_MANIFEST.gatePassedCount,
+    sitemapEligibleCount: sitemapEligiblePaths.size,
+    corpusQualityExcludedCount: Number(CORPUS_QUALITY_MANIFEST.sitemapExcludedIndexableCount),
     sitemapQuestionCount: questionPaths.size,
     missingFromSitemap: missingFromSitemap.slice(0, 20),
     unexpectedInSitemap: unexpectedInSitemap.slice(0, 20),
-    exactMatch: catalogCount === gateCoverage && PHASE4_GATE_MANIFEST.indexableCount === questionPaths.size && missingFromSitemap.length === 0 && unexpectedInSitemap.length === 0,
+    exactMatch: catalogCount === gateCoverage
+      && Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount) === questionPaths.size
+      && sitemapEligiblePaths.size === questionPaths.size
+      && missingFromSitemap.length === 0
+      && unexpectedInSitemap.length === 0,
   },
   samples: {
     passed: {
@@ -215,7 +236,10 @@ report.pass = report.pipeline.policyVersion === PHASE4_GATE_MANIFEST.policyVersi
   && report.methodology.structuredDataErrors.length === 0
   && report.methodology.structuredDataWarnings.length === 0
   && report.sitemap.indexStatus === 200
-  && report.sitemap.gateHeader === `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}`
+  // The `source-verified-pilot` token has been on the Worker's header since the
+  // pilot sitemap shipped; asserting the prefix-only form made this comparison
+  // unsatisfiable, so it is spelled out in full here.
+  && report.sitemap.gateHeader === `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${CORPUS_QUALITY_MANIFEST.sitemapIndexableCount}; source-verified-pilot=1`
   && report.sitemap.hierarchyHasMethodology
   && report.sitemap.children.every((child) => child.pass)
   && formats.length === 17

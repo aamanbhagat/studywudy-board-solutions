@@ -5,7 +5,10 @@ import { join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { streamsFor, subjectsFor } from "../comparison/stream-taxonomy.js";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
-import { STUDY_CLUSTER_BASE } from "../study-cluster.mjs";
+import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS } from "../corpus-quality-manifest.mjs";
+import { isQuestionSitemapEligible } from "../public-question-eligibility.mjs";
+import { STUDY_CLUSTER_BASE, STUDY_CLUSTER_INDEXABLE_PATHS } from "../study-cluster.mjs";
 import { PHASE5_ROUTES } from "./technical-seo-markup.mjs";
 import {
   STATUS,
@@ -17,9 +20,18 @@ import {
 } from "../technical-seo.mjs";
 
 const ASSETS = "comparison/after-assets";
+// The constant is a floor, not a hardcode: the builder threads real per-row
+// timestamps through epoch()/lastmod() and only falls back to this value when
+// they are null. Every catalog_questions.updated_at, catalog_chapters.updated_at
+// and catalog_books.updated_at in this corpus is null, which is why the floor is
+// what every URL ends up carrying. Listing all four sites so the fix is not
+// mistaken for a one-line constant change.
 const FROZEN_LASTMOD_SOURCES = [
-  "scripts/phase3-build-static-sitemaps.mjs:24",
-  "worker.js:99311",
+  "scripts/phase3-build-static-sitemaps.mjs:28 (the floor constant)",
+  "scripts/phase3-build-static-sitemaps.mjs:42 (epoch() null fallback)",
+  "scripts/phase3-build-static-sitemaps.mjs:48 (lastmod() clamp)",
+  "scripts/phase3-build-static-sitemaps.mjs:98 (hierarchy clamp)",
+  "worker.js:99311 (legacy bundle, not the deployed entrypoint)",
 ];
 
 function readMaybeGzip(path) {
@@ -66,30 +78,80 @@ function studyClusterRoutes(root) {
   return [STUDY_CLUSTER_BASE, ...suffixes.map((suffix) => `${STUDY_CLUSTER_BASE}/${suffix}`)];
 }
 
+// One question is submitted in its own sitemap ahead of the publishing manifest,
+// because the Worker admits it on verified official-source evidence instead
+// (comparison/after-worker.js:1808, `publishingManifestEligible ||
+// priorityQuestionSourceVerified`). Read out of the source for the same reason
+// as the cluster suffixes: a third copy of the path would drift.
+function priorityQuestionPilotPath(root) {
+  const source = readFileSync(resolve(root, "comparison/after-worker.js"), "utf8");
+  const match = source.match(/^const PRIORITY_QUESTION_PILOT_PATH = "([^"]+)";$/mu);
+  if (!match) throw new Error("PRIORITY_QUESTION_PILOT_PATH not found in comparison/after-worker.js");
+  return match[1];
+}
+
+// Existing and submittable are different questions, and conflating them is what
+// made this audit report 26 correctly-withheld routes as missing. A sitemap
+// should carry canonical 200 routes only, so three classes are excluded:
+// redirect-only Phase 5 routes, study-cluster surfaces the cluster itself marks
+// non-indexable, and subject routes whose entire book set is quarantined and
+// which therefore render with nothing to list.
+function redirectOnlyPhase5Routes(root) {
+  const source = readFileSync(resolve(root, "phase5-compliance.mjs"), "utf8");
+  return new Set([...source.matchAll(/url\.pathname === "([^"]+)"\)\s*\{\s*return Response\.redirect/gu)]
+    .map((match) => match[1]));
+}
+
 function routeUniverse(database, root) {
   const hierarchy = new Set(["/", ...PHASE5_ROUTES, ...studyClusterRoutes(root)]);
-  for (const board of database.prepare("SELECT slug FROM catalog_boards").all()) hierarchy.add(`/${board.slug}`);
+  const redirectOnly = redirectOnlyPhase5Routes(root);
+  const submittableHierarchy = new Set(["/",
+    ...PHASE5_ROUTES.filter((path) => !redirectOnly.has(path)),
+    ...STUDY_CLUSTER_INDEXABLE_PATHS,
+  ]);
+  const add = (path, submittable = true) => {
+    hierarchy.add(path);
+    if (submittable) submittableHierarchy.add(path);
+  };
+  for (const board of database.prepare("SELECT slug FROM catalog_boards").all()) add(`/${board.slug}`);
   for (const grade of database.prepare("SELECT board_slug, slug FROM catalog_grades").all()) {
-    hierarchy.add(`/${grade.board_slug}/${grade.slug}`);
-  }
-  for (const subject of database.prepare("SELECT board_slug, grade_slug, slug FROM catalog_subjects").all()) {
-    hierarchy.add(`/${subject.board_slug}/${subject.grade_slug}/${subject.slug}`);
+    add(`/${grade.board_slug}/${grade.slug}`);
   }
   const bookPath = new Map();
+  const subjectsWithLiveBooks = new Set();
   for (const book of database.prepare("SELECT id, board_slug, grade_slug, subject_slug, slug FROM catalog_books").all()) {
     if (isBookQuarantined(book.id)) continue;
     const path = `/${book.board_slug}/${book.grade_slug}/${book.subject_slug}/${book.slug}`;
     bookPath.set(book.id, path);
-    hierarchy.add(path);
+    subjectsWithLiveBooks.add(`/${book.board_slug}/${book.grade_slug}/${book.subject_slug}`);
+    add(path);
+  }
+  for (const subject of database.prepare("SELECT board_slug, grade_slug, slug FROM catalog_subjects").all()) {
+    const path = `/${subject.board_slug}/${subject.grade_slug}/${subject.slug}`;
+    add(path, subjectsWithLiveBooks.has(path));
   }
   for (const chapter of database.prepare("SELECT book_id, slug FROM catalog_chapters").all()) {
     const base = bookPath.get(chapter.book_id);
-    if (base) hierarchy.add(`${base}/${chapter.slug}`);
+    if (base) add(`${base}/${chapter.slug}`);
   }
   const questions = new Set();
-  for (const row of database.prepare("SELECT book_id, chapter_slug, question_id FROM catalog_questions").iterate()) {
+  // The set a sitemap may legitimately submit is not the corpus and not the
+  // publishing manifest either: the Worker conjoins the manifest with
+  // corpusQuestionIndexEligible before emitting `index, follow`
+  // (comparison/after-worker.js:1799-1812). Deriving it here is what lets the
+  // sitemap audit compare like with like instead of subtracting two unrelated
+  // scalars.
+  const sitemapEligible = new Set();
+  for (const row of database.prepare("SELECT row_id, book_id, chapter_slug, question_id FROM catalog_questions").iterate()) {
     const base = bookPath.get(row.book_id);
-    if (base) questions.add(`${base}/${row.chapter_slug}/questions/${row.question_id}`);
+    if (!base) continue;
+    const path = `${base}/${row.chapter_slug}/questions/${row.question_id}`;
+    questions.add(path);
+    if (isQuestionSitemapEligible(PHASE4_GATE_MANIFEST, {
+      rowId: Number(row.row_id),
+      questionId: row.question_id,
+      duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+    })) sitemapEligible.add(path);
   }
   const staticRoutes = new Set();
   const walk = (directory, prefix) => {
@@ -108,7 +170,9 @@ function routeUniverse(database, root) {
   const known = new Set([...hierarchy, ...questions, ...staticRoutes]);
   return {
     hierarchy,
+    submittableHierarchy,
     questions,
+    sitemapEligible,
     staticRoutes,
     classifyStreamRoute,
     isKnown: (path) => known.has(path) || classifyStreamRoute(path) !== null,
@@ -171,7 +235,7 @@ function auditSitemap(database, root, universe, corpusFile) {
         hardcodedAt: FROZEN_LASTMOD_SOURCES,
         distinctLastmodValues: distinctLastmod.length,
         distribution: Object.fromEntries(distinctLastmod.slice(0, 6)),
-        note: "phase3-runtime-audit.mjs:176-212 and phase4-runtime-audit.mjs:68-92 assert only that lastmodCount === urlCount, never that the value tracks content changes. A constant lastmod tells Google nothing has changed since 2026-08-15.",
+        note: "Root cause is missing data, not a bad generator: catalog_questions, catalog_chapters and catalog_books each have zero non-null updated_at across 299,458 / 7,715 / 606 rows, and PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt is 0, so every row falls through to the floor. The generator already threads MAX(question, chapter, book) per URL. No code change can move this metric while the corpus has no modification times; closing it needs a content revision log plus content that actually changes. The runtime audits assert only that lastmodCount === urlCount, never that the value tracks content changes.",
       },
     }));
   }
@@ -196,37 +260,91 @@ function auditSitemap(database, root, universe, corpusFile) {
       },
     }));
   }
-  // The interesting comparison is not sitemap-vs-corpus - most questions are
-  // meant to be withheld - but sitemap-vs-publish-gate. Those two numbers should
-  // agree and nothing in the repo checks that they do.
-  const gateState = database.prepare("SELECT * FROM content_publish_gate_state WHERE gate_name = 'question-publish'").get() || null;
-  const gatePassed = gateState ? Number(gateState.gate_passed_count) : null;
-  if (gatePassed != null && questionsInSitemap !== gatePassed) {
+  // An earlier revision of this audit subtracted content_publish_gate's row count
+  // from the sitemap URL count and called the difference "pages submitted that
+  // the quality gate rejected". That subtraction was invalid: the two
+  // populations are not nested. Measured on this corpus, 13,577 rows are in both,
+  // 18,785 are gate-passed but absent from the sitemap, and 83,959 sitemap URLs
+  // have no content_publish_gate row at all, so the difference of two scalars
+  // described nothing. It is replaced by three separate checks that each compare
+  // one thing to one thing.
+
+  // (a) The claim a sitemap actually makes: every URL in it will be served
+  // `index, follow`. This intersects the sets rather than differencing counts.
+  const pilotPath = priorityQuestionPilotPath(root);
+  const submittedButNotIndexable = [...locations]
+    .filter((path) => path !== pilotPath)
+    .filter((path) => universe.questions.has(path) && !universe.sitemapEligible.has(path));
+  const sitemapMinusPublishGate = questionsInSitemap - universe.sitemapEligible.size
+    - (locations.has(pilotPath) && !universe.sitemapEligible.has(pilotPath) ? 1 : 0);
+  if (submittedButNotIndexable.length) {
     findings.push(finding({
-      id: "sitemap-question-set-disagrees-with-the-publish-gate",
+      id: "sitemap-submits-urls-the-site-serves-noindex",
       checklistItem: "sitemap",
       severity: SEVERITY.high,
-      summary: `The sitemaps list ${questionsInSitemap.toLocaleString("en-IN")} question URLs while the publish gate passed only ${gatePassed.toLocaleString("en-IN")} - a difference of ${Math.abs(questionsInSitemap - gatePassed).toLocaleString("en-IN")} pages.`,
+      summary: `${submittedButNotIndexable.length.toLocaleString("en-IN")} submitted question URLs fail the predicate the Worker applies before emitting index, follow, so they are requested for indexing and then declined on arrival.`,
       evidence: {
+        examples: submittedButNotIndexable.slice(0, 10),
         sitemapQuestionRoutes: questionsInSitemap,
-        publishGatePassed: gatePassed,
-        publishGatePolicyVersion: gateState.policy_version,
+        sitemapEligibleRoutes: universe.sitemapEligible.size,
         corpusQuestionRoutes: universe.questions.size,
-        note: "Submitting URLs the content gate declined is the exact pattern that draws a Helpful Content style demotion on a programmatic site. Neither phase3-runtime-audit.mjs nor phase4-runtime-audit.mjs compares these two sets; they only check that lastmod is present on every URL.",
+        predicate: "public-question-eligibility.mjs questionSitemapEligibility = publishing manifest AND corpus-quality clearance",
+        exempt: `${pilotPath} is submitted on verified official-source evidence rather than the manifest and is excluded from this count.`,
       },
     }));
   }
-  const missingHierarchy = universe.hierarchy.size - hierarchyInSitemap;
-  if (missingHierarchy > 0) {
+
+  // (b) The manifest is a compiled bitset; the Worker re-runs the live
+  // validators. When the generator's policy version moves without the manifest
+  // being regenerated, the bitset stops meaning what the Worker means and rows
+  // are submitted that render `noindex, follow` for reasons no filter can see.
+  const gateScriptSource = readFileSync(resolve(root, "scripts/phase4-content-gate.mjs"), "utf8");
+  const gateScriptPolicyVersion = gateScriptSource.match(/^const POLICY_VERSION = "([^"]+)";$/mu)?.[1] || null;
+  if (gateScriptPolicyVersion && gateScriptPolicyVersion !== PHASE4_GATE_MANIFEST.policyVersion) {
+    findings.push(finding({
+      id: "publishing-manifest-has-drifted-from-its-generator",
+      checklistItem: "sitemap",
+      severity: SEVERITY.high,
+      summary: `phase4-publish-manifest.mjs was compiled under ${PHASE4_GATE_MANIFEST.policyVersion} while scripts/phase4-content-gate.mjs now declares ${gateScriptPolicyVersion}, so the checked-in bitset no longer states what the current validators decide.`,
+      evidence: {
+        manifestPolicyVersion: PHASE4_GATE_MANIFEST.policyVersion,
+        generatorPolicyVersion: gateScriptPolicyVersion,
+        note: "comparison/after-worker.js imports ../semantic-math.mjs rather than bundling it, so the deployed Worker evaluates today's validators against whatever vintage the bitset was compiled at. Run pnpm build:phase4-gate.",
+      },
+    }));
+  }
+
+  // (c) content_publish_gate itself. It is retained here as a named dead
+  // artefact rather than a comparison, because reading it as current state is
+  // what produced the invalid subtraction above.
+  const gateState = database.prepare("SELECT * FROM content_publish_gate_state WHERE gate_name = 'question-publish'").get() || null;
+  const gatePassed = gateState ? Number(gateState.gate_passed_count) : null;
+  if (gateState) {
+    findings.push(finding({
+      id: "content-publish-gate-is-a-dead-artefact",
+      checklistItem: "sitemap",
+      severity: SEVERITY.low,
+      summary: `content_publish_gate still holds ${gatePassed?.toLocaleString("en-IN")} rows under policy ${gateState.policy_version}, three generations behind ${PHASE4_GATE_MANIFEST.policyVersion}, and no build or request path reads it.`,
+      evidence: {
+        publishGatePassed: gatePassed,
+        publishGatePolicyVersion: gateState.policy_version,
+        currentPolicyVersion: PHASE4_GATE_MANIFEST.policyVersion,
+        note: "Every row is gate_passed=1, so the table cannot express rejection. Its 150-word depth floor was deliberately retired - the manifest records completenessPolicy 'question-type-aware; no minimum word count'. Publishing decisions live in phase4-publish-manifest.mjs; this table should be dropped rather than reconciled.",
+      },
+    }));
+  }
+  const missingSubmittableHierarchy = [...universe.submittableHierarchy].filter((path) => !locations.has(path));
+  if (missingSubmittableHierarchy.length) {
     findings.push(finding({
       id: "hierarchy-pages-absent-from-sitemap",
       checklistItem: "sitemap",
       severity: SEVERITY.medium,
-      summary: `${missingHierarchy.toLocaleString("en-IN")} hierarchy or legal routes exist but are absent from the sitemaps.`,
+      summary: `${missingSubmittableHierarchy.length.toLocaleString("en-IN")} hierarchy or legal routes are canonical, indexable and non-empty, yet absent from the sitemaps.`,
       evidence: {
         corpusHierarchyRoutes: universe.hierarchy.size,
+        submittableHierarchyRoutes: universe.submittableHierarchy.size,
         sitemapHierarchyRoutes: hierarchyInSitemap,
-        examples: [...universe.hierarchy].filter((path) => !locations.has(path)).slice(0, 15),
+        examples: missingSubmittableHierarchy.slice(0, 15),
       },
     }));
   }
@@ -239,12 +357,24 @@ function auditSitemap(database, root, universe, corpusFile) {
       urlCount,
       missingLastmod,
       distinctLastmodValues: distinctLastmod.length,
+      // Stored so the frozen-lastmod finding is assertable without reading a
+      // date-shaped key that the fix itself renames.
+      dominantLastmod: dominant ? dominant[0] : null,
+      dominantLastmodUrlCount: dominant ? dominant[1] : 0,
       questionsInSitemap,
+      sitemapEligibleQuestions: universe.sitemapEligible.size,
+      sitemapSubmittedButNotIndexable: submittedButNotIndexable.length,
+      // Kept as a named metric because the summary string is not assertable, but
+      // read it as "sitemap minus what the site will index", not as the invalid
+      // sitemap-minus-content_publish_gate subtraction it replaces.
+      sitemapMinusPublishGate,
       hierarchyInSitemap,
       streamRoutesInSitemap: [...locations].filter((path) => path.includes("/streams/")).length,
       urlsNotInRouteUniverse: notInUniverse.length,
       streamSubjectMismatches: streamSubjectMismatches.length,
       publishGatePassed: gatePassed,
+      publishGatePolicyVersion: gateState ? gateState.policy_version : null,
+      publishingManifestPolicyVersion: PHASE4_GATE_MANIFEST.policyVersion,
       unreadableSitemaps: unreadable,
     },
     findings,

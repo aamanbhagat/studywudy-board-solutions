@@ -5,6 +5,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { CORPUS_QUALITY_MANIFEST } from "../corpus-quality-manifest.mjs";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 2) args.set(process.argv[index], process.argv[index + 1]);
@@ -212,13 +213,20 @@ const sitemapAudit = {
   lastmods: [...new Set(childUrls.map((child) => child.lastmod))],
 };
 // Phase 5 adds Privacy, Terms and Contact to the previously verified hierarchy.
-const expectedHierarchyUrls = 7188;
+// 7,184 rather than 7,188 since the builder stopped submitting the four
+// full-depth stream routes whose subject the stream taxonomy does not list, and
+// which the generated stream navigation therefore never links to.
+const expectedHierarchyUrls = 7184;
 const QUESTION_SITEMAP_BLOCK_SIZE = 10_000;
 const expectedQuestionChildren = Math.ceil(PHASE4_GATE_MANIFEST.maximumRowId / QUESTION_SITEMAP_BLOCK_SIZE);
 sitemapAudit.pass = indexResponse.ok
   && childUrls.length === 2 + expectedQuestionChildren
   && childResults.every((child) => child.pass)
-  && sitemapUrlTotal === expectedHierarchyUrls + PHASE4_GATE_MANIFEST.indexableCount + 1;
+  // Question sitemaps carry the publishing manifest minus the corpus-quality
+  // vetoes the Worker also applies at render time, so the expected total is the
+  // corpus-quality manifest's `sitemapIndexableCount`, not `indexableCount`.
+  // The trailing 1 is the source-verified pilot URL.
+  && sitemapUrlTotal === expectedHierarchyUrls + Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount) + 1;
 
 const homeHtml = (await fetchText("/")).text;
 const subjectHtml = (await fetchText("/cbse/class-12/mathematics")).text;

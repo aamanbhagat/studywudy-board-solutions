@@ -166,6 +166,7 @@ import {
 } from "../corpus-quality.mjs";
 import {
   CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+  CORPUS_QUALITY_MANIFEST,
 } from "../corpus-quality-manifest.mjs";
 import {
   PUBLIC_HTML_CACHE_CONTROL,
@@ -2591,7 +2592,11 @@ function withTransformableHeaders(response, cacheControl = null) {
 function completenessPolicyHeaders(response, url) {
   if (!(url.pathname === "/sitemap.xml" || url.pathname.startsWith("/sitemaps/"))) return response;
   const headers = new Headers(response.headers);
-  headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${PHASE4_GATE_MANIFEST.indexableCount}; source-verified-pilot=1`);
+  // This header describes the sitemaps it is stamped on, so it reports the count
+  // those files actually carry — the publishing manifest minus the corpus-quality
+  // vetoes this Worker also applies at render time. Reporting the bare manifest
+  // count here overstated the submitted set by 216 URLs.
+  headers.set("X-StudyWudy-Publish-Gate", `${PHASE4_GATE_MANIFEST.policyVersion}; indexable=${CORPUS_QUALITY_MANIFEST.sitemapIndexableCount}; source-verified-pilot=1`);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

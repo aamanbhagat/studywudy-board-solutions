@@ -1,4 +1,5 @@
 import { PHASE4_GATE_MANIFEST } from "./phase4-publish-manifest.mjs";
+import { CORPUS_QUALITY_MANIFEST } from "./corpus-quality-manifest.mjs";
 import {
   MANUAL_REVIEWER_PROFILES,
   QUESTION_CORRECTIONS,
@@ -167,6 +168,11 @@ function privacyPage(request) {
 function methodologyPage(request) {
   const indexed = Number(PHASE4_GATE_MANIFEST.indexableCount || 0).toLocaleString("en-IN");
   const corpus = Number(PHASE4_GATE_MANIFEST.corpusCount || 0).toLocaleString("en-IN");
+  // Passing the publishing gate and being submitted for indexing are two
+  // different claims: a smaller set clears the separate source-quality review as
+  // well. Printing only the first number told readers that every gate-passed
+  // page is sitemap-listed, which is not what the sitemaps carry.
+  const submitted = Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount || 0).toLocaleString("en-IN");
   return legalPage({
     request,
     path: "/about/methodology",
@@ -178,7 +184,7 @@ function methodologyPage(request) {
     schemaType: "AboutPage",
     modifiedAt: METHODOLOGY_UPDATED_AT,
     body: `<p class="phase5-muted">Methodology last updated: 23 August 2026</p>
-      <section class="phase5-note"><strong>${indexed} of ${corpus} question pages currently satisfy the question-type-aware publishing gate.</strong><p>Pages that do not satisfy it remain available to students through their chapter context, but are excluded from question sitemaps and receive <code>noindex, follow</code> until the missing answer elements are corrected.</p></section>
+      <section class="phase5-note"><strong>${indexed} of ${corpus} question pages currently satisfy the question-type-aware publishing gate, and ${submitted} of those are also submitted in question sitemaps.</strong><p>Pages that do not satisfy it remain available to students through their chapter context, but are excluded from question sitemaps and receive <code>noindex, follow</code> until the missing answer elements are corrected. The remainder of the gap is a smaller set of pages held back by a separate source-quality review, which are served the same way.</p></section>
       <h2>No universal word-count rule</h2>
       <p>Word counts are retained only as editorial diagnostics. A page is not indexed merely because it contains 150 words, and a naturally concise solution is not suppressed merely because it contains fewer. This follows Google Search Central’s people-first guidance, which explicitly says Google has no preferred word count and instead asks whether readers leave with a satisfying, complete answer.</p>
       <div class="phase5-policy-grid">

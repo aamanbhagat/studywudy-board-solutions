@@ -5,8 +5,13 @@ import { gzipSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
+import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS, CORPUS_QUALITY_MANIFEST } from "../corpus-quality-manifest.mjs";
 import { isBookQuarantined } from "../multilingual-text-quality.mjs";
-import { isQuestionPubliclyEligible } from "../public-question-eligibility.mjs";
+import {
+  PUBLIC_QUESTION_SITEMAP_ELIGIBILITY_POLICY_VERSION,
+  questionSitemapEligibility,
+} from "../public-question-eligibility.mjs";
+import { streamsFor, subjectsFor } from "../comparison/stream-taxonomy.js";
 import { STUDY_CLUSTER_INDEXABLE_PATHS } from "../study-cluster.mjs";
 import { TRUST_POLICY_UPDATED_AT, TRUST_TRANSPARENCY_PATHS } from "../trust-transparency.mjs";
 
@@ -63,6 +68,20 @@ function streamPathsFromWorker() {
   return JSON.parse(match[1]);
 }
 
+// The full-depth stream route resolves whether or not the taxonomy lists that
+// subject under that stream, but the stream navigation is generated from the
+// taxonomy, so a pair the taxonomy does not know is unreachable by clicking.
+// Submitting an unlinkable URL is the orphan pattern in its smallest form, so
+// the taxonomy decides what is submitted and the route stays reachable directly.
+function streamPathMatchesTaxonomy(pathname) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 4 || segments[2] !== "streams") return true;
+  const [board, grade, , streamId] = segments;
+  if (!streamsFor(board, grade).some((stream) => stream.id === streamId)) return true;
+  if (segments.length < 6) return true;
+  return subjectsFor(board, grade, streamId).includes(segments[5]);
+}
+
 mkdirSync(outputDirectory, { recursive: true });
 const database = new DatabaseSync(databasePath, { readOnly: true });
 const count = Number(database.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
@@ -71,6 +90,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   origin,
   policyVersion: PHASE4_GATE_MANIFEST.policyVersion,
+  sitemapEligibilityPolicyVersion: PUBLIC_QUESTION_SITEMAP_ELIGIBILITY_POLICY_VERSION,
   catalogQuestionCount: count,
   expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
   blockSize,
@@ -93,7 +113,12 @@ const record = (pathname, ...values) => {
   const timestamp = Math.max(contentPublishedEpoch, ...values.map(epoch));
   timestamps.set(pathname, Math.max(timestamps.get(pathname) || 0, timestamp));
 };
-for (const pathname of streamPathsFromWorker()) record(pathname, contentPublishedEpoch);
+const streamPaths = streamPathsFromWorker();
+const streamPathsOutsideTaxonomy = streamPaths.filter((pathname) => !streamPathMatchesTaxonomy(pathname));
+for (const pathname of streamPaths) {
+  if (!streamPathMatchesTaxonomy(pathname)) continue;
+  record(pathname, contentPublishedEpoch);
+}
 for (const pathname of STUDY_CLUSTER_INDEXABLE_PATHS) record(pathname, methodologyEpoch);
 for (const pathname of TRUST_TRANSPARENCY_PATHS) record(pathname, trustPolicyEpoch);
 for (const row of hierarchyRows) {
@@ -119,10 +144,22 @@ const questionStatement = database.prepare(`SELECT q.row_id, q.book_id, q.chapte
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`);
+// Counted separately from the manifest-ineligible rows, which outnumber it a
+// thousand to one: a single "excluded" counter would absorb ~204,000 rows the
+// gate already rejected and say nothing about the rows this filter exists for.
+let corpusQualityExcluded = 0;
 for (let cursor = 1; cursor <= count; cursor += blockSize) {
   const rows = questionStatement.all(cursor, cursor + blockSize)
-    .filter((row) => !isBookQuarantined(row.book_id)
-      && isQuestionPubliclyEligible(PHASE4_GATE_MANIFEST, Number(row.row_id)));
+    .filter((row) => {
+      if (isBookQuarantined(row.book_id)) return false;
+      const verdict = questionSitemapEligibility(PHASE4_GATE_MANIFEST, {
+        rowId: Number(row.row_id),
+        questionId: row.question_id,
+        duplicateRowIds: CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS,
+      });
+      if (verdict.pageEligible && !verdict.corpusQualityClear) corpusQualityExcluded += 1;
+      return verdict.eligible;
+    });
   if (!rows.length) continue;
   const entries = rows.map((row) => urlEntry(`/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`, Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
   const name = `questions-${cursor}.xml.gz`;
@@ -147,6 +184,9 @@ report.children.push({
 const indexBody = children.map((child) => `  <sitemap><loc>${xmlEscape(`${origin}${child.pathname}`)}</loc><lastmod>${lastmod(child.updatedAt)}</lastmod></sitemap>`).join("\n");
 writeFileSync(resolve(outputDirectory, "..", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${indexBody}\n</sitemapindex>\n`);
 writeFileSync(resolve(outputDirectory, "..", "robots.txt"), `User-Agent: *\nAllow: /\nDisallow: /api/\n\nHost: ${origin}\nSitemap: ${origin}/sitemap.xml\n`);
+report.corpusQualityExcluded = corpusQualityExcluded;
+report.streamPathsOutsideTaxonomy = streamPathsOutsideTaxonomy;
+report.expectedSitemapQuestionCount = Number(PHASE4_GATE_MANIFEST.indexableCount) - corpusQualityExcluded;
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
 const questionUrlCount = report.children
@@ -155,14 +195,27 @@ const questionUrlCount = report.children
 const priorityQuestionPilotUrlCount = report.children
   .filter((child) => child.kind === "source-verified-pilot-question")
   .reduce((sum, child) => sum + child.urlCount, 0);
+const expectedSitemapQuestionCount = Number(PHASE4_GATE_MANIFEST.indexableCount) - corpusQualityExcluded;
+// `corpus-quality-gate.mjs` derives the same figure from the catalog rather than
+// from this loop, and `build:phase4-gate` now runs it first. Two independent
+// derivations agreeing is the check; one of them alone is just an echo.
+const corpusQualityManifestAgrees = CORPUS_QUALITY_MANIFEST.publishManifestPolicyVersion === PHASE4_GATE_MANIFEST.policyVersion
+  && Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount) === expectedSitemapQuestionCount;
 console.log(JSON.stringify({
   catalogQuestionCount: count,
   expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
+  corpusQualityExcluded,
+  expectedSitemapQuestionCount,
+  corpusQualityManifestSitemapIndexableCount: Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount),
+  corpusQualityManifestAgrees,
   hierarchyUrlCount: hierarchy.urlCount,
   questionChildCount: report.children.length - 1,
   questionUrlCount,
   priorityQuestionPilotUrlCount,
-  pass: questionUrlCount === Number(PHASE4_GATE_MANIFEST.indexableCount)
+  pass: questionUrlCount === expectedSitemapQuestionCount
+    && corpusQualityManifestAgrees
     && priorityQuestionPilotUrlCount === 1,
 }, null, 2));
-if (questionUrlCount !== Number(PHASE4_GATE_MANIFEST.indexableCount) || priorityQuestionPilotUrlCount !== 1) process.exitCode = 1;
+if (questionUrlCount !== expectedSitemapQuestionCount
+  || !corpusQualityManifestAgrees
+  || priorityQuestionPilotUrlCount !== 1) process.exitCode = 1;
