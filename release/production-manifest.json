@@ -87465,8 +87465,8 @@
     },
     {
       "path": "comparison/after-worker.js",
-      "bytes": 217738,
-      "sha256": "1a5c28cb7beb3c69caaeee0e927fe6d91856f5a7ba0579cc6fa9919d19126a8e"
+      "bytes": 218085,
+      "sha256": "d73c0fa16c5505ec2d8a22615c2f9b216af1fed954f5e45927764f06fc5d924d"
     },
     {
       "path": "comparison/catalog-artwork-inline.mjs",
@@ -87520,8 +87520,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 11650,
-      "sha256": "7a20ae9b58e0027b9ab2e5e9917f38678be4887b071d76ea192840f9c8f30166"
+      "bytes": 12079,
+      "sha256": "8e856a496bff05c183583db14c417ab9acd6646999a5a3468401719a929d9388"
     },
     {
       "path": "phase3-question-seo-manifest.mjs",
@@ -87709,5 +87709,5 @@
       "sha256": "ccd1d0b291fcf3ac88b60dd3ad9d402461526d5e07b097decde5224b8af83fc6"
     }
   ],
-  "aggregateSha256": "c5eb1d83f3a27a8a448d8e3f8ef0c6829877c0cea3d83055334e6193f1971a52"
+  "aggregateSha256": "d95ef16b410ccdd613ff2bc603fa846652561aa49add49b65388ad0bd8ee8bd8"
 }

@@ -20,17 +20,16 @@ import {
 } from "../technical-seo.mjs";
 
 const ASSETS = "comparison/after-assets";
-// The constant is a floor, not a hardcode: the builder threads real per-row
-// timestamps through epoch()/lastmod() and only falls back to this value when
-// they are null. Every catalog_questions.updated_at, catalog_chapters.updated_at
-// and catalog_books.updated_at in this corpus is null, which is why the floor is
-// what every URL ends up carrying. Listing all four sites so the fix is not
-// mistaken for a one-line constant change.
+// This finding used to read as a hardcode in the generator. It is not one any
+// more, and the audit must not keep saying it is: every lastmod now comes from
+// catalog_content_revisions, and the builder fails the build on a URL with no
+// row rather than falling back to a constant. What remains is a fact about the
+// corpus, not the code - the log holds exactly one revision per entity because
+// no page has been rewritten since publication.
 const FROZEN_LASTMOD_SOURCES = [
-  "scripts/phase3-build-static-sitemaps.mjs:28 (the floor constant)",
-  "scripts/phase3-build-static-sitemaps.mjs:42 (epoch() null fallback)",
-  "scripts/phase3-build-static-sitemaps.mjs:48 (lastmod() clamp)",
-  "scripts/phase3-build-static-sitemaps.mjs:98 (hierarchy clamp)",
+  "catalog_content_revisions (one revision per entity; the log is the sole lastmod source)",
+  "scripts/phase3-content-revisions.mjs (writes the log; --check reports insertCount 0 while content is unchanged)",
+  "scripts/phase3-build-static-sitemaps.mjs revisionEpoch() (reads it; fails closed on a miss)",
   "worker.js:99311 (legacy bundle, not the deployed entrypoint)",
 ];
 
@@ -230,12 +229,12 @@ function auditSitemap(database, root, universe, corpusFile) {
       id: "sitemap-lastmod-is-frozen",
       checklistItem: "sitemap",
       severity: SEVERITY.medium,
-      summary: `${dominant[1].toLocaleString("en-IN")} of ${urlCount.toLocaleString("en-IN")} sitemap URLs (${((dominant[1] / urlCount) * 100).toFixed(1)}%) carry the same hardcoded lastmod ${dominant[0]}.`,
+      summary: `${dominant[1].toLocaleString("en-IN")} of ${urlCount.toLocaleString("en-IN")} sitemap URLs (${((dominant[1] / urlCount) * 100).toFixed(1)}%) share the lastmod ${dominant[0]}, because no page has changed since publication.`,
       evidence: {
-        hardcodedAt: FROZEN_LASTMOD_SOURCES,
+        lastmodSources: FROZEN_LASTMOD_SOURCES,
         distinctLastmodValues: distinctLastmod.length,
         distribution: Object.fromEntries(distinctLastmod.slice(0, 6)),
-        note: "Root cause is missing data, not a bad generator: catalog_questions, catalog_chapters and catalog_books each have zero non-null updated_at across 299,458 / 7,715 / 606 rows, and PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt is 0, so every row falls through to the floor. The generator already threads MAX(question, chapter, book) per URL. No code change can move this metric while the corpus has no modification times; closing it needs a content revision log plus content that actually changes. The runtime audits assert only that lastmodCount === urlCount, never that the value tracks content changes.",
+        note: "Open by design, not by defect. The generator no longer carries a floor constant: catalog_content_revisions supplies every lastmod, and phase3-build-static-sitemaps.mjs exits 1 on a URL with no revision row instead of substituting a date. The log currently holds one revision per entity, so one date is the honest answer - catalog_questions, catalog_chapters and catalog_books have zero non-null updated_at across 299,458 / 7,715 / 606 rows, and PHASE4_GATE_MANIFEST.catalogMaxUpdatedAt is 0. Making this metric move without content changing would mean fabricating modification times, which is the pattern Google discounts. It closes when the content pipeline rewrites pages, and the log is seeded now so those rewrites carry real dates instead of silently reusing this one.",
       },
     }));
   }

@@ -195,6 +195,11 @@ const PRIORITY_QUESTION_SOURCE_REVIEW = Object.freeze({
   questionPages: "Textbook page 16 · PDF page 26",
   conceptPages: "Textbook pages 6–8 · PDF pages 16–18",
   reviewedOn: "24 August 2026",
+  // The same instant as reviewedOn, in the form <lastmod> needs. The pilot
+  // sitemap used to carry this date as a bare literal in its XML template while
+  // scripts/phase3-build-static-sitemaps.mjs carried a second literal of the
+  // same instant; both now read this one field.
+  reviewedAt: "2026-08-23T18:30:00Z",
   distractorReasoning: Object.freeze([
     Object.freeze({
       choiceId: "B",
@@ -3647,7 +3652,7 @@ function crawlableRobotsResponse(request, url) {
 function priorityQuestionPilotSitemapResponse(request, url) {
   if (!["GET", "HEAD"].includes(request.method) || url.pathname !== "/sitemaps/priority-question-pilot.xml") return null;
   const canonical = new URL(PRIORITY_QUESTION_PILOT_PATH, `${new URL(publicDocumentUrl(url)).origin}/`).toString();
-  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${escapeHtmlAttribute(canonical)}</loc><lastmod>2026-08-23T18:30:00Z</lastmod></url>\n</urlset>\n`;
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${escapeHtmlAttribute(canonical)}</loc><lastmod>${PRIORITY_QUESTION_SOURCE_REVIEW.reviewedAt}</lastmod></url>\n</urlset>\n`;
   return new Response(request.method === "HEAD" ? null : body, {
     status: 200,
     headers: {

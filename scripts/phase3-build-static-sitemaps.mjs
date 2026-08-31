@@ -2,7 +2,7 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PHASE4_GATE_MANIFEST } from "../phase4-publish-manifest.mjs";
 import { CORPUS_QUALITY_DUPLICATE_CHOICE_ROW_IDS, CORPUS_QUALITY_MANIFEST } from "../corpus-quality-manifest.mjs";
@@ -11,9 +11,14 @@ import {
   PUBLIC_QUESTION_SITEMAP_ELIGIBILITY_POLICY_VERSION,
   questionSitemapEligibility,
 } from "../public-question-eligibility.mjs";
-import { streamsFor, subjectsFor } from "../comparison/stream-taxonomy.js";
 import { STUDY_CLUSTER_INDEXABLE_PATHS } from "../study-cluster.mjs";
-import { TRUST_POLICY_UPDATED_AT, TRUST_TRANSPARENCY_PATHS } from "../trust-transparency.mjs";
+import { TRUST_TRANSPARENCY_PATHS } from "../trust-transparency.mjs";
+import { CONTENT_PUBLISHED_AT, contentRevisionEpochs } from "../content-revisions.mjs";
+import {
+  priorityQuestionPilotReviewedAt,
+  streamPathMatchesTaxonomy,
+  streamPathsFromWorker,
+} from "./sitemap-route-sources.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const databasePath = resolve(root, process.argv[2] || "../data/d1/studywudy-content.sqlite3");
@@ -26,31 +31,38 @@ const origin = (() => {
   return parsed.origin;
 })();
 const blockSize = 10_000;
-const contentPublishedAt = "2026-08-15T03:30:10Z";
-const contentPublishedEpoch = Math.floor(Date.parse(contentPublishedAt) / 1_000);
-const methodologyEpoch = Number(PHASE4_GATE_MANIFEST.reviewedAt);
-const policyEpoch = Math.floor(Date.parse("2026-08-18T00:00:00+05:30") / 1_000);
-const trustPolicyEpoch = Math.floor(Date.parse(TRUST_POLICY_UPDATED_AT) / 1_000);
+const contentPublishedEpoch = Math.floor(Date.parse(CONTENT_PUBLISHED_AT) / 1_000);
 const priorityQuestionPilotPath = "/maharashtra-board/class-12/biology/balbharati-biology-standard-12/reproduction-in-lower-and-higher-plants/questions/q-msb-balbharati-biology-standard-12-1-001";
-const priorityQuestionPilotUpdatedAt = Math.floor(Date.parse("2026-08-24T00:00:00+05:30") / 1_000);
 
 function xmlEscape(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
 }
 
-function epoch(value) {
-  const numeric = Number(value || 0);
-  if (!Number.isFinite(numeric) || numeric <= 0) return contentPublishedEpoch;
-  return numeric > 1e12 ? Math.floor(numeric / 1_000) : Math.floor(numeric);
+function lastmod(epochSeconds) {
+  return new Date(1_000 * epochSeconds).toISOString().replace(/\.000Z$/, "Z");
 }
 
-function lastmod(...values) {
-  return new Date(1_000 * Math.max(contentPublishedEpoch, ...values.map(epoch)))
-    .toISOString().replace(/\.000Z$/, "Z");
-}
+// Every lastmod now comes from catalog_content_revisions, which records the
+// first build at which a page's rendered content took its current form. The
+// previous shape - MAX(q.updated_at, c.updated_at, b.updated_at) clamped up to a
+// published-at floor - could not do better than the floor, because every one of
+// those columns is null on every row in this corpus. A URL with no revision row
+// is a build failure rather than a silent fallback: falling back is what made
+// one date cover 104,703 URLs and read like a working generator.
+//
+// A Set rather than a counter, because revisionEpoch runs twice for a question
+// URL - once for its <url> entry, once for its block's index lastmod - and a
+// counter would report every miss twice.
+const missingRevisions = new Set();
+const revisionEpoch = (pathname) => {
+  const value = revisions.get(pathname);
+  if (Number.isFinite(value) && value > 0) return value;
+  missingRevisions.add(pathname);
+  return contentPublishedEpoch;
+};
 
-function urlEntry(pathname, updatedAt) {
+function urlEntry(pathname, updatedAt = revisionEpoch(pathname)) {
   return `  <url><loc>${xmlEscape(new URL(pathname, `${origin}/`).toString())}</loc><lastmod>${lastmod(updatedAt)}</lastmod></url>`;
 }
 
@@ -61,29 +73,9 @@ function writeGzip(name, entries) {
   return { compressedBytes: compressed.byteLength, uncompressedBytes: Buffer.byteLength(xml), urlCount: entries.length };
 }
 
-function streamPathsFromWorker() {
-  const worker = readFileSync(resolve(root, "worker.js"), "utf8");
-  const match = worker.match(/var PHASE3_STREAM_PATHS = (\[[\s\S]*?\n\]);/);
-  if (!match) throw new Error("PHASE3_STREAM_PATHS was not found in worker.js");
-  return JSON.parse(match[1]);
-}
-
-// The full-depth stream route resolves whether or not the taxonomy lists that
-// subject under that stream, but the stream navigation is generated from the
-// taxonomy, so a pair the taxonomy does not know is unreachable by clicking.
-// Submitting an unlinkable URL is the orphan pattern in its smallest form, so
-// the taxonomy decides what is submitted and the route stays reachable directly.
-function streamPathMatchesTaxonomy(pathname) {
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 4 || segments[2] !== "streams") return true;
-  const [board, grade, , streamId] = segments;
-  if (!streamsFor(board, grade).some((stream) => stream.id === streamId)) return true;
-  if (segments.length < 6) return true;
-  return subjectsFor(board, grade, streamId).includes(segments[5]);
-}
-
 mkdirSync(outputDirectory, { recursive: true });
 const database = new DatabaseSync(databasePath, { readOnly: true });
+const revisions = contentRevisionEpochs(database);
 const count = Number(database.prepare("SELECT COUNT(*) AS count FROM catalog_questions").get().count);
 const children = [];
 const report = {
@@ -97,50 +89,51 @@ const report = {
   children: [],
 };
 
+// The LEFT JOIN onto catalog_questions this query used to carry existed only to
+// compute MAX(q.updated_at), a column that is null on all 299,458 rows. Dropping
+// it leaves the row order byte-identical (verified against the joined form) and
+// takes the query from 82 ms to 10 ms.
 const hierarchyRows = database.prepare(`SELECT b.id AS book_id, b.board_slug, b.grade_slug, b.subject_slug,
-  b.slug AS book_slug, b.updated_at AS book_updated_at, c.slug AS chapter_slug,
-  c.updated_at AS chapter_updated_at, c.question_count, MAX(q.updated_at) AS question_updated_at
+  b.slug AS book_slug, c.slug AS chapter_slug
   FROM catalog_chapters c JOIN catalog_books b ON b.id = c.book_id
-  LEFT JOIN catalog_questions q ON q.book_id = c.book_id AND q.chapter_slug = c.slug
-  GROUP BY c.id ORDER BY b.board_slug, b.grade_slug, b.subject_slug, b.slug, c.position`).all()
+  ORDER BY b.board_slug, b.grade_slug, b.subject_slug, b.slug, c.position`).all()
   .filter((row) => !isBookQuarantined(row.book_id));
-const timestamps = new Map([
-  ["/", contentPublishedEpoch], ["/boards", contentPublishedEpoch],
-  ["/about/methodology", methodologyEpoch], ["/privacy", policyEpoch],
-  ["/terms", policyEpoch], ["/contact", policyEpoch],
-]);
-const record = (pathname, ...values) => {
-  const timestamp = Math.max(contentPublishedEpoch, ...values.map(epoch));
-  timestamps.set(pathname, Math.max(timestamps.get(pathname) || 0, timestamp));
+// Insertion order is the emitted URL order, so it is load-bearing: statics,
+// streams, cluster, trust, then board -> grade -> subject -> book -> chapter as
+// the hierarchy query returns them. Set-once rather than the old max-merge - an
+// entity's revision epoch already describes that entity, and rolling a chapter
+// edit up into its board page was the part of the old shape that claimed more
+// than it knew.
+const timestamps = new Map();
+const record = (pathname) => {
+  if (!timestamps.has(pathname)) timestamps.set(pathname, revisionEpoch(pathname));
 };
-const streamPaths = streamPathsFromWorker();
+for (const pathname of ["/", "/boards", "/about/methodology", "/privacy", "/terms", "/contact"]) record(pathname);
+const streamPaths = streamPathsFromWorker(root);
 const streamPathsOutsideTaxonomy = streamPaths.filter((pathname) => !streamPathMatchesTaxonomy(pathname));
 for (const pathname of streamPaths) {
   if (!streamPathMatchesTaxonomy(pathname)) continue;
-  record(pathname, contentPublishedEpoch);
+  record(pathname);
 }
-for (const pathname of STUDY_CLUSTER_INDEXABLE_PATHS) record(pathname, methodologyEpoch);
-for (const pathname of TRUST_TRANSPARENCY_PATHS) record(pathname, trustPolicyEpoch);
+for (const pathname of STUDY_CLUSTER_INDEXABLE_PATHS) record(pathname);
+for (const pathname of TRUST_TRANSPARENCY_PATHS) record(pathname);
 for (const row of hierarchyRows) {
   const board = `/${row.board_slug}`;
   const grade = `${board}/${row.grade_slug}`;
   const subject = `${grade}/${row.subject_slug}`;
   const book = `${subject}/${row.book_slug}`;
-  const chapter = `${book}/${row.chapter_slug}`;
-  const descendantsUpdated = Math.max(epoch(row.book_updated_at), epoch(row.chapter_updated_at), epoch(row.question_updated_at));
-  record(board, descendantsUpdated);
-  record(grade, descendantsUpdated);
-  record(subject, descendantsUpdated);
-  record(book, descendantsUpdated);
-  record(chapter, row.book_updated_at, row.chapter_updated_at, row.question_updated_at);
+  record(board);
+  record(grade);
+  record(subject);
+  record(book);
+  record(`${book}/${row.chapter_slug}`);
 }
 const hierarchy = writeGzip("hierarchy.xml.gz", [...timestamps].map(([pathname, timestamp]) => urlEntry(pathname, timestamp)));
 children.push({ pathname: "/sitemaps/hierarchy.xml.gz", updatedAt: Math.max(...timestamps.values()) });
 report.children.push({ kind: "hierarchy", pathname: "/sitemaps/hierarchy.xml.gz", ...hierarchy });
 
 const questionStatement = database.prepare(`SELECT q.row_id, q.book_id, q.chapter_slug, q.question_id,
-  q.updated_at AS question_updated_at, b.board_slug, b.grade_slug, b.subject_slug,
-  b.slug AS book_slug, b.updated_at AS book_updated_at, c.updated_at AS chapter_updated_at
+  b.board_slug, b.grade_slug, b.subject_slug, b.slug AS book_slug
   FROM catalog_questions q JOIN catalog_books b ON b.id = q.book_id
   JOIN catalog_chapters c ON c.book_id = q.book_id AND c.slug = q.chapter_slug
   WHERE q.row_id >= ? AND q.row_id < ? ORDER BY q.row_id`);
@@ -161,15 +154,21 @@ for (let cursor = 1; cursor <= count; cursor += blockSize) {
       return verdict.eligible;
     });
   if (!rows.length) continue;
-  const entries = rows.map((row) => urlEntry(`/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`, Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
+  const paths = rows.map((row) => `/${row.board_slug}/${row.grade_slug}/${row.subject_slug}/${row.book_slug}/${row.chapter_slug}/questions/${row.question_id}`);
   const name = `questions-${cursor}.xml.gz`;
-  const child = writeGzip(name, entries);
-  const updatedAt = Math.max(...rows.map((row) => Math.max(epoch(row.question_updated_at), epoch(row.chapter_updated_at), epoch(row.book_updated_at))));
-  children.push({ pathname: `/sitemaps/${name}`, updatedAt });
+  const child = writeGzip(name, paths.map((pathname) => urlEntry(pathname)));
+  // The index entry is the newest URL in the block, so a block containing one
+  // rewritten answer moves without pretending its other 9,999 URLs changed.
+  children.push({ pathname: `/sitemaps/${name}`, updatedAt: Math.max(...paths.map(revisionEpoch)) });
   report.children.push({ kind: "question", pathname: `/sitemaps/${name}`, ...child });
 }
 
+// The one URL whose lastmod is a review date rather than a content hash: the
+// pilot is published on the strength of a human source check, so when that
+// check happened is what changed about it. Read from the Worker, which serves
+// this path itself under run_worker_first and so owns the value.
 const priorityQuestionPilotName = "priority-question-pilot.xml";
+const priorityQuestionPilotUpdatedAt = priorityQuestionPilotReviewedAt(root);
 const priorityQuestionPilotXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntry(priorityQuestionPilotPath, priorityQuestionPilotUpdatedAt)}\n</urlset>\n`;
 writeFileSync(resolve(outputDirectory, priorityQuestionPilotName), priorityQuestionPilotXml);
 children.push({ pathname: `/sitemaps/${priorityQuestionPilotName}`, updatedAt: priorityQuestionPilotUpdatedAt });
@@ -187,6 +186,15 @@ writeFileSync(resolve(outputDirectory, "..", "robots.txt"), `User-Agent: *\nAllo
 report.corpusQualityExcluded = corpusQualityExcluded;
 report.streamPathsOutsideTaxonomy = streamPathsOutsideTaxonomy;
 report.expectedSitemapQuestionCount = Number(PHASE4_GATE_MANIFEST.indexableCount) - corpusQualityExcluded;
+report.revisionRowCount = revisions.size;
+report.missingRevisionCount = missingRevisions.size;
+report.missingRevisionExamples = [...missingRevisions].slice(0, 25);
+const lastmodDistribution = {};
+for (const timestamp of timestamps.values()) {
+  const value = lastmod(timestamp);
+  lastmodDistribution[value] = (lastmodDistribution[value] || 0) + 1;
+}
+report.hierarchyLastmodDistribution = lastmodDistribution;
 writeFileSync(resolve(root, "audits/phase-3/static-sitemap-build.json"), `${JSON.stringify(report, null, 2)}\n`);
 database.close();
 const questionUrlCount = report.children
@@ -201,6 +209,11 @@ const expectedSitemapQuestionCount = Number(PHASE4_GATE_MANIFEST.indexableCount)
 // derivations agreeing is the check; one of them alone is just an echo.
 const corpusQualityManifestAgrees = CORPUS_QUALITY_MANIFEST.publishManifestPolicyVersion === PHASE4_GATE_MANIFEST.policyVersion
   && Number(CORPUS_QUALITY_MANIFEST.sitemapIndexableCount) === expectedSitemapQuestionCount;
+// Fail closed on a URL with no revision row. The silent fallback is what this
+// change exists to remove: a missing row means the log and the sitemap disagree
+// about which pages exist, and the honest answer to "when did this change" is
+// then unknown - not the publication date.
+const revisionsComplete = missingRevisions.size === 0;
 console.log(JSON.stringify({
   catalogQuestionCount: count,
   expectedIndexableQuestionCount: Number(PHASE4_GATE_MANIFEST.indexableCount),
@@ -212,10 +225,20 @@ console.log(JSON.stringify({
   questionChildCount: report.children.length - 1,
   questionUrlCount,
   priorityQuestionPilotUrlCount,
+  revisionRowCount: revisions.size,
+  missingRevisionCount: missingRevisions.size,
+  missingRevisionExamples: report.missingRevisionExamples.slice(0, 5),
+  distinctLastmodValues: new Set([
+    ...Object.keys(lastmodDistribution),
+    ...children.map((child) => lastmod(child.updatedAt)),
+  ]).size,
+  revisionsComplete,
   pass: questionUrlCount === expectedSitemapQuestionCount
     && corpusQualityManifestAgrees
-    && priorityQuestionPilotUrlCount === 1,
+    && priorityQuestionPilotUrlCount === 1
+    && revisionsComplete,
 }, null, 2));
 if (questionUrlCount !== expectedSitemapQuestionCount
   || !corpusQualityManifestAgrees
-  || priorityQuestionPilotUrlCount !== 1) process.exitCode = 1;
+  || priorityQuestionPilotUrlCount !== 1
+  || !revisionsComplete) process.exitCode = 1;
